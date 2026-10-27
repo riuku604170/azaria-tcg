@@ -416,7 +416,7 @@ function startOnlineCombatAsHost(){
   scheduleBroadcast();
 }
 function initOnlineHost(){
-  var code = 'azaria-' + Math.random().toString(36).slice(2, 8).toUpperCase();
+  var code = 'azaria-' + Math.random().toString(36).slice(2, 8).toLowerCase();
   var ri = document.getElementById('onlineRoomInfo'), rc = document.getElementById('onlineRoomCode'), rs = document.getElementById('onlineRoomStatus');
   try { peerObj = new Peer(code); } catch (e) { if (rs) rs.textContent = 'Error: ' + e.message; return; }
   peerObj.on('open', function(id){ if (ri) ri.style.display = 'block'; if (rc) rc.textContent = id; if (rs) rs.textContent = 'Esperando oponente...'; });
