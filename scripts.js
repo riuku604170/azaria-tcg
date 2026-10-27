@@ -423,20 +423,29 @@ function initOnlineHost(){
   peerObj.on('connection', function(conn){
     peerConn = conn;
     if (rs) rs.textContent = 'Oponente conectado, esperando equipo...';
+    console.log('[HOST] Conexión entrante recibida');
+    conn.on('open', function(){
+      console.log('[HOST] Conexión abierta. Enviando ready...');
+      try { conn.send({ type:'ready' }); } catch(e) { console.error('[HOST] Error enviando ready:', e); }
+    });
+    var helloReceived = false;
     conn.on('data', function(data){
-      if (data.type === 'hello') {
+      console.log('[HOST] Data recibida:', data ? data.type : '(vacío)');
+      if (data.type === 'hello' && !helloReceived) {
+        helloReceived = true;
         pendingGuestTeam = data.team;
         pendingGuestDeck = data.deck;
+        console.log('[HOST] Hello recibido. Team:', data.team, 'Deck length:', (data.deck||[]).length);
         hideOnlineLobbyDialog();
-        startOnlineCombatAsHost();
+        try { startOnlineCombatAsHost(); } catch(e) { console.error('[HOST] Error iniciando combate:', e); if (rs) rs.textContent = 'Error al iniciar: ' + e.message; }
       } else if (data.type === 'action') {
         applyRemoteAction(data.action);
       }
     });
     conn.on('close', function(){ if (combatState) { logCombat('⚠️ Oponente desconectado'); showBanner('OPONENTE DESCONECTADO', 2000); } });
-    conn.on('error', function(err){ if (rs) rs.textContent = 'Error: ' + err.type; });
+    conn.on('error', function(err){ if (rs) rs.textContent = 'Error: ' + err.type; console.error('[HOST] Error conexión:', err); });
   });
-  peerObj.on('error', function(err){ if (rs) rs.textContent = 'Error: ' + err.type; playSound('error'); });
+  peerObj.on('error', function(err){ if (rs) rs.textContent = 'Error: ' + err.type; playSound('error'); console.error('[HOST] Error peer:', err); });
 }
 function initOnlineGuest(code){
   if (!code) return;
@@ -445,18 +454,40 @@ function initOnlineGuest(code){
   if (js) js.textContent = 'Conectando...';
   try { peerObj = new Peer(); } catch (e) { if (js) js.textContent = 'Error: ' + e.message; return; }
   peerObj.on('open', function(){
+    console.log('[GUEST] Peer abierto. Conectando a:', code);
     peerConn = peerObj.connect(code, { reliable:true });
+    var sent = false;
+    function sendHello(){
+      if (sent) return;
+      try {
+        peerConn.send({ type:'hello', team:team, deck:deck });
+        sent = true;
+        console.log('[GUEST] Hello enviado. Team:', team, 'Deck length:', deck.length);
+        if (js) js.textContent = 'Equipo enviado, esperando inicio...';
+      } catch(e) {
+        console.error('[GUEST] Error enviando hello:', e);
+      }
+    }
     peerConn.on('open', function(){
-      peerConn.send({ type:'hello', team:team, deck:deck });
-      if (js) js.textContent = 'Conectado, esperando al host...';
+      console.log('[GUEST] Conexión abierta');
+      if (js) js.textContent = 'Conectado, esperando confirmación del host...';
+      // Fallback: si por algún motivo el 'ready' del host no llega, enviamos el hello a los 800ms
+      setTimeout(sendHello, 800);
     });
     peerConn.on('data', function(data){
-      if (data.type === 'state') { hideOnlineLobbyDialog(); receiveFullState(data.state); }
+      console.log('[GUEST] Data recibida:', data ? data.type : '(vacío)');
+      if (data.type === 'ready') {
+        console.log('[GUEST] Ready recibido del host. Enviando hello...');
+        sendHello();
+      } else if (data.type === 'state') {
+        hideOnlineLobbyDialog();
+        receiveFullState(data.state);
+      }
     });
-    peerConn.on('close', function(){ if (combatState) { logCombat('⚠️ Host desconectado'); showBanner('HOST DESCONECTADO', 2000); } });
-    peerConn.on('error', function(err){ if (js) js.textContent = 'Error: ' + err.type; });
+    peerConn.on('close', function(){ if (combatState) { logCombat('⚠️ Host desconectado'); showBanner('HOST DESCONECTADO', 2000); } console.log('[GUEST] Conexión cerrada'); });
+    peerConn.on('error', function(err){ if (js) js.textContent = 'Error: ' + err.type; console.error('[GUEST] Error conexión:', err); });
   });
-  peerObj.on('error', function(err){ if (js) js.textContent = 'Error: ' + err.type; playSound('error'); });
+  peerObj.on('error', function(err){ if (js) js.textContent = 'Error: ' + err.type; playSound('error'); console.error('[GUEST] Error peer:', err); });
 }
 function showOnlineLobbyDialog(){
   initAudio();
