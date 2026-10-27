@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Azaria TCG — Card Battle</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<canvas id="stars"></canvas>
+
+<nav>
+  <div class="logo">AZARIA</div>
+  <ul>
+    <li><a href="#cartas">Colección</a></li>
+    <li><a href="#mazo">Mazo</a></li>
+    <li><a href="#respuestas">Respuestas</a></li>
+    <li><a href="#sistema">Sistema</a></li>
+    <li><a href="#simulador">Dados</a></li>
+    <li><a href="#consonancias">Consonancias</a></li>
+    <li><a href="#resonancias">Resonancias</a></li>
+    <li><a href="#calculadora">Calculadora</a></li>
+    <li><a href="#jugar">Jugar</a></li>
+  </ul>
+</nav>
+
+<header class="hero">
+  <span class="hero-eyebrow">Azaria TCG</span>
+  <h1>Siete Respuestas,<br>Un Solo Destino</h1>
+  <p>Un juego de cartas coleccionables y combate táctico por equipos. Descubre tu filosofía, reúne a tus personajes, construye tu mazo y domina la arena.</p>
+  <div class="hero-buttons">
+    <button class="btn" id="openCombatBtn">⚔️ Probar Combate 3v3</button>
+    <a href="#respuestas" class="btn btn-outline">Descubre las Respuestas</a>
+  </div>
+  <div class="scroll-hint">⌄</div>
+</header>
+
+<section class="content" id="cartas">
+  <h2 class="section-title reveal">Tu Colección</h2>
+  <p class="section-sub reveal"><strong style="color: var(--accent);">Haz clic en las cartas</strong> para añadirlas a tu equipo (máx. 3). Pulsa el botón <strong>i</strong> para ver el set completo de cada personaje.</p>
+
+  <div class="collection-controls reveal">
+    <div class="search-box"><input type="text" id="charSearch" placeholder="Buscar personaje..."></div>
+    <div class="result-counter" id="charCounter"><strong>12</strong> de 12</div>
+  </div>
+
+  <div class="filter-bar" id="charFilterBar"></div>
+
+  <div class="cards-grid" id="cardsGrid">
+
+    <div class="char-card reveal" data-el="redencion" data-character="alaya" title="Reminiscencia">
+      <div class="card-top"><span class="el-badge">🩸</span><span class="hp-badge">10</span></div>
+      <div class="portrait" data-fallback="🌹"><img src="img/alaya.png" alt="Alaya" class="portrait-img" style="opacity:0;" loading="lazy" onload="this.style.opacity=1;" onerror="this.style.display='none';"></div>
+      <div class="card-name">Alaya</div>
+      <div class="card-element">Redención</div>
+      <div class="card-bottom" title="Coste de su Habilidad Definitiva"><span class="ult-icon">💥</span><span class="cost">🩸 3</span><span class="cost">⚡ 3</span></div>
+    </div>
+
+    <div class="char-card reveal" data-el="comprension" data-character="oliver" title="Refinamiento">
+      <div class="card-top"><span class="el-badge">💡</span><span class="hp-badge">11</span></div>
+      <div class="portrait" data-fallback="🧠"><img src="img/oliver.png" alt="Óliver" class="portrait-img" style="opacity:0;" loading="lazy" onload="this.style.opacity=1;" onerror="this.style.display='none';"></div>
+      <div class="card-name">Óliver</div>
+      <div class="card-element">Comprensión</div>
+      <div class="card-bottom" title="Coste de su Habilidad Definitiva"><span class="ult-icon">💥</span><span class="cost">💡 4</span><span class="cost">⚡ 2</span></div>
+    </div>
+
+    <div class="char-card reveal" data-el="expresion" data-character="erik" title="Magia de Pintura">
+      <div class="card-top"><span class="el-badge">🌸</span><span class="hp-badge">10</span></div>
+      <div class="portrait" data-fallback="🎨"><img src="img/erik.png" alt="Erik" class="portrait-img" style="opacity:0;" loading="lazy" onload="this.style.opacity=1;" onerror="this.style.display='none';"></div>
+      <div class="card-name">Erik</div>
+      <div class="card-element">Expresión</div>
+      <div class="card-bottom" title="Coste de su Habilidad Definitiva"><span class="ult-icon">💥</span><span class="cost">🌸 3</span><span class="cost">⚡ 2</span></div>
+    </div>
+
+    <div class="char-card reveal" data-el="proteccion" data-character="tenshi" title="Égida">
+      <div class="card-top"><span class="el-badge">🛡️</span><span class="hp-badge">11</span></div>
+      <div class="portrait" data-fallback="⚔️"><img src="img/tenshi.png" alt="Tenshi" class="portrait-img" style="opacity:0;" loading="lazy" onload="this.style.opacity=1;" onerror="this.style.display='none';"></div>
+      <div class="card-name">Tenshi</div>
+      <div class="card-element">Protección</div>
+      <div class="card-bottom" title="Coste de su Habilidad Definitiva"><span class="ult-icon">💥</span><span class="cost">🛡️ 4</span><span class="cost">⚡ 3</span></div>
+    </div>
+
+    <div class="char-card reveal" data-el="comprension" data-character="eloy" title="Cognición">
+      <div class="card-top"><span class="el-badge">💡</span><span class="hp-badge">12</span></div>
+      <div class="portrait" data-fallback="📖"><img src="img/eloy.png" alt="Eloy" class="portrait-img" style="opacity:0;" loading="lazy" onload="this.style.opacity=1;" onerror="this.style.display='none';"></div>
+      <div class="card-name">Eloy</div>
+      <div class="card-element">Comprensión</div>
+      <div class="card-bottom" title="Coste de su Habilidad Definitiva"><span class="ult-icon">💥</span><span class="cost">💡 3</span><span class="cost">⚡ 3</span></div>
+    </div>
+
+    <div class="char-card reveal" data-el="proteccion" data-character="eevee" title="Instinto">
+      <div class="card-top"><span class="el-badge">🛡️</span><span class="hp-badge">10</span></div>
+      <div class="portrait" data-fallback="🦊"><img src="img/eevee.png" alt="Eevee" class="portrait-img" style="opacity:0;" loading="lazy" onload="this.style.opacity=1;" onerror="this.style.display='none';"></div>
+      <div class="card-name">Eevee</div>
+      <div class="card-element">Protección</div>
+      <div class="card-bottom" title="Coste de su Habilidad Definitiva"><span class="ult-icon">💥</span><span class="cost">🛡️ 3</span><span class="cost">⚡ 2</span></div>
+    </div>
+
+    <div class="char-card reveal" data-el="ilusion" data-character="ren" title="Distorsión">
+      <div class="card-top"><span class="el-badge">🎭</span><span class="hp-badge">10</span></div>
+      <div class="portrait" data-fallback="🌀"><img src="img/ren.png" alt="Ren" class="portrait-img" style="opacity:0;" loading="lazy" onload="this.style.opacity=1;" onerror="this.style.display='none';"></div>
+      <div class="card-name">Ren</div>
+      <div class="card-element">Ilusión</div>
+      <div class="card-bottom" title="Coste de su Habilidad Definitiva"><span class="ult-icon">💥</span><span class="cost">🎭 4</span><span class="cost">⚡ 3</span></div>
+    </div>
+
+    <div class="char-card reveal" data-el="proteccion" data-character="noah" title="Resonancia">
+      <div class="card-top"><span class="el-badge">🛡️</span><span class="hp-badge">12</span></div>
+      <div class="portrait" data-fallback="⚓"><img src="img/noah.png" alt="Noah" class="portrait-img" style="opacity:0;" loading="lazy" onload="this.style.opacity=1;" onerror="this.style.display='none';"></div>
+      <div class="card-name">Noah</div>
+      <div class="card-element">Protección</div>
+      <div class="card-bottom" title="Coste de su Habilidad Definitiva"><span class="ult-icon">💥</span><span class="cost">🛡️ 3</span><span class="cost">⚡ 3</span></div>
+    </div>
+
+    <div class="char-card reveal" data-el="redencion" data-character="abla" title="Venganza">
+      <div class="card-top"><span class="el-badge">🩸</span><span class="hp-badge">10</span></div>
+      <div class="portrait" data-fallback="🗡️"><img src="img/abla.png" alt="Abla" class="portrait-img" style="opacity:0;" loading="lazy" onload="this.style.opacity=1;" onerror="this.style.display='none';"></div>
+      <div class="card-name">Abla</div>
+      <div class="card-element">Redención</div>
+      <div class="card-bottom" title="Coste de su Habilidad Definitiva"><span class="ult-icon">💥</span><span class="cost">🩸 3</span><span class="cost">⚡ 3</span></div>
+    </div>
+
+    <div class="char-card reveal" data-el="redencion" data-character="manuel" title="Entropía">
+      <div class="card-top"><span class="el-badge">🩸</span><span class="hp-badge">11</span></div>
+      <div class="portrait" data-fallback="⚡"><img src="img/manuel.png" alt="Manuel" class="portrait-img" style="opacity:0;" loading="lazy" onload="this.style.opacity=1;" onerror="this.style.display='none';"></div>
+      <div class="card-name">Manuel</div>
+      <div class="card-element">Redención</div>
+      <div class="card-bottom" title="Coste de su Habilidad Definitiva"><span class="ult-icon">💥</span><span class="cost">🩸 3</span><span class="cost">⚡ 2</span></div>
+    </div>
+
+    <div class="char-card reveal" data-el="transformacion" data-character="jose" title="Inercia">
+      <div class="card-top"><span class="el-badge">🔥</span><span class="hp-badge">10</span></div>
+      <div class="portrait" data-fallback="🦋"><img src="img/jose.png" alt="Jose" class="portrait-img" style="opacity:0;" loading="lazy" onload="this.style.opacity=1;" onerror="this.style.display='none';"></div>
+      <div class="card-name">Jose</div>
+      <div class="card-element">Transformación</div>
+      <div class="card-bottom" title="Coste de su Habilidad Definitiva"><span class="ult-icon">💥</span><span class="cost">🔥 4</span><span class="cost">⚡ 2</span></div>
+    </div>
+
+    <div class="char-card reveal" data-el="expresion" data-character="josemi" title="Cosmogénesis">
+      <div class="card-top"><span class="el-badge">🌸</span><span class="hp-badge">10</span></div>
+      <div class="portrait" data-fallback="🎤"><img src="img/josemi.png" alt="Josemi" class="portrait-img" style="opacity:0;" loading="lazy" onload="this.style.opacity=1;" onerror="this.style.display='none';"></div>
+      <div class="card-name">Josemi</div>
+      <div class="card-element">Expresión</div>
+      <div class="card-bottom" title="Coste de su Habilidad Definitiva"><span class="ult-icon">💥</span><span class="cost">🌸 5</span><span class="cost">⚡ 2</span></div>
+    </div>
+
+  </div>
+
+  <div class="elements-legend reveal">
+    <div class="legend-item"><span class="dot" style="color: rgb(140,180,230); background: rgb(140,180,230);"></span>🛡️ Protección</div>
+    <div class="legend-item"><span class="dot" style="color: rgb(255,215,100); background: rgb(255,215,100);"></span>💡 Comprensión</div>
+    <div class="legend-item"><span class="dot" style="color: rgb(255,130,190); background: rgb(255,130,190);"></span>🌸 Expresión</div>
+    <div class="legend-item"><span class="dot" style="color: rgb(255,120,60); background: rgb(255,120,60);"></span>🔥 Transformación</div>
+    <div class="legend-item"><span class="dot" style="color: rgb(130,220,140); background: rgb(130,220,140);"></span>🌿 Aceptación</div>
+    <div class="legend-item"><span class="dot" style="color: rgb(200,45,60); background: rgb(200,45,60);"></span>🩸 Redención</div>
+    <div class="legend-item"><span class="dot" style="color: rgb(180,100,230); background: rgb(180,100,230);"></span>🎭 Ilusión</div>
+  </div>
+</section>
+
+<section class="content" id="mazo">
+  <h2 class="section-title reveal">Tu Mazo de Cartas</h2>
+  <p class="section-sub reveal">Construye un mazo de <strong>exactamente 30 cartas</strong>. Máximo <strong>2 copias</strong> de cada carta. Las cartas se juegan como <strong>acciones rápidas</strong> durante el combate.</p>
+
+  <div class="deck-status reveal">
+    <div class="deck-counter" id="deckCounter">
+      <span id="deckCount">0</span> / 30
+    </div>
+    <button class="btn btn-outline" id="autoBuildDeckBtn" style="padding: 0.7rem 1.5rem; font-size: 0.85rem;">🎲 Autogenerar Mazo</button>
+    <button class="deck-clear-btn" id="deckClearBtn">Vaciar mazo</button>
+  </div>
+
+  <div class="filter-bar" id="deckFilterBar"></div>
+
+  <div class="deck-grid reveal" id="deckGrid"></div>
+
+  <div class="template-section reveal">
+    <div class="template-header">
+      <h3 class="template-title">📋 Plantillas de Combate</h3>
+      <p class="template-desc">Guarda combinaciones de <strong>equipo + mazo</strong> para empezar combates al instante. Hasta 3 plantillas.</p>
+    </div>
+    <div class="template-slots" id="templateSlots"></div>
+  </div>
+</section>
+
+<section class="content" id="respuestas">
+  <h2 class="section-title reveal">Las Siete Respuestas</h2>
+  <p class="section-sub reveal">Cada personaje no se clasifica por su personalidad, sino por <strong>cómo responde al sufrimiento, los conflictos y las adversidades</strong>.</p>
+  <div class="philosophy-grid" id="philosophyGrid"></div>
+</section>
+
+<section class="content" id="sistema">
+  <h2 class="section-title reveal">Sistema de Juego</h2>
+  <p class="section-sub reveal">Los pilares mecánicos que sostienen cada partida de Azaria TCG.</p>
+  <div class="system-grid">
+    <div class="system-card reveal"><span class="system-icon">🎲</span><div class="system-name">Dados y Energía</div><p class="system-text">Gestión de dados elementales, dados neutros y omnidados. Acumula energía para desencadenar Habilidades Definitivas.</p></div>
+    <div class="system-card reveal"><span class="system-icon">⚔️</span><div class="system-name">Tipos de Daño</div><p class="system-text"><strong>Normal</strong>, <strong>Penetrante</strong> (ignora defensas) y <strong>Verdadero</strong> (imparable).</p></div>
+    <div class="system-card reveal"><span class="system-icon">📚</span><div class="system-name">Mazo de Apoyo</div><p class="system-text"><strong>Equipo</strong>, <strong>Apoyo</strong> y <strong>Evento</strong>: tres categorías de cartas.</p></div>
+    <div class="system-card reveal"><span class="system-icon">🏷️</span><div class="system-name">Estados y Marcas</div><p class="system-text">Estados contextuales como <em>Castigada</em>, <em>Vulnerable</em>, <em>Amenaza</em>, <em>Furia</em> o <em>Sintonía</em>.</p></div>
+    <div class="system-card reveal"><span class="system-icon">🔄</span><div class="system-name">Posicionamiento y Turnos</div><p class="system-text">Control de personajes activos y en reserva, cambios mediante acciones rápidas y contragolpes reactivos.</p></div>
+  </div>
+</section>
+
+<section class="content" id="simulador">
+  <h2 class="section-title reveal">Simulador de Dados</h2>
+  <p class="section-sub reveal">Prueba la fase de lanzamiento. Selecciona los elementos en juego, el número de dados y pulsa "Tirar".</p>
+  <div class="dice-simulator reveal">
+    <div class="sim-section">
+      <label class="sim-label">Elementos en juego</label>
+      <div class="sim-elements" id="simElements"></div>
+    </div>
+    <div class="sim-section">
+      <label class="sim-label">Número de dados</label>
+      <div class="sim-dice-count" id="simCount"></div>
+    </div>
+    <button class="sim-roll-btn" id="simRoll">Tirar dados</button>
+    <div class="sim-result" id="simResult"><span class="sim-result-placeholder">Pulsa "Tirar dados" para ver el resultado</span></div>
+    <div class="sim-summary" id="simSummary"></div>
+  </div>
+</section>
+
+<section class="content" id="consonancias">
+  <h2 class="section-title reveal">Consonancias de Equipo</h2>
+  <p class="section-sub reveal">Según cuántos personajes compartan una misma Respuesta, obtienes ventajas pasivas. <strong>3 iguales</strong> sustituye a 2. <strong>Sin repetición</strong> activa Diverso.</p>
+  <div class="consonance-grid" id="consonanceGrid"></div>
+</section>
+
+<section class="content" id="resonancias">
+  <h2 class="section-title reveal">Resonancias</h2>
+  <p class="section-sub reveal">Cuando dos Respuestas se combinan en combate, sus filosofías se entrelazan para generar un efecto inmediato.</p>
+  <div class="filter-bar" id="filterBar"></div>
+  <div class="resonance-grid" id="resonanceGrid"></div>
+</section>
+
+<section class="content" id="calculadora">
+  <h2 class="section-title reveal">Calculadora de Daño</h2>
+  <p class="section-sub reveal">Simula cualquier combinación de ataque, bufos y defensa. Se aplican las reglas actuales de escudo, penetración y autodaño.</p>
+
+  <div class="calc-container reveal">
+    <div class="calc-panels">
+      <div class="calc-panel calc-panel-attacker">
+        <div class="calc-panel-title">⚔️ Atacante</div>
+        <div class="calc-field"><label>Personaje</label><select id="calcAttacker"></select></div>
+        <div class="calc-field">
+          <label>Habilidad</label>
+          <div class="calc-ability-tabs" id="calcAbilityTabs">
+            <button class="calc-ability-tab active" data-type="normal">⚔️ Normal</button>
+            <button class="calc-ability-tab" data-type="elemental">🔮 Elemental</button>
+            <button class="calc-ability-tab" data-type="ultimate">💥 Definitiva</button>
+          </div>
+        </div>
+        <div class="calc-ability-info" id="calcAbilityInfo"></div>
+        <div class="calc-subtitle">Estado del atacante</div>
+        <div class="calc-field"><label>HP actual</label><input type="number" id="calcAttackerHp" value="10" min="0"></div>
+        <div class="calc-field"><label>Escudo actual</label><input type="number" id="calcAttackerShield" value="0" min="0"></div>
+        <div class="calc-field"><label>Bono Impulso</label><input type="number" id="calcAttackerBuff" value="0" min="0"></div>
+        <div class="calc-field">
+          <label>Consonancia Redención</label>
+          <select id="calcRedencionConsonance">
+            <option value="0">Ninguna</option>
+            <option value="2">2 personajes (+2 daño)</option>
+            <option value="3">3 personajes (+3 daño)</option>
+          </select>
+        </div>
+        <div class="calc-field"><label class="calc-field-checkbox"><input type="checkbox" id="calcFirstAttack" checked> Es su primer ataque de la ronda</label></div>
+      </div>
+      <div class="calc-panel calc-panel-defender">
+        <div class="calc-panel-title">🛡️ Defensor</div>
+        <div class="calc-field"><label>Personaje</label><select id="calcDefender"></select></div>
+        <div class="calc-subtitle">Estado del defensor</div>
+        <div class="calc-field"><label>HP actual</label><input type="number" id="calcDefenderHp" value="10" min="1"></div>
+        <div class="calc-field"><label>Escudo actual</label><input type="number" id="calcDefenderShield" value="0" min="0"></div>
+        <div class="calc-field"><label>Reducción de daño plana</label><input type="number" id="calcDefenderFlatReduction" value="0" min="0"></div>
+        <div class="calc-field"><label>Reducción de daño porcentual (%)</label><input type="number" id="calcDefenderPctReduction" value="0" min="0" max="100"></div>
+        <div class="calc-field"><label>Modificador de daño recibido (%)</label><input type="number" id="calcDefenderDmgModifier" value="0" min="-100" max="200"></div>
+      </div>
+    </div>
+    <div class="calc-result">
+      <div class="calc-result-title">📊 Resultado del cálculo</div>
+      <div id="calcResult"></div>
+    </div>
+  </div>
+</section>
+
+<section class="content" id="modos">
+  <h2 class="section-title reveal">Modos de Juego</h2>
+  <p class="section-sub reveal">Elige tu camino: entrena, compite o forja tu leyenda en los torneos.</p>
+  <div class="grid">
+    <div class="card reveal"><span class="icon">🤖</span><h3>Vs. Bot</h3><p>Practica contra una IA adaptativa.</p></div>
+    <div class="card reveal"><span class="icon">⚔️</span><h3>PvP Online</h3><p>Enfrenta a otros invocadores en partidas clasificatorias.</p></div>
+    <div class="card reveal"><span class="icon">🏆</span><h3>Torneos</h3><p>Compite por recompensas legendarias.</p></div>
+    <div class="card reveal"><span class="icon">📚</span><h3>Historia</h3><p>Desbloquea personajes especiales y el lore de Azaria.</p></div>
+  </div>
+</section>
+
+<div class="stats" id="stats">
+  <div class="stat reveal"><div class="num" data-target="250" data-suffix="+">0</div><div class="label">Cartas únicas</div></div>
+  <div class="stat reveal"><div class="num" data-target="7">0</div><div class="label">Respuestas</div></div>
+  <div class="stat reveal"><div class="num" data-target="28">0</div><div class="label">Resonancias</div></div>
+  <div class="stat reveal"><div class="num" data-target="750000" data-suffix="+">0</div><div class="label">Partidas jugadas</div></div>
+</div>
+
+<section class="content cta-final" id="jugar">
+  <h2 class="section-title reveal">¿Listo para invocar?</h2>
+  <p class="section-sub reveal">Crea tu cuenta gratis y recibe un mazo inicial con cartas de cada Respuesta.</p>
+  <div class="reveal"><button class="btn" id="jugarCombatBtn">⚔️ Probar Combate 3v3</button></div>
+</section>
+
+<footer>Hecho con <span>✦</span> por invocadores, para invocadores · © 2025 Azaria TCG</footer>
+
+<div class="team-panel" id="teamPanel">
+  <div class="team-panel-header"><h3 class="team-panel-title">🛡️ Tu Equipo</h3><button class="team-panel-close" id="teamPanelClose" aria-label="Cerrar">✕</button></div>
+  <div class="team-panel-body">
+    <button class="team-auto-btn" id="teamAutoBtn">🎲 Autogenerar Equipo</button>
+    <div class="team-slots" id="teamSlots"></div>
+    <div id="teamConsonance"></div>
+    <div id="teamResonances"></div>
+    <button class="team-clear-btn" id="teamClearBtn">Vaciar equipo</button>
+  </div>
+</div>
+
+<button class="team-panel-toggle" id="teamPanelToggle"><span>🛡️</span><span id="teamToggleText">Equipo (0/3)</span></button>
+
+<div class="card-modal" id="cardModal" role="dialog" aria-modal="true"><div class="card-modal-backdrop"></div><div class="card-modal-content" id="modalContent"></div></div>
+
+<div class="combat-start-confirm" id="combatStartConfirm">
+  <div class="combat-start-confirm-content">
+    <div class="combat-start-confirm-title">⚔️ ¿Iniciar Combate?</div>
+    <p class="combat-start-confirm-sub" id="combatStartConfirmSub">Tu equipo y mazo están listos para la batalla</p>
+    <div class="combat-start-confirm-team" id="combatStartTeamPreview"></div>
+    <div class="combat-start-confirm-buttons">
+      <button class="confirm-btn confirm-cancel" id="combatStartCancelBtn">Cancelar</button>
+      <button class="confirm-btn confirm-accept" id="combatStartConfirmBtn">⚔️ Empezar Combate</button>
+    </div>
+  </div>
+</div>
+
+<div class="resume-combat-dialog" id="slotSelectionDialog">
+  <div class="resume-combat-content">
+    <div class="resume-combat-title">⚔️ Combates Guardados</div>
+    <p class="resume-combat-sub">Elige una ranura para reanudar o gestionar</p>
+    <div class="slot-list" id="slotList"></div>
+    <div class="resume-combat-buttons">
+      <button class="confirm-btn confirm-cancel" id="slotCancelBtn">Cancelar</button>
+      <button class="confirm-btn confirm-accept" id="slotNewCombatBtn">⚔️ Nuevo Combate</button>
+    </div>
+  </div>
+</div>
+
+<div class="resume-combat-dialog" id="overwriteDialog">
+  <div class="resume-combat-content">
+    <div class="resume-combat-title">⚠️ Ranuras Llenas</div>
+    <p class="resume-combat-sub">Todas las ranuras están ocupadas. Elige cuál sobrescribir con el nuevo combate.</p>
+    <div class="slot-list" id="overwriteSlotList"></div>
+    <div class="resume-combat-buttons">
+      <button class="confirm-btn confirm-cancel" id="overwriteCancelBtn">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div class="combat-modal" id="combatModal">
+  <div class="combat-content" id="combatContent">
+    <canvas class="combat-stars-canvas" id="combatStars"></canvas>
+
+    <div class="roll-overlay" id="rollOverlay">
+      <div class="roll-overlay-content">
+        <h2 class="roll-title">🎲 Fase de Lanzamiento</h2>
+        <p class="roll-subtitle" id="rollSubtitle">Ronda 1</p>
+        <div class="roll-dice-main" id="rollDiceMain"></div>
+        <div class="roll-controls">
+          <button class="roll-reroll-btn" id="rollRerollBtn" disabled>🎲 Relanzar seleccionados</button>
+          <button class="roll-start-btn" id="rollStartBtn">⚔️ Comenzar combate</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="draw-overlay" id="drawOverlay">
+      <div class="draw-overlay-content">
+        <h2 class="draw-title">🎴 Fase de Robo</h2>
+        <p class="draw-subtitle" id="drawSubtitle">Ronda 1</p>
+        <p class="draw-hint" id="drawHint">Selecciona cartas para cambiar</p>
+        <div class="draw-cards-main" id="drawCardsMain"></div>
+        <div class="draw-controls">
+          <button class="draw-mulligan-btn" id="drawMulliganBtn" disabled>🔄 Cambiar seleccionadas</button>
+          <button class="draw-continue-btn" id="drawContinueBtn">✓ Continuar</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="select-overlay" id="selectOverlay">
+      <div class="select-content">
+        <h2 class="select-title">Elige tu primer personaje</h2>
+        <p class="select-subtitle">Haz clic en un personaje para ver sus habilidades</p>
+        <div class="select-options" id="selectOptions"></div>
+        <div class="select-detail" id="selectDetail"></div>
+      </div>
+    </div>
+
+    <div class="confirm-overlay" id="confirmOverlay">
+      <div class="confirm-content" id="confirmContent"></div>
+    </div>
+
+    <div class="combat-banner" id="combatBanner"><div class="combat-banner-text" id="combatBannerText"></div></div>
+    <div class="diverso-toast" id="diversoToast">🌈 +2 OMNIDADOS</div>
+
+    <div class="combat-round-indicator">
+      <span>Ronda <span id="combatRound">1</span></span>
+      <span class="combat-turn-ind player" id="combatTurnInd">TU TURNO</span>
+    </div>
+
+    <button class="combat-close" id="combatCloseBtn" aria-label="Cerrar">✕</button>
+
+    <div class="combat-main">
+      <div class="combat-board">
+        <div class="combat-player-row">
+          <div class="combat-side-slot structures">
+            <div class="side-slot-label">🏛️ Estructuras</div>
+            <div class="side-slot-grid" id="botStructuresGrid">
+              <div class="side-slot-empty">+</div>
+              <div class="side-slot-empty">+</div>
+              <div class="side-slot-empty">+</div>
+              <div class="side-slot-empty">+</div>
+            </div>
+          </div>
+          <div class="combat-team-row" id="botTeam"></div>
+          <div class="combat-side-slot supports">
+            <div class="side-slot-label">📜 Apoyos</div>
+            <div class="side-slot-grid" id="botSupportsGrid">
+              <div class="side-slot-empty">+</div>
+              <div class="side-slot-empty">+</div>
+              <div class="side-slot-empty">+</div>
+              <div class="side-slot-empty">+</div>
+            </div>
+          </div>
+        </div>
+        <div class="combat-vs">VS</div>
+        <div class="combat-player-row">
+          <div class="combat-side-slot structures">
+            <div class="side-slot-label">🏛️ Estructuras</div>
+            <div class="side-slot-grid" id="playerStructuresGrid">
+              <div class="side-slot-empty">+</div>
+              <div class="side-slot-empty">+</div>
+              <div class="side-slot-empty">+</div>
+              <div class="side-slot-empty">+</div>
+            </div>
+          </div>
+          <div class="combat-team-row" id="playerTeam"></div>
+          <div class="combat-side-slot supports">
+            <div class="side-slot-label">📜 Apoyos</div>
+            <div class="side-slot-grid" id="playerSupportsGrid">
+              <div class="side-slot-empty">+</div>
+              <div class="side-slot-empty">+</div>
+              <div class="side-slot-empty">+</div>
+              <div class="side-slot-empty">+</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="combat-sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-label">
+            <span>🎲 Dados disponibles</span>
+            <span class="dice-counter" id="diceCounter">0</span>
+          </div>
+          <div class="combat-dice" id="combatDice"></div>
+        </div>
+
+        <div class="sidebar-section consonance-section">
+          <div class="sidebar-label"><span>🎯 Consonancia activa</span></div>
+          <div class="consonance-card-combat" id="consonanceCardCombat"></div>
+        </div>
+
+        <div class="sidebar-section hand-section">
+          <div class="sidebar-label">
+            <span>🎴 Mano (<span id="handCount">0</span>)</span>
+          </div>
+          <div class="combat-hand" id="combatHand"></div>
+        </div>
+
+        <div class="sidebar-section actions-section">
+          <button class="combat-action-btn" id="normalBtn">
+            <span class="ca-name" id="normalName">⚔️ Ataque</span>
+            <span class="ca-cost" id="normalCost"></span>
+            <span class="ca-ready">✓</span>
+          </button>
+          <button class="combat-action-btn" id="elementalBtn">
+            <span class="ca-name" id="elementalName">🔮 Habilidad</span>
+            <span class="ca-cost" id="elementalCost"></span>
+            <span class="ca-ready">✓</span>
+          </button>
+          <button class="combat-action-btn ult-btn" id="ultimateBtn">
+            <span class="ca-name" id="ultName">💥 Definitiva</span>
+            <span class="ca-cost" id="ultCost"></span>
+            <span class="ca-ready">✓</span>
+          </button>
+          <button class="combat-end-inline" id="endRoundBtn">🛑 Fin de ronda</button>
+        </div>
+
+        <div class="sidebar-section log-section">
+          <div class="sidebar-label">📜 Registro</div>
+          <div class="combat-log" id="combatLog"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="combat-end-overlay" id="combatEndOverlay">
+      <div class="combat-end-content">
+        <div class="combat-end-emoji" id="combatEndEmoji">🏆</div>
+        <div class="combat-end-title" id="combatEndTitle">¡Victoria!</div>
+        <div class="combat-end-sub" id="combatEndSub"></div>
+        <button class="btn" id="combatEndBtn">Volver</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="hover-tooltip" id="hoverTooltip"></div>
+
+<script src="scripts.js" defer></script>
+
+</body>
+</html>
