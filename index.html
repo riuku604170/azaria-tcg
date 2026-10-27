@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Azaria TCG — Card Battle</title>
 <link rel="stylesheet" href="styles.css">
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 </head>
 <body>
 
@@ -31,6 +32,8 @@
   <p>Un juego de cartas coleccionables y combate táctico por equipos. Descubre tu filosofía, reúne a tus personajes, construye tu mazo y domina la arena.</p>
   <div class="hero-buttons">
     <button class="btn" id="openCombatBtn">⚔️ Probar Combate 3v3</button>
+    <button class="btn btn-pvp" id="openPvpBtn">👥 Combate PvP Local</button>
+    <button class="btn btn-online" id="openOnlineBtn">🌐 Multijugador Online</button>
     <a href="#respuestas" class="btn btn-outline">Descubre las Respuestas</a>
   </div>
   <div class="scroll-hint">⌄</div>
@@ -303,7 +306,11 @@
 <section class="content cta-final" id="jugar">
   <h2 class="section-title reveal">¿Listo para invocar?</h2>
   <p class="section-sub reveal">Crea tu cuenta gratis y recibe un mazo inicial con cartas de cada Respuesta.</p>
-  <div class="reveal"><button class="btn" id="jugarCombatBtn">⚔️ Probar Combate 3v3</button></div>
+  <div class="reveal" style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+    <button class="btn" id="jugarCombatBtn">⚔️ Probar Combate 3v3</button>
+    <button class="btn btn-pvp" id="jugarPvpBtn">👥 Combate PvP Local</button>
+    <button class="btn btn-online" id="jugarOnlineBtn">🌐 Multijugador Online</button>
+  </div>
 </section>
 
 <footer>Hecho con <span>✦</span> por invocadores, para invocadores · © 2025 Azaria TCG</footer>
@@ -354,6 +361,33 @@
     <div class="slot-list" id="overwriteSlotList"></div>
     <div class="resume-combat-buttons">
       <button class="confirm-btn confirm-cancel" id="overwriteCancelBtn">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div class="online-lobby-dialog" id="onlineLobbyDialog">
+  <div class="online-lobby-content">
+    <div class="online-lobby-title">🌐 Multijugador Online</div>
+    <p class="online-lobby-sub">Crea una sala o únete a una existente</p>
+    <div class="online-lobby-tabs">
+      <button class="online-lobby-tab active" data-tab="create">Crear Sala</button>
+      <button class="online-lobby-tab" data-tab="join">Unirse a Sala</button>
+    </div>
+    <div class="online-lobby-panel" id="onlineCreatePanel">
+      <button class="btn btn-online" id="onlineCreateBtn" style="width:100%;">🎲 Crear Sala</button>
+      <div class="online-room-info" id="onlineRoomInfo" style="display:none;">
+        <div class="online-room-code-label">Código de sala:</div>
+        <div class="online-room-code" id="onlineRoomCode">—</div>
+        <div class="online-room-status" id="onlineRoomStatus">Esperando oponente...</div>
+      </div>
+    </div>
+    <div class="online-lobby-panel" id="onlineJoinPanel" style="display:none;">
+      <input type="text" class="online-code-input" id="onlineJoinCode" placeholder="Ej: azaria-XXXXXX" maxlength="20">
+      <button class="btn btn-online" id="onlineJoinBtn" style="width:100%;">🔗 Conectar</button>
+      <div class="online-room-status" id="onlineJoinStatus"></div>
+    </div>
+    <div class="online-lobby-buttons">
+      <button class="confirm-btn confirm-cancel" id="onlineLobbyCloseBtn">Cancelar</button>
     </div>
   </div>
 </div>
