@@ -476,45 +476,85 @@ function initOnlineHost(){
   peerObj.on('error', function(err){ hostLog('Error PeerJS: ' + err.type); playSound('error'); });
   peerObj.on('disconnected', function(){ hostLog('Desconectado del servidor. Reintentando...'); try { peerObj.reconnect(); } catch(e){} });
 }
-function initOnlineGuest(code){
-  if (!code) return;
-  code = code.trim().toLowerCase();
+
+var isCreatingPeer = false;
+
+function wakeUpServer(callback){
+  var serverHost = PEER_CONFIG.host;
+  var rs = document.getElementById('onlineRoomStatus');
   var js = document.getElementById('onlineJoinStatus');
-  function guestLog(msg){ if (js) js.textContent = msg; console.log('[GUEST] ' + msg); }
-  guestLog('Creando peer...');
-  try { peerObj = new Peer(PEER_CONFIG); } catch (e) { guestLog('Error: ' + e.message); return; }
-  peerObj.on('open', function(){
-    guestLog('Buscando host ' + code + '...');
-    peerConn = peerObj.connect(code, { reliable:true });
-    var sent = false;
-    function sendHello(){
-      if (sent || !peerConn || !peerConn.open) return;
-      try {
-        peerConn.send({ type:'hello', team:team, deck:deck });
-        sent = true;
-        guestLog('Equipo enviado. Esperando inicio...');
-      } catch(e) { guestLog('Error enviando: ' + e.message); }
-    }
-    peerConn.on('open', function(){
-      guestLog('Conectado. Esperando ready...');
-      setTimeout(sendHello, 1000);
+  var statusEl = rs || js;
+  if (statusEl) statusEl.textContent = 'Despertando servidor (puede tardar 30s)...';
+  console.log('[NET] Wake-up: https://' + serverHost + '/peerjs/id');
+  var controller = new AbortController();
+  var timeout = setTimeout(function(){ try { controller.abort(); } catch(e){} }, 40000);
+  fetch('https://' + serverHost + '/peerjs/id', { method:'GET', signal: controller.signal, mode:'cors' })
+    .then(function(r){ clearTimeout(timeout); console.log('[NET] Wake-up respuesta:', r.status); callback(); })
+    .catch(function(e){ clearTimeout(timeout); console.log('[NET] Wake-up error (seguimos igual):', e.message); callback(); });
+}
+
+function cleanupPeer(){
+  if (peerObj) { try { peerObj.destroy(); } catch(e){} peerObj = null; }
+  peerConn = null;
+}
+
+function initOnlineHost(){
+  if (isCreatingPeer) { console.log('[HOST] Ya creando peer, ignorando'); return; }
+  isCreatingPeer = true;
+  var code = 'azaria-' + Math.random().toString(36).slice(2, 8).toLowerCase();
+  var ri = document.getElementById('onlineRoomInfo'), rc = document.getElementById('onlineRoomCode'), rs = document.getElementById('onlineRoomStatus');
+  function hostLog(msg){ if (rs) rs.textContent = msg; console.log('[HOST] ' + msg); }
+  hostLog('Despertando servidor...');
+  wakeUpServer(function(){
+    hostLog('Creando sala...');
+    cleanupPeer();
+    try { peerObj = new Peer(code, PEER_CONFIG); }
+    catch(e){ hostLog('Error creando Peer: ' + e.message); isCreatingPeer = false; return; }
+
+    var openTimeout = setTimeout(function(){
+      hostLog('Timeout. El servidor no responde. Inténtalo de nuevo.');
+      cleanupPeer(); isCreatingPeer = false;
+    }, 35000);
+
+    peerObj.on('open', function(id){
+      clearTimeout(openTimeout);
+      isCreatingPeer = false;
+      if (ri) ri.style.display = 'block';
+      if (rc) rc.textContent = id;
+      hostLog('Sala creada. Esperando oponente...');
     });
-    peerConn.on('data', function(data){
-      if (!data) return;
-      if (data.type === 'ready') { guestLog('Host listo. Enviando equipo...'); sendHello(); }
-      else if (data.type === 'state') { hideOnlineLobbyDialog(); receiveFullState(data.state); }
+    peerObj.on('connection', function(conn){
+      peerConn = conn;
+      hostLog('Oponente conectado. Negociando WebRTC...');
+      conn.on('open', function(){
+        hostLog('Canal P2P abierto. Enviando ready...');
+        try { conn.send({ type:'ready' }); } catch(e){}
+      });
+      var helloReceived = false;
+      conn.on('data', function(data){
+        if (!data) return;
+        if (data.type === 'hello' && !helloReceived) {
+          helloReceived = true;
+          pendingGuestTeam = data.team;
+          pendingGuestDeck = data.deck;
+          hostLog('Equipo recibido. Iniciando combate...');
+          hideOnlineLobbyDialog();
+          try { startOnlineCombatAsHost(); }
+          catch(e){ hostLog('Error al iniciar: ' + e.message); console.error(e); }
+        } else if (data.type === 'action') {
+          applyRemoteAction(data.action);
+        }
+      });
+      conn.on('close', function(){ hostLog('Oponente desconectado'); });
+      conn.on('error', function(err){ hostLog('Error conexión: ' + err.type); });
     });
-    peerConn.on('close', function(){ guestLog('Desconectado del host'); if (combatState) { logCombat('⚠️ Host desconectado'); showBanner('HOST DESCONECTADO', 2000); } });
-    peerConn.on('error', function(err){ guestLog('Error conexión: ' + err.type); });
+    peerObj.on('error', function(err){
+      clearTimeout(openTimeout);
+      hostLog('Error PeerJS: ' + err.type + (err.type === 'network' ? ' (servidor caído/dormido)' : ''));
+      isCreatingPeer = false;
+      cleanupPeer();
+    });
   });
-  peerObj.on('error', function(err){
-    guestLog('Error PeerJS: ' + err.type);
-    playSound('error');
-    if (err.type === 'peer-unavailable') guestLog('Sala no encontrada. Verifica el código.');
-    else if (err.type === 'network') guestLog('Error de red. Revisa tu conexión.');
-    else if (err.type === 'server-error') guestLog('Servidor PeerJS no disponible. Reintenta.');
-  });
-  peerObj.on('disconnected', function(){ guestLog('Reconectando al servidor...'); try { peerObj.reconnect(); } catch(e){} });
 }
 function showOnlineLobbyDialog(){
   initAudio();
