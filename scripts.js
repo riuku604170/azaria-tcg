@@ -17,22 +17,7 @@ var pendingGuestTeam = null;
 var pendingGuestDeck = null;
 var _broadcastTimer = null;
 var silentActionApply = false;
-var PEER_CONFIG = {
-  host: 'azaria-peer-server.onrender.com',
-  port: 443,
-  secure: true,
-  path: '/peerjs',          // ← CAMBIO: coincide con el servidor
-  config: {
-    iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' }
-    ]
-    // Quitadas las credenciales TURN de Metered (tenías "TU_USERNAME" / "TU_CREDENTIAL"
-    // como placeholders, lo que rompe las conexiones WebRTC).
-    // Si quieres TURN, regístrate en metered.ca y pon tus credenciales reales.
-  },
-  debug: 2
-};
+var PEER_CONFIG = null; // y usar new Peer(code) sin config
 
 var STATUS_DESCRIPTIONS = {
   castigada: { name:'🩸 Castigada', text:'Toda curación que reciba se convierte en daño verdadero. Cada golpe recibido mientras dure el estado otorga +1 punto de condena.' },
