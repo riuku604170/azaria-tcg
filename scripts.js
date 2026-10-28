@@ -17,7 +17,19 @@ var pendingGuestTeam = null;
 var pendingGuestDeck = null;
 var _broadcastTimer = null;
 var silentActionApply = false;
-var PEER_CONFIG = null; // y usar new Peer(code) sin config
+var PEER_CONFIG = {
+  host: 'azaria-peer-server.onrender.com',
+  port: 443,
+  secure: true,
+  path: '/peerjs',
+  config: {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' }
+    ]
+  },
+  debug: 2
+};
 
 var STATUS_DESCRIPTIONS = {
   castigada: { name:'🩸 Castigada', text:'Toda curación que reciba se convierte en daño verdadero. Cada golpe recibido mientras dure el estado otorga +1 punto de condena.' },
@@ -451,8 +463,12 @@ function wakeUpServer(callback){
   });
 }
 
+function cleanupPeer(){
+  if (peerObj) { try { peerObj.destroy(); } catch(e){} peerObj = null; }
+  peerConn = null;
+}
+
 function initOnlineHost(){
-  // Reset defensivo: si un intento previo dejó el flag bloqueado, lo liberamos
   isCreatingPeer = false;
   cleanupPeer();
 
@@ -465,22 +481,25 @@ function initOnlineHost(){
     console.log('[HOST] ' + msg);
   }
 
-  // Feedback INMEDIATO en la UI: así sabes que el botón SÍ ejecutó el handler
+  // Feedback INMEDIATO — verás esto aunque todo lo demás falle
   if (ri) ri.style.display = 'block';
   if (rc) rc.textContent = '—';
   hostLog('Conectando...');
-  console.log('[HOST] initOnlineHost() ejecutado');
+  console.log('[HOST] initOnlineHost() ejecutado, PEER_CONFIG=', PEER_CONFIG);
 
   isCreatingPeer = true;
 
   var code = 'azaria-' + Math.random().toString(36).slice(2, 8).toLowerCase();
   console.log('[HOST] Código generado:', code);
 
-  // Intento 1: tu servidor de Render. Intento 2: PeerJS público (fallback).
-  var attempts = [
-    { name: 'servidor propio',  factory: function(){ return new Peer(code, PEER_CONFIG); } },
-    { name: 'servidor público', factory: function(){ return new Peer(code); } }
-  ];
+  // Intento 1: tu servidor de Render. Intento 2: PeerJS público.
+  // Si PEER_CONFIG no es un objeto válido, saltamos directo al público.
+  var attempts = [];
+  if (PEER_CONFIG && PEER_CONFIG.host) {
+    attempts.push({ name: 'servidor propio', factory: function(){ return new Peer(code, PEER_CONFIG); } });
+  }
+  attempts.push({ name: 'servidor público', factory: function(){ return new Peer(code); } });
+
   var idx = 0;
 
   function tryNext(){
@@ -498,7 +517,7 @@ function initOnlineHost(){
     try {
       peer = att.factory();
     } catch(e) {
-      console.error('[HOST] ' + att.name + ' lanzó excepción:', e);
+      console.error('[HOST] ' + att.name + ' excepción:', e);
       setTimeout(tryNext, 100);
       return;
     }
