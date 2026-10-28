@@ -18,29 +18,14 @@ var pendingGuestDeck = null;
 var _broadcastTimer = null;
 var silentActionApply = false;
 var PEER_CONFIG = {
-  host: 'azaria-peer-server.onrender.com', // 👈 Sin https://
+  host: 'azaria-tcg.onrender.com', // 👈 El nombre real de tu servicio en Render
   port: 443,
   secure: true,
-  path: '/',
+  path: '/', // Debe coincidir con el path del servidor (server.js tiene path: "/")
   config: {
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
-      // TURN de Metered (con tus credenciales)
-      {
-        urls: 'turn:global.relay.metered.ca:80',
-        username: 'TU_USERNAME',
-        credential: 'TU_CREDENTIAL'
-      },
-      {
-        urls: 'turn:global.relay.metered.ca:443',
-        username: 'TU_USERNAME',
-        credential: 'TU_CREDENTIAL'
-      },
-      {
-        urls: 'turn:global.relay.metered.ca:443?transport=tcp',
-        username: 'TU_USERNAME',
-        credential: 'TU_CREDENTIAL'
-      }
+      // ... tus servidores TURN ...
     ]
   },
   debug: 2
