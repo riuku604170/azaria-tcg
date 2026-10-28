@@ -4,8 +4,8 @@ const port = process.env.PORT || 9000;
 
 const server = PeerServer({
   port: port,
-  path: "/",
-  proxied: true,          // Necesario detrás del proxy de Render
+  path: "/peerjs",       // ← CAMBIO: path estándar
+  proxied: true,
   allow_discovery: true,
   debug: true
 });
@@ -18,4 +18,4 @@ server.on("disconnect", (client) => {
   console.log("[PEER] Cliente desconectado:", client.getId());
 });
 
-console.log(`[PEER] Servidor PeerJS escuchando en puerto ${port}, path "/"`);
+console.log(`[PEER] Servidor PeerJS escuchando en puerto ${port}, path "/peerjs"`);
