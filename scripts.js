@@ -452,10 +452,10 @@ function wakeUpServer(callback){
 }
 
 function initOnlineHost(){
-  if (isCreatingPeer) { console.log('[HOST] Ya creando peer, ignorando'); return; }
-  isCreatingPeer = true;
+  // Reset defensivo: si un intento previo dejó el flag bloqueado, lo liberamos
+  isCreatingPeer = false;
+  cleanupPeer();
 
-  var code = 'azaria-' + Math.random().toString(36).slice(2, 8).toLowerCase();
   var ri = document.getElementById('onlineRoomInfo');
   var rc = document.getElementById('onlineRoomCode');
   var rs = document.getElementById('onlineRoomStatus');
@@ -465,94 +465,98 @@ function initOnlineHost(){
     console.log('[HOST] ' + msg);
   }
 
-  hostLog('Comprobando servidor...');
+  // Feedback INMEDIATO en la UI: así sabes que el botón SÍ ejecutó el handler
+  if (ri) ri.style.display = 'block';
+  if (rc) rc.textContent = '—';
+  hostLog('Conectando...');
+  console.log('[HOST] initOnlineHost() ejecutado');
 
-  wakeUpServer(function(){
-    hostLog('Creando sala...');
-    cleanupPeer();
+  isCreatingPeer = true;
 
-    var fallbackTried = false;
-    var openTimeout = null;
+  var code = 'azaria-' + Math.random().toString(36).slice(2, 8).toLowerCase();
+  console.log('[HOST] Código generado:', code);
 
-    function tryCloudFallback(reason){
-      if (fallbackTried) return;
-      fallbackTried = true;
-      clearTimeout(openTimeout);
-      hostLog(reason + ' Probando servidor PeerJS público...');
-      try { if (peerObj) peerObj.destroy(); } catch(e){}
-      try {
-        peerObj = new Peer(code); // sin config = cloud de PeerJS
-        attachPeerHandlers(peerObj, 'cloud');
-      } catch(e) {
-        isCreatingPeer = false;
-        hostLog('Error con servidor público: ' + e.message);
-      }
+  // Intento 1: tu servidor de Render. Intento 2: PeerJS público (fallback).
+  var attempts = [
+    { name: 'servidor propio',  factory: function(){ return new Peer(code, PEER_CONFIG); } },
+    { name: 'servidor público', factory: function(){ return new Peer(code); } }
+  ];
+  var idx = 0;
+
+  function tryNext(){
+    if (idx >= attempts.length) {
+      isCreatingPeer = false;
+      hostLog('No se pudo conectar. Revisa tu conexión.');
+      console.error('[HOST] Todos los intentos fallaron');
+      return;
     }
+    var att = attempts[idx++];
+    hostLog('Conectando a ' + att.name + '...');
+    console.log('[HOST] Intentando:', att.name);
 
-    function attachPeerHandlers(peer, via){
-      peer.on('open', function(id){
-        clearTimeout(openTimeout);
-        isCreatingPeer = false;
-        if (ri) ri.style.display = 'block';
-        if (rc) rc.textContent = id;
-        hostLog('Sala creada. Esperando oponente...' +
-                (via === 'cloud' ? ' (servidor público)' : ''));
+    var peer;
+    try {
+      peer = att.factory();
+    } catch(e) {
+      console.error('[HOST] ' + att.name + ' lanzó excepción:', e);
+      setTimeout(tryNext, 100);
+      return;
+    }
+    peerObj = peer;
+
+    var opened = false;
+    var timer = setTimeout(function(){
+      if (opened) return;
+      console.warn('[HOST] ' + att.name + ' timeout (12s)');
+      try { peer.destroy(); } catch(e){}
+      tryNext();
+    }, 12000);
+
+    peer.on('open', function(id){
+      opened = true;
+      clearTimeout(timer);
+      isCreatingPeer = false;
+      if (rc) rc.textContent = id;
+      hostLog('Sala lista. Esperando oponente...');
+      console.log('[HOST] ✅ Sala creada:', id);
+    });
+
+    peer.on('error', function(err){
+      console.error('[HOST] Error ' + att.name + ':', err);
+      if (opened) return;
+      clearTimeout(timer);
+      try { peer.destroy(); } catch(e){}
+      tryNext();
+    });
+
+    peer.on('connection', function(conn){
+      peerConn = conn;
+      hostLog('Oponente conectado. Negociando...');
+      conn.on('open', function(){
+        hostLog('Canal P2P abierto. Enviando ready...');
+        try { conn.send({ type:'ready' }); } catch(e){}
       });
-
-      peer.on('connection', function(conn){
-        peerConn = conn;
-        hostLog('Oponente conectado. Negociando WebRTC...');
-        conn.on('open', function(){
-          hostLog('Canal P2P abierto. Enviando ready...');
-          try { conn.send({ type:'ready' }); } catch(e){}
-        });
-        var helloReceived = false;
-        conn.on('data', function(data){
-          if (!data) return;
-          if (data.type === 'hello' && !helloReceived) {
-            helloReceived = true;
-            pendingGuestTeam = data.team;
-            pendingGuestDeck = data.deck;
-            hostLog('Equipo recibido. Iniciando combate...');
-            hideOnlineLobbyDialog();
-            try { startOnlineCombatAsHost(); }
-            catch(e){ hostLog('Error al iniciar: ' + e.message); console.error(e); }
-          } else if (data.type === 'action') {
-            applyRemoteAction(data.action);
-          }
-        });
-        conn.on('close', function(){ hostLog('Oponente desconectado'); });
-        conn.on('error', function(err){ hostLog('Error conexión: ' + err.type); });
-      });
-
-      peer.on('error', function(err){
-        console.log('[HOST] Error PeerJS:', err);
-        if (!fallbackTried && via === 'custom' &&
-            (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error')) {
-          tryCloudFallback('Servidor propio falló (' + err.type + ').');
-        } else {
-          clearTimeout(openTimeout);
-          isCreatingPeer = false;
-          hostLog('Error PeerJS: ' + (err.type || err.message || 'desconocido'));
+      var helloReceived = false;
+      conn.on('data', function(data){
+        if (!data) return;
+        if (data.type === 'hello' && !helloReceived) {
+          helloReceived = true;
+          pendingGuestTeam = data.team;
+          pendingGuestDeck = data.deck;
+          hostLog('Equipo recibido. Iniciando combate...');
+          hideOnlineLobbyDialog();
+          try { startOnlineCombatAsHost(); }
+          catch(e){ hostLog('Error al iniciar: ' + e.message); console.error(e); }
+        } else if (data.type === 'action') {
+          applyRemoteAction(data.action);
         }
       });
-    }
+      conn.on('close', function(){ hostLog('Oponente desconectado'); });
+      conn.on('error', function(err){ hostLog('Error conexión: ' + err.type); });
+    });
+  }
 
-    // Intento 1: servidor propio en Render
-    try {
-      peerObj = new Peer(code, PEER_CONFIG);
-      attachPeerHandlers(peerObj, 'custom');
-
-      // Si en 15s no se ha abierto, fallback a cloud
-      openTimeout = setTimeout(function(){
-        if (!fallbackTried) tryCloudFallback('Servidor propio no responde en 15s.');
-      }, 15000);
-
-    } catch(e) {
-      isCreatingPeer = false;
-      hostLog('Error creando Peer: ' + e.message);
-    }
-  });
+  tryNext();
 }
 
 function initOnlineGuest(code){
