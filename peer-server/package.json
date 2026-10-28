@@ -1,10 +1,9 @@
 {
   "name": "azaria-peer-server",
   "version": "1.0.0",
-  "description": "PeerJS signaling server for Azaria TCG",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
-    "start": "peerjs --port $PORT --path / --allow_discovery"
+    "start": "node server.js"
   },
   "dependencies": {
     "peer": "^1.0.2"
