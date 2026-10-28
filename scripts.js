@@ -9,18 +9,6 @@ var ROLLING_COLOR = '160, 160, 180';
 var CARD_TAG_COLORS = { 'Ataque':'200,45,60','Curación':'78,194,107','Defensa':'140,180,230','Energía':'240,200,96','Dados':'165,131,255','Utilidad':'255,130,190','Potente':'255,215,100','Arma':'200,45,60','Armadura':'140,180,230','Accesorio':'255,215,100','Estructura':'130,220,140','Aura':'255,130,190','Trampa':'180,100,230','Pintura':'255,130,190' };
 var CARD_CATEGORY_META = { equipo:{label:'Equipo',icon:'⚔️',color:'200,45,60'}, apoyo:{label:'Apoyo',icon:'📜',color:'130,220,140'}, evento:{label:'Evento',icon:'✨',color:'165,131,255'}, pintura:{label:'Pintura',icon:'🎨',color:'255,130,190'} };
 
-var pendingPvpMode = false;
-var pendingOnlineMode = false;
-var peerObj = null;
-var peerConn = null;
-var pendingGuestTeam = null;
-var pendingGuestDeck = null;
-var _broadcastTimer = null;
-var silentActionApply = false;
-// Servidor propio desactivado temporalmente (Render + CORS + path duplicado)
-// Cuando lo arreglemos, restauramos el objeto con host/port/path correctos.
-var PEER_CONFIG = null;
-
 var STATUS_DESCRIPTIONS = {
   castigada: { name:'🩸 Castigada', text:'Toda curación que reciba se convierte en daño verdadero. Cada golpe recibido mientras dure el estado otorga +1 punto de condena.' },
   condena: { name:'💀 Condena', text:'Recurso acumulado por Alaya al recibir golpes. Su habilidad definitiva la consume íntegramente como daño penetrante al enemigo.' },
