@@ -711,16 +711,6 @@ function renderAbility(ab, elementColor) {
 }
 function buildModalContent(charId, char) {
   var el = char.element;
-  var inTeam = team.indexOf(charId) !== -1;
-  var teamFull = (team.length >= 3) && !inTeam;
-  var actionBtn = '';
-  if (inTeam) {
-    actionBtn = '<button class="btn btn-outline modal-team-btn" id="modalRemoveFromTeam" data-char-id="' + charId + '">✕ Quitar del equipo</button>';
-  } else if (teamFull) {
-    actionBtn = '<button class="btn modal-team-btn" id="modalAddToTeam" data-char-id="' + charId + '" disabled style="opacity:0.5;cursor:not-allowed;">Equipo lleno</button>';
-  } else {
-    actionBtn = '<button class="btn modal-team-btn" id="modalAddToTeam" data-char-id="' + charId + '">+ Añadir al equipo</button>';
-  }
   var obtainText = 'Se obtiene comprándolo en la tienda con cierto precio y un nivel de amistad concreto, tras vencerlo en una batalla (desbloqueado por ' + char.name + ').';
   return '<div class="modal-header"><div class="modal-portrait" data-fallback="' + char.emoji + '"><img src="' + char.img + '" alt="' + char.name + '" class="portrait-img" style="opacity:0;" onload="this.style.opacity=1;" onerror="this.style.display=\'none\';"><div class="modal-hp-badge">' + char.hp + ' HP</div></div><div class="modal-info"><div class="modal-eyebrow"><span class="el-badge-lg">' + ELEMENT_EMOJI[el] + '</span>' + ELEMENT_NAMES[el] + ' · ' + char.set + '</div><h2 class="modal-title" id="modalTitle">' + char.name + '</h2><p class="modal-concept">"' + char.concept + '"</p></div><button class="modal-close" aria-label="Cerrar">×</button></div><div class="modal-body"><div class="obtain-box"><div class="obtain-label">📍 Obtención</div><p class="obtain-text">' + obtainText + '</p></div><div class="abilities">' + char.abilities.map(function(ab){ return renderAbility(ab, ELEMENT_COLORS[el]); }).join('') + '</div><div class="modal-team-action">' + actionBtn + '</div></div>';
 }
@@ -731,22 +721,6 @@ function openCharacter(id) {
   modalContent.style.setProperty('--el', ELEMENT_COLORS[char.element]);
   modalContent.innerHTML = buildModalContent(id, char);
   var closeBtn = modalContent.querySelector('.modal-close'); if (closeBtn) closeBtn.addEventListener('click', closeModal);
-
-  var addBtn = modalContent.querySelector('#modalAddToTeam');
-  if (addBtn) addBtn.addEventListener('click', function(){
-    var cid = addBtn.dataset.charId;
-    if (team.indexOf(cid) === -1 && team.length < 3) {
-      team.push(cid);
-      saveTeam(); renderTeamPanel(); playSound('select');
-      openCharacter(cid);
-    }
-  });
-  var removeBtn = modalContent.querySelector('#modalRemoveFromTeam');
-  if (removeBtn) removeBtn.addEventListener('click', function(){
-    var cid = removeBtn.dataset.charId;
-    var idx = team.indexOf(cid);
-    if (idx >= 0) { team.splice(idx, 1); saveTeam(); renderTeamPanel(); playSound('deselect'); openCharacter(cid); }
-  });
 
   modal.classList.add('open'); document.body.style.overflow = 'hidden';
 }
@@ -763,9 +737,14 @@ function toggleTeam(id) {
   var idx = team.indexOf(id);
   if (idx >= 0) { team.splice(idx, 1); playSound('deselect'); }
   else { if (team.length >= 3) team.shift(); team.push(id); playSound('select'); }
-  saveTeam(); renderTeamPanel(); if (team.length > 0) openTeamPanel();
+  saveTeam(); renderTeamPanel();
 }
-function autoBuildTeam(){ initAudio(); var pool = shuffleArray(Object.keys(CHARACTERS).slice()); team = pool.slice(0, 3); saveTeam(); renderTeamPanel(); playSound('confirm'); if (team.length > 0) openTeamPanel(); }
+function autoBuildTeam(){
+  initAudio();
+  var pool = shuffleArray(Object.keys(CHARACTERS).slice());
+  team = pool.slice(0, 3);
+  saveTeam(); renderTeamPanel(); playSound('confirm');
+}
 function computeTeam() {
   if (team.length < 3) return null;
   var counts = {};
@@ -822,8 +801,8 @@ function setupCardClicks() {
   var cards = document.querySelectorAll('.char-card');
   for (var i = 0; i < cards.length; i++) (function(card){
     card.addEventListener('click', function(e){
-      e.preventDefault();
-      openCharacter(card.dataset.character);
+      if (e.target.closest && e.target.closest('.card-info-btn')) return;
+      toggleTeam(card.dataset.character);
     });
   })(cards[i]);
 }
@@ -3483,10 +3462,36 @@ function setupDamageCalculator(){
   renderCalcAbilityInfo(); renderCalcResult();
 }
 
+function addInfoButtons() {
+  var cards = document.querySelectorAll('.char-card');
+  for (var i = 0; i < cards.length; i++) (function(card){
+    var portrait = card.querySelector('.portrait'); if (!portrait) return;
+    var btn = document.createElement('button');
+    btn.className = 'card-info-btn';
+    btn.innerHTML = 'i';
+    btn.title = 'Ver detalles del personaje';
+    btn.setAttribute('aria-label', 'Ver detalles');
+    btn.addEventListener('click', function(e){
+      e.stopPropagation();
+      openCharacter(card.dataset.character);
+    });
+    portrait.appendChild(btn);
+  })(cards[i]);
+}
+
 var initFns = [
-  ['renderPhilosophies', renderPhilosophies], ['renderConsonancias', renderConsonancias], ['renderCharFilter', renderCharFilter], ['renderResonances', renderResonances],
-  ['renderDiceSimulator', renderDiceSimulator], ['applyFilters', applyFilters], ['setupCardClicks', setupCardClicks],
-  ['renderTeamPanel', renderTeamPanel], ['renderCardFilter', renderCardFilter], ['renderDeckGrid', renderDeckGrid], ['setupDamageCalculator', setupDamageCalculator],
+  ['renderPhilosophies', renderPhilosophies],
+  ['renderConsonancias', renderConsonancias],
+  ['renderCharFilter', renderCharFilter],
+  ['renderResonances', renderResonances],
+  ['renderDiceSimulator', renderDiceSimulator],
+  ['applyFilters', applyFilters],
+  ['addInfoButtons', addInfoButtons],
+  ['setupCardClicks', setupCardClicks],
+  ['renderTeamPanel', renderTeamPanel],
+  ['renderCardFilter', renderCardFilter],
+  ['renderDeckGrid', renderDeckGrid],
+  ['setupDamageCalculator', setupDamageCalculator],
   ['renderTemplateSlots', renderTemplateSlots]
 ];
 initFns.forEach(function(p){ try { p[1](); } catch (e) { console.error('Init error in ' + p[0] + ':', e); } });
@@ -3505,7 +3510,7 @@ initFns.forEach(function(p){ try { p[1](); } catch (e) { console.error('Init err
     if (t) showTemplatePreview(t, s, null);
   });
 })();
-if (team.length > 0) setTimeout(function(){ try { openTeamPanel(); } catch (e) {} }, 400);
+
 setTimeout(function(){ var rv = document.querySelectorAll('.reveal'); for (var i = 0; i < rv.length; i++) if (!rv[i].classList.contains('visible')) rv[i].classList.add('visible'); }, 2000);
 console.log('Azaria TCG — init completado');
 
