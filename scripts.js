@@ -76,91 +76,91 @@ var RESONANCES = [
 ];
 
 var CHARACTERS = {
-  alaya: { name:'Alaya', element:'redencion', set:'Reminiscencia', hp:10, emoji:'🌹', img:'img/alaya.png', concept:'Representa el beneficio del sacrificio y del dolor, basándose en recibir daño.', abilities: [
+  alaya: { name:'Alaya', element:'redencion', set:'Reminiscencia', category:'Usuarios', hp:10, emoji:'🌹', img:'img/alaya.png', concept:'Representa el beneficio del sacrificio y del dolor, basándose en recibir daño.', abilities: [
     { type:'normal', icon:'⚔️', name:'Autolesión', cost:'x1 dado de redención, x1 dado cualquiera', effect:'Alaya se golpea a sí misma y se inflige 1 punto de daño. No daña al enemigo: es una habilidad de autolesión pensada para acumular condena mediante su pasiva.' },
     { type:'elemental', icon:'🔮', name:'Penitencia', cost:'x2 dados de redención', effect:'Elimina todos los efectos activos sobre sí misma y entra en el estado Castigada, base de su pasiva.' },
     { type:'ultimate', icon:'💥', name:'El Fin del Comienzo', cost:'x3 dados de redención, x3 puntos de energía', effect:'Alaya gasta todos sus puntos de condena acumulados e inflige al enemigo un daño equivalente a dicha cantidad. Si el enemigo no muere, será Alaya quien muera. Independientemente del resultado, marca con redención a todos los enemigos.' },
     { type:'passive', icon:'🛡️', name:'Mártir Afligida', effect:'Cuando Alaya está Castigada, toda curación que reciba se convierte en daño verdadero. Cada vez que Alaya reciba daño mientras está Castigada, ganará 1 punto de condena por cada golpe recibido.' },
     { type:'ex', icon:'🌟', name:'EX', effect:'Si Alaya muere por su propia habilidad definitiva y en la mano del usuario hay una carta para revivir a un personaje, se le da la opción de utilizarla para revivirla inmediatamente y repetir el golpe de la definitiva. Tras ello, morirá de nuevo.' }
   ]},
-  oliver: { name:'Óliver', element:'comprension', set:'Refinamiento', hp:11, emoji:'🧠', img:'img/oliver.png', concept:'Su función es servir como soporte ofensivo potenciando a sus aliados mediante estructuras.', abilities: [
+  oliver: { name:'Óliver', element:'comprension', set:'Refinamiento', category:'Usuarios', hp:11, emoji:'🧠', img:'img/oliver.png', concept:'Su función es servir como soporte ofensivo potenciando a sus aliados mediante estructuras.', abilities: [
     { type:'normal', icon:'⚔️', name:'Corrección', cost:'x1 dado de comprensión, x1 dado cualquiera', effect:'Golpea al enemigo e inflige 1 punto de daño.' },
     { type:'elemental', icon:'🔮', name:'Optimización', cost:'x3 dados de comprensión', effect:'Coloca una estructura de 2 rondas que inflige 1 punto de daño al enemigo al final de cada ronda, marcándolo con comprensión. Mientras permanezca en el campo, los ataques normales y habilidades elementales de los aliados suman 2 puntos de daño. Volver a usarla extiende su duración en 1 ronda (máximo 3).' },
     { type:'ultimate', icon:'💥', name:'Obra Maestra', cost:'x4 dados de comprensión, x2 puntos de energía', effect:'Durante 2 rondas, las habilidades definitivas de los aliados hacen el doble de daño base, siempre y cuando la estructura de Optimización siga en el campo. Si no hay estructura, la habilidad no se puede usar.' },
     { type:'passive', icon:'🛡️', name:'Criterio de Excelencia', effect:'Todas las cartas de equipamiento cuestan un dado menos.' },
     { type:'ex', icon:'🌟', name:'EX', effect:'La habilidad definitiva dobla el daño final en lugar del daño base.' }
   ]},
-  erik: { name:'Erik', element:'expresion', set:'Magia de Pintura', hp:10, emoji:'🎨', img:'img/erik.png', concept:'Sus habilidades están construidas para ser un personaje todoterreno consistente.', abilities: [
+  erik: { name:'Erik', element:'expresion', set:'Magia de Pintura', category:'Usuarios', hp:10, emoji:'🎨', img:'img/erik.png', concept:'Sus habilidades están construidas para ser un personaje todoterreno consistente.', abilities: [
     { type:'normal', icon:'⚔️', name:'Trazo Vivo', cost:'x2 dados de expresión, x1 dado cualquiera', effect:'Golpea al enemigo, inflige 1 punto de daño y lo marca con expresión. Si lleva equipada una carta de pintura, no marca, pero aplica un bono según el color: Roja +2 daño, Azul escudo 1, Verde cura 2.' },
     { type:'elemental', icon:'🔮', name:'Interpretación', cost:'x3 dados de expresión', effect:'Pierde 1 punto de vida. Genera 3 cartas de pintura (roja, azul y verde). Estas cartas se equipan (una máximo) sobre Erik, no cuestan dados y se descartan al final de la siguiente ronda si no están equipadas.' },
     { type:'ultimate', icon:'💥', name:'Lienzo de Sangre', cost:'x3 dados de expresión, x2 puntos de energía', effect:'Consume todas las cartas de pintura no equipadas en mano: cada roja inflige 1 de daño, cada azul aumenta +1 la vida de su escudo, cada verde le cura 1 punto de vida.' },
     { type:'passive', icon:'🛡️', name:'Inspiración Solitaria', effect:'Cuantos menos aliados vivos haya, mayor será el efecto de sus habilidades: con 2 aliados +1 daño base/escudo/curación; con 1 aliado +2.' },
     { type:'ex', icon:'🌟', name:'EX', effect:'Todos los ataques normales marcan al enemigo con expresión.' }
   ]},
-  tenshi: { name:'Tenshi', element:'proteccion', set:'Égida', hp:11, emoji:'⚔️', img:'img/tenshi.png', concept:'Diseñado para defender a sus aliados mediante escudos, vulnerabilidad y amenazas.', abilities: [
+  tenshi: { name:'Tenshi', element:'proteccion', set:'Égida', category:'Usuarios', hp:11, emoji:'⚔️', img:'img/tenshi.png', concept:'Diseñado para defender a sus aliados mediante escudos, vulnerabilidad y amenazas.', abilities: [
     { type:'normal', icon:'⚔️', name:'Intervención', cost:'x2 dados de protección, x1 dado cualquiera', effect:'Inflige 2 puntos de daño al enemigo activo. Si el enemigo es Amenaza, suma 1 punto más y deja de ser Amenaza.' },
     { type:'elemental', icon:'🔮', name:'Bajo mis Alas', cost:'x3 dados de protección', effect:'El aliado con menos vida pasa a estar Vulnerable. La primera vez que reciba daño verdadero, se reduce 1 punto y el enemigo culpable pasa a Amenaza. Al recibir ese daño, deja de ser Vulnerable.' },
     { type:'ultimate', icon:'💥', name:'Suficiente', cost:'x4 dados de protección, x3 puntos de energía', effect:'Inflige 3 puntos de daño penetrante a todos los enemigos Amenaza, marcándolos con protección y dejando de estar Amenaza. Otorga 3 puntos de escudo al aliado Vulnerable.' },
     { type:'passive', icon:'🛡️', name:'Último Baluarte', effect:'Si un aliado Vulnerable va a morir, queda con 1 punto de vida y el activo cambia a Tenshi (acción rápida). Ocurre una vez por aliado. Dicho aliado recibe 1 escudo, sigue Vulnerable y el enemigo culpable pasa a Amenaza.' },
     { type:'ex', icon:'🌟', name:'EX', effect:'Si un enemigo Amenaza inflige daño verdadero a un aliado Vulnerable, el enemigo es marcado con protección.' }
   ]},
-  eloy: { name:'Eloy', element:'comprension', set:'Cognición', hp:12, emoji:'📖', img:'img/eloy.png', concept:'Sus cimientos son el conocimiento como útil para protegerse y mantenerse seguro.', abilities: [
+  eloy: { name:'Eloy', element:'comprension', set:'Cognición', category:'Usuarios', hp:12, emoji:'📖', img:'img/eloy.png', concept:'Sus cimientos son el conocimiento como útil para protegerse y mantenerse seguro.', abilities: [
     { type:'normal', icon:'⚔️', name:'Análisis', cost:'x1 dado de comprensión, x2 dados cualesquiera', effect:'Golpea al enemigo e inflige 2 puntos de daño. Eloy no obtiene energía con este ataque (ni con su habilidad elemental).' },
     { type:'elemental', icon:'🔮', name:'Hipótesis Sólida', cost:'x4 dados de comprensión', effect:'Alza un escudo de 2 puntos de vida. Cuando un enemigo golpea ese escudo, marca a dicho enemigo con comprensión.' },
     { type:'ultimate', icon:'💥', name:'Conclusión', cost:'x3 dados de comprensión, x3 puntos de energía', effect:'Otorga un escudo de 1 punto de vida a cada aliado excepto a sí mismo, y 1 punto de energía a cada aliado excepto a sí mismo.' },
     { type:'passive', icon:'🛡️', name:'Sincronía Cognitiva', effect:'Si un aliado usa su habilidad definitiva, Eloy gana 1 punto de energía (independiente de si Eloy ya actuó o no esa ronda). Eloy no obtiene energía con sus ataques normales ni elementales.' },
     { type:'ex', icon:'🌟', name:'EX', effect:'La definitiva otorga 2 puntos de energía a los aliados en lugar de 1. La pasiva no tiene límite por ronda.' }
   ]},
-  eevee: { name:'Eevee', element:'proteccion', set:'Instinto', hp:10, emoji:'🦊', img:'img/eevee.png', concept:'Se quita relevancia hasta que se meten con ella.', abilities: [
+  eevee: { name:'Eevee', element:'proteccion', set:'Instinto', category:'Usuarios', hp:10, emoji:'🦊', img:'img/eevee.png', concept:'Se quita relevancia hasta que se meten con ella.', abilities: [
     { type:'normal', icon:'⚔️', name:'Advertencia', cost:'x1 dado de protección, x2 dados cualesquiera', effect:'Golpea al enemigo e inflige 2 puntos de daño.' },
     { type:'elemental', icon:'🔮', name:'Defensa Activa', cost:'x4 dados de protección', effect:'Entra en estado de defensa activa: el daño del próximo ataque enemigo hacia ella se reduce en 1 punto y contraataca inmediatamente con un ataque normal. El estado se consume al activarse.' },
     { type:'ultimate', icon:'💥', name:'Contraofensiva', cost:'x3 dados de protección, x2 puntos de energía', effect:'Inflige 3 puntos al enemigo activo. Si está en Furia, inflige 5. Si el enemigo activo es quien activó su Furia, inflige 6 y lo marca con protección.' },
     { type:'passive', icon:'🛡️', name:'Instinto de Supervivencia', effect:'Cuando Eevee recibe un golpe que reduce su vida, entra en estado Furia a partir del siguiente turno, haciendo que inflija 1 punto de daño extra con el ataque normal al enemigo que la golpeó durante el resto de la ronda. Se reinicia al final de la ronda.' },
     { type:'ex', icon:'🌟', name:'EX', effect:'Su ataque normal automático (disparado por Defensa Activa) marca al enemigo con protección.' }
   ]},
-  ren: { name:'Ren', element:'ilusion', set:'Distorsión', hp:10, emoji:'🌀', img:'img/ren.png', concept:'Pretende hacer dudar del funcionamiento, mantener la duda y confundir.', abilities: [
+  ren: { name:'Ren', element:'ilusion', set:'Distorsión', category:'Usuarios', hp:10, emoji:'🌀', img:'img/ren.png', concept:'Pretende hacer dudar del funcionamiento, mantener la duda y confundir.', abilities: [
     { type:'normal', icon:'⚔️', name:'Error', cost:'x1 dado de ilusión, x2 dados cualesquiera', effect:'Golpea al enemigo e inflige 2 puntos de daño normal.' },
     { type:'elemental', icon:'🔮', name:'Inconsistencia', cost:'x5 dados de ilusión', effect:'Golpea al enemigo e inflige 2 puntos de daño penetrante, fuerza el cambio al siguiente enemigo en reserva y marca al nuevo enemigo activo con ilusión.' },
     { type:'ultimate', icon:'💥', name:'Destrucción de Lógica', cost:'x4 dados de ilusión, x3 puntos de energía', effect:'Golpea al enemigo e inflige 3 puntos de daño penetrante, marcándolo con ilusión y forzando el cambio al siguiente enemigo en reserva.' },
     { type:'passive', icon:'🛡️', name:'Paso Fantasma', effect:'Al usar su habilidad elemental o definitiva, Ren pasa a la reserva y el siguiente personaje en reserva se convierte en activo.' },
     { type:'ex', icon:'🌟', name:'EX', effect:'Los aliados no pueden ser marcados por ilusión.' }
   ]},
-  noah: { name:'Noah', element:'proteccion', set:'Resonancia', hp:12, emoji:'⚓', img:'img/noah.png', concept:'Su única función es que sus compañeros estén bien…', abilities: [
+  noah: { name:'Noah', element:'proteccion', set:'Resonancia', category:'Usuarios', hp:12, emoji:'⚓', img:'img/noah.png', concept:'Su única función es que sus compañeros estén bien…', abilities: [
     { type:'normal', icon:'⚔️', name:'Latido', cost:'x1 dado de protección, x1 dado cualquiera', effect:'Golpea al enemigo e inflige 1 punto de daño.' },
     { type:'elemental', icon:'🔮', name:'Eco Vital', cost:'x3 dados de protección', effect:'Cura 2 puntos de vida verdadera a todos los aliados excepto a sí misma. Dichos aliados pasan a Sintonía. La próxima curación que reciba uno de ellos también la reciben todos los aliados en Sintonía. Una vez ocurre, todos dejan de estar en Sintonía.' },
     { type:'ultimate', icon:'💥', name:'Armonía', cost:'x3 dados de protección, x3 puntos de energía', effect:'Ella misma pasa a Sintonía y se cura 5 puntos de vida, marcando al enemigo activo con protección. Por cada aliado en Sintonía adicional, la curación se reduce en 1.' },
     { type:'passive', icon:'🛡️', name:'Ecos de Compasión', effect:'Las cartas de curación cuestan un dado menos.' },
     { type:'ex', icon:'🌟', name:'EX', effect:'Al golpear a un enemigo marcado con protección, cura 1 punto a los aliados no Sintonizados.' }
   ]},
-  abla: { name:'Abla', element:'redencion', set:'Venganza', hp:10, emoji:'🗡️', img:'img/abla.png', concept:'Su manera de jugar deja clara su sed; no se olvida del daño que recibe y lo hace pagar.', abilities: [
+  abla: { name:'Abla', element:'redencion', set:'Venganza', category:'Usuarios', hp:10, emoji:'🗡️', img:'img/abla.png', concept:'Su manera de jugar deja clara su sed; no se olvida del daño que recibe y lo hace pagar.', abilities: [
     { type:'normal', icon:'⚔️', name:'Rencor', cost:'x1 dado de redención, x2 dados cualesquiera', effect:'Golpea al enemigo e inflige 2 puntos de daño.' },
     { type:'elemental', icon:'🔮', name:'Deuda de Sangre', cost:'x4 dados de redención', effect:'Golpea al enemigo e inflige 3 puntos de daño, aplicándole 1 acumulación de Rencor, y se cura el daño verdadero infligido.' },
     { type:'ultimate', icon:'💥', name:'Retribución Final', cost:'x3 dados de redención, x3 puntos de energía', effect:'Cada enemigo con Rencor recibe 3 de daño, más 1 punto por cada acumulación adicional de Rencor, consumiendo todas sus acumulaciones.' },
     { type:'passive', icon:'🛡️', name:'Agravio Eterno', effect:'Al resucitar inflige 1 punto de daño a todos los enemigos.' },
     { type:'ex', icon:'🌟', name:'EX', effect:'Los enemigos con Rencor reciben 1 punto de daño al final de la ronda.' }
   ]},
-  manuel: { name:'Manuel', element:'redencion', set:'Entropía', hp:11, emoji:'⚡', img:'img/manuel.png', concept:'Da grandes saltos sabiendo que si va a causar dolor, él también va a fastidiarse.', abilities: [
+  manuel: { name:'Manuel', element:'redencion', set:'Entropía', category:'Usuarios', hp:11, emoji:'⚡', img:'img/manuel.png', concept:'Da grandes saltos sabiendo que si va a causar dolor, él también va a fastidiarse.', abilities: [
     { type:'normal', icon:'⚔️', name:'Ruptura', cost:'x2 dados de redención, x2 dados cualesquiera', effect:'Golpea al enemigo e inflige 3 puntos de daño.' },
     { type:'elemental', icon:'🔮', name:'Degradación', cost:'x5 dados de redención', effect:'Se autolesiona 2 puntos y golpea al enemigo infligiendo 4 puntos de daño, marcándolo con redención. Esta habilidad no genera energía si la definitiva está acumulada.' },
     { type:'ultimate', icon:'💥', name:'Decadencia', cost:'x3 dados de redención, x2 puntos de energía', effect:'Acumula +1 daño en su habilidad elemental (tanto al enemigo como a sí mismo) y reduce su coste en 1 dado. Se acumula hasta ejecutar la elemental. Al hacerlo, se reinicia la acumulación y los enemigos marcados con redención dejan de estarlo.' },
     { type:'passive', icon:'🛡️', name:'Tributo Vital', effect:'Al matar a un enemigo, Manuel recupera 1 punto de vida.' },
     { type:'ex', icon:'🌟', name:'EX', effect:'Usar la habilidad elemental otorga 2 puntos de energía en lugar de 1.' }
   ]},
-  jose: { name:'Jose', element:'transformacion', set:'Inercia', hp:10, emoji:'🦋', img:'img/jose.png', concept:'Aprovecha el flujo del juego para entrar y salir, usando esa velocidad para mejorar el daño.', abilities: [
+  jose: { name:'Jose', element:'transformacion', set:'Inercia', category:'Usuarios', hp:10, emoji:'🦋', img:'img/jose.png', concept:'Aprovecha el flujo del juego para entrar y salir, usando esa velocidad para mejorar el daño.', abilities: [
     { type:'normal', icon:'⚔️', name:'Acelerón', cost:'x2 dados de transformación, x1 dado cualquiera', effect:'Inflige 2 puntos al enemigo. Si el ataque es acelerado (realizado tras cambiar a Jose en el mismo turno), suma 1 punto más y marca al enemigo con transformación.' },
     { type:'elemental', icon:'🔮', name:'Impulso', cost:'x3 dados de transformación', effect:'Durante el resto de la ronda, su siguiente ataque normal suma 2 puntos de daño. Después pasa a la reserva.' },
     { type:'ultimate', icon:'💥', name:'Instinto', cost:'x4 dados de transformación, x2 puntos de energía', effect:'Inflige 3 puntos al enemigo activo. Se considera un ataque normal, por lo que puede ser acelerado: si lo es, suma 2 puntos más y marca con transformación.' },
     { type:'passive', icon:'🛡️', name:'Cambio Cinético', effect:'Cambiar de personaje a Jose se considera una acción rápida.' },
     { type:'ex', icon:'🌟', name:'EX', effect:'Cambiar a Jose no cuesta dados.' }
   ]},
-  josemi: { name:'Josemi', element:'expresion', set:'Cosmogénesis', hp:10, emoji:'🎤', img:'img/josemi.png', concept:'Manipulación de cartas de apoyo y control del campo.', abilities: [
+  josemi: { name:'Josemi', element:'expresion', set:'Cosmogénesis', category:'Usuarios', hp:10, emoji:'🎤', img:'img/josemi.png', concept:'Manipulación de cartas de apoyo y control del campo.', abilities: [
     { type:'normal', icon:'⚔️', name:'Esbozo', cost:'x1 dado de expresión, x2 dados cualesquiera', effect:'Inflige 2 puntos de daño al enemigo.' },
     { type:'elemental', icon:'🔮', name:'Reescritura', cost:'x3 dados de expresión', effect:'Restablece la duración de una carta de apoyo o estructura propia en el campo y destruye una carta de apoyo enemiga. Si no destruye ningún apoyo enemigo, marca al enemigo activo con expresión.' },
     { type:'ultimate', icon:'💥', name:'Canon', cost:'x5 dados de expresión, x2 puntos de energía', effect:'Roba hasta 3 cartas de apoyo del mazo y activa inmediatamente el beneficio de cada carta de apoyo propia que ya esté en el campo, sin reducir su duración restante.' },
     { type:'passive', icon:'🛡️', name:'Vestigios del Origen', effect:'Cuando una carta de apoyo propia desaparece del campo, otorga 1 dado del tipo del aliado activo.' },
     { type:'ex', icon:'🌟', name:'EX', effect:'Las cartas de apoyo cuestan un dado menos.' }
   ]},
-    artemis: { name:'Artemis', element:'aceptacion', set:'Vuelo', hp:11, emoji:'🦅', img:'img/artemis.png', concept:'Vuela alto. Vuela alto por mí. Vuela alto por tí. Vuela alto por todos aquellos que dudaron de tu vuelo. Vuela alto por todo aquello que sientes que es correcto.', abilities: [
+  artemis: { name:'Artemis', element:'aceptacion', set:'Erik', category:'Eriks', hp:11, emoji:'🦅', img:'img/artemis.png', concept:'Vuela alto. Vuela alto por mí. Vuela alto por tí. Vuela alto por todos aquellos que dudaron de tu vuelo. Vuela alto por todo aquello que sientes que es correcto.', abilities: [
     { type:'normal', icon:'⚔️', name:'Disparo divino', cost:'x2 dados de aceptación, x2 dados cualesquiera', effect:'Causa 3 de daño físico al enemigo activo.' },
     { type:'elemental', icon:'🔮', name:'Carrerilla', cost:'x3 dados de aceptación', effect:'Su siguiente habilidad que cause daño añade 2 puntos de daño adicional. Esta habilidad no otorga energía. Si el siguiente ataque dañino es su ataque normal, el output de energía de ese ataque aumenta en 1 adicionalmente.' },
     { type:'ultimate', icon:'💥', name:'Mis dedos palpan el borde de la estratosfera', cost:'x6 dados de aceptación, x3 puntos de energía', effect:'Si no tiene el efecto "Vuelo", lo recibe. Si tenía el efecto "Vuelo" antes de usar esta habilidad, causa 6 de daño elemental a todos los enemigos, los marca con "Aceptación" y muere.' },
@@ -665,26 +665,148 @@ function renderConsonancias() {
   CONSONANCE_ORDER.forEach(function(key){ var p = PHILOSOPHIES[key]; cards.push('<div class="consonance-card reveal" style="--el: ' + ELEMENT_COLORS[key] + ';"><div class="consonance-header"><span class="consonance-emoji">' + p.emoji + '</span><div><div class="consonance-name">' + p.name + '</div><div class="consonance-sub">' + p.tagline + '</div></div></div><div class="consonance-level"><div class="consonance-level-label">👥 2 personajes</div><div class="consonance-level-text">' + p.consonance2 + '</div></div><div class="consonance-level"><div class="consonance-level-label">👥 3 personajes</div><div class="consonance-level-text">' + p.consonance3 + '</div></div></div>'); });
   grid.innerHTML = cards.join('');
 }
+var CHAR_SORT_MODES = ['alpha', 'element', 'category'];
+var CHAR_SORT_LABELS = {
+  alpha:    '🔤 A → Z',
+  element:  '🌿 Tipo',
+  category: '📁 Categoría'
+};
+var CHAR_SORT_TITLES = {
+  alpha:    'Orden actual: Alfabético (A → Z). Clic para cambiar.',
+  element:  'Orden actual: por Tipo de Respuesta. Clic para cambiar.',
+  category: 'Orden actual: por Categoría. Clic para cambiar.'
+};
+var CHAR_ELEMENT_ORDER = ['proteccion','comprension','expresion','transformacion','aceptacion','redencion','ilusion'];
+var CHAR_CATEGORY_ORDER = ['Usuarios', 'Personajes', 'Eriks'];
+var charSortMode = 'alpha';
 var charFilterSet = {}, resFilterSet = {}, deckCatFilterSet = {}, deckTagFilterSet = {};
+var CHARACTER_CATEGORIES = ['Eriks', 'Personajes', 'Usuarios'];
+var CHARACTER_CATEGORY_COLORS = { 'Eriks':'255,120,60', 'Personajes':'130,220,140', 'Usuarios':'140,180,230' };
+var charCatFilterSet = {};
+function updateCharSortBtn() {
+  var btn = document.getElementById('charSortBtn');
+  if (!btn) return;
+  btn.textContent = CHAR_SORT_LABELS[charSortMode] || 'Ordenar';
+  btn.title = CHAR_SORT_TITLES[charSortMode] || '';
+}
+
+function sortCharCards() {
+  var grid = document.getElementById('cardsGrid');
+  if (!grid) return;
+  var cards = Array.prototype.slice.call(grid.querySelectorAll('.char-card'));
+  if (!cards.length) return;
+
+  cards.sort(function(a, b) {
+    var chA = CHARACTERS[a.dataset.character];
+    var chB = CHARACTERS[b.dataset.character];
+    if (!chA || !chB) return 0;
+    var nameA = normalize(chA.name);
+    var nameB = normalize(chB.name);
+
+    if (charSortMode === 'alpha') {
+      return nameA.localeCompare(nameB);
+    }
+    if (charSortMode === 'element') {
+      var idxA = CHAR_ELEMENT_ORDER.indexOf(chA.element);
+      var idxB = CHAR_ELEMENT_ORDER.indexOf(chB.element);
+      if (idxA === -1) idxA = 99;
+      if (idxB === -1) idxB = 99;
+      if (idxA !== idxB) return idxA - idxB;
+      return nameA.localeCompare(nameB); // desempate alfabético
+    }
+    if (charSortMode === 'category') {
+      var catA = CHAR_CATEGORY_ORDER.indexOf(chA.category || '');
+      var catB = CHAR_CATEGORY_ORDER.indexOf(chB.category || '');
+      if (catA === -1) catA = 99;
+      if (catB === -1) catB = 99;
+      if (catA !== catB) return catA - catB;
+      return nameA.localeCompare(nameB); // desempate alfabético
+    }
+    return 0;
+  });
+
+  // Reordenar el DOM (mover nodos existentes — conserva listeners)
+  cards.forEach(function(card) { grid.appendChild(card); });
+}
+
+function setupCharSort() {
+  var controls = document.querySelector('.collection-controls');
+  if (!controls) return;
+
+  var btn = document.getElementById('charSortBtn');
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.id = 'charSortBtn';
+    btn.className = 'char-sort-btn';
+    btn.setAttribute('aria-label', 'Cambiar orden de los personajes');
+    controls.insertBefore(btn, controls.firstChild);
+
+    btn.addEventListener('click', function() {
+      var i = CHAR_SORT_MODES.indexOf(charSortMode);
+      charSortMode = CHAR_SORT_MODES[(i + 1) % CHAR_SORT_MODES.length];
+      updateCharSortBtn();
+      sortCharCards();
+      playSound('select');
+    });
+  }
+
+  updateCharSortBtn();
+  sortCharCards();
+}
 function renderCharFilter() {
   var bar = document.getElementById('charFilterBar'); if (!bar) return;
-  var none = setSize(charFilterSet) === 0;
-  var buttons = ['<button class="filter-btn' + (none ? ' active' : '') + '" data-filter="all" style="--fc: 240, 200, 96;">Todas</button>'];
-  CONSONANCE_ORDER.forEach(function(key){ var p = PHILOSOPHIES[key]; buttons.push('<button class="filter-btn' + (charFilterSet[key] ? ' active' : '') + '" data-filter="' + key + '" style="--fc: ' + ELEMENT_COLORS[key] + ';">' + p.emoji + ' ' + p.name + '</button>'); });
-  bar.innerHTML = buttons.join('');
-  var btns = bar.querySelectorAll('.filter-btn');
-  for (var i = 0; i < btns.length; i++) btns[i].addEventListener('click', function(){ var f = this.dataset.filter; if (f === 'all') charFilterSet = {}; else toggleFilterKey(charFilterSet, f); renderCharFilter(); applyFilters(); });
+  var noneEl = setSize(charFilterSet) === 0;
+  var noneCat = setSize(charCatFilterSet) === 0;
+
+  var elBtns = ['<button class="filter-btn' + (noneEl ? ' active' : '') + '" data-filter="all" style="--fc: 240, 200, 96;">Todas</button>'];
+  CONSONANCE_ORDER.forEach(function(key){
+    var p = PHILOSOPHIES[key];
+    elBtns.push('<button class="filter-btn' + (charFilterSet[key] ? ' active' : '') + '" data-filter="' + key + '" style="--fc: ' + ELEMENT_COLORS[key] + ';">' + p.emoji + ' ' + p.name + '</button>');
+  });
+
+  var catBtns = ['<button class="cat-filter-btn' + (noneCat ? ' active' : '') + '" data-catfilter="all" style="--fc: 240, 200, 96;">📚 Todas</button>'];
+  CHARACTER_CATEGORIES.forEach(function(cat){
+    var col = CHARACTER_CATEGORY_COLORS[cat] || '180,180,200';
+    catBtns.push('<button class="cat-filter-btn' + (charCatFilterSet[cat] ? ' active' : '') + '" data-catfilter="' + cat + '" style="--fc: ' + col + ';">' + cat + '</button>');
+  });
+
+  bar.innerHTML = '<div class="filter-row">' + elBtns.join('') + '</div><div class="filter-row">' + catBtns.join('') + '</div>';
+
+  bar.querySelectorAll('[data-filter]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var f = this.dataset.filter;
+      if (f === 'all') charFilterSet = {}; else toggleFilterKey(charFilterSet, f);
+      renderCharFilter(); applyFilters();
+    });
+  });
+  bar.querySelectorAll('[data-catfilter]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var v = btn.dataset.catfilter;
+      if (v === 'all') charCatFilterSet = {}; else toggleFilterKey(charCatFilterSet, v);
+      renderCharFilter(); applyFilters();
+    });
+  });
 }
 function applyFilters() {
   var searchEl = document.getElementById('charSearch'); var query = searchEl ? normalize(searchEl.value.trim()) : '';
-  var none = setSize(charFilterSet) === 0;
+  var noneEl = setSize(charFilterSet) === 0;
+  var noneCat = setSize(charCatFilterSet) === 0;
   var cards = document.querySelectorAll('.char-card'); var visible = 0;
   for (var i = 0; i < cards.length; i++) {
-    var card = cards[i]; var cd = CHARACTERS[card.dataset.character]; var nm = cd ? cd.name : '';
-    if ((none || !!charFilterSet[card.dataset.el]) && (!query || normalize(nm).indexOf(query) !== -1)) { card.style.display = ''; if (!card.classList.contains('visible')) card.classList.add('visible'); visible++; }
-    else card.style.display = 'none';
+    var card = cards[i];
+    var cd = CHARACTERS[card.dataset.character];
+    var nm = cd ? cd.name : '';
+    var cat = cd ? (cd.category || '') : '';
+    var elMatch = noneEl || !!charFilterSet[card.dataset.el];
+    var catMatch = noneCat || !!charCatFilterSet[cat];
+    if (elMatch && catMatch && (!query || normalize(nm).indexOf(query) !== -1)) {
+      card.style.display = '';
+      if (!card.classList.contains('visible')) card.classList.add('visible');
+      visible++;
+    } else card.style.display = 'none';
   }
-  var counter = document.getElementById('charCounter'); if (counter) counter.innerHTML = '<strong>' + visible + '</strong> de ' + cards.length;
+  var counter = document.getElementById('charCounter');
+  if (counter) counter.innerHTML = '<strong>' + visible + '</strong> de ' + cards.length;
 }
 function renderResonances() {
   var grid = document.getElementById('resonanceGrid'); if (!grid) return;
@@ -3626,6 +3748,7 @@ var initFns = [
   ['applyFilters', applyFilters],
   ['addInfoButtons', addInfoButtons],
   ['setupCardClicks', setupCardClicks],
+  ['setupCharSort', setupCharSort],
   ['renderTeamPanel', renderTeamPanel],
   ['renderCardFilter', renderCardFilter],
   ['renderDeckGrid', renderDeckGrid],
