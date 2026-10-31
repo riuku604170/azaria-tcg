@@ -166,7 +166,22 @@ var CHARACTERS = {
     { type:'ultimate', icon:'💥', name:'Mis dedos palpan el borde de la estratosfera', cost:'x6 dados de aceptación, x3 puntos de energía', effect:'Si no tiene el efecto "Vuelo", lo recibe. Si tenía el efecto "Vuelo" antes de usar esta habilidad, causa 6 de daño elemental a todos los enemigos, los marca con "Aceptación" y muere.' },
     { type:'passive', icon:'🛡️', name:'Vuelo', effect:'Bajo el efecto "Vuelo" recibe una reducción de daño de 2. Si recibe daño verdadero, recibe 3 de daño adicional, gana 1 de energía y pierde el efecto. No puede ser resucitada. Cartas que "resucitan" pueden ser consumidas por ella si está viva para recibir alternativamente salud equivalente a la de la resurrección. No puede usar cartas que aumenten su energía.' },
     { type:'ex', icon:'🌟', name:'EX', effect:'Su definitiva cuesta 2 dados más y aumenta en 2 su poder base.' }
-  ]}
+  ]},
+  neon:       { name:'Neón',      element:'ilusion',        set:'Erik', category:'Eriks', hp:11, emoji:'🎆', img:'img/neon.png',       concept:'', comingSoon:true, abilities:[] },
+  vittoria:   { name:'Vittoria',  element:'aceptacion',     set:'Erik', category:'Eriks', hp:11, emoji:'👑', img:'img/vittoria.png',   concept:'', comingSoon:true, abilities:[] },
+  sage:       { name:'Sage',      element:'transformacion', set:'Erik', category:'Eriks', hp:11, emoji:'🧙', img:'img/sage.png',       concept:'', comingSoon:true, abilities:[] },
+  david:      { name:'David',     element:'redencion',      set:'Erik', category:'Eriks', hp:11, emoji:'🏹', img:'img/david.png',      concept:'', comingSoon:true, abilities:[] },
+  ah:         { name:'A/H',       element:'ilusion',        set:'Erik', category:'Eriks', hp:11, emoji:'🎩', img:'img/ah.png',         concept:'', comingSoon:true, abilities:[] },
+  felicia:    { name:'Felicia',   element:'expresion',      set:'Erik', category:'Eriks', hp:11, emoji:'🎀', img:'img/felicia.png',    concept:'', comingSoon:true, abilities:[] },
+  nc:         { name:'NC',        element:'proteccion',     set:'Erik', category:'Eriks', hp:11, emoji:'🎯', img:'img/nc.png',         concept:'', comingSoon:true, abilities:[] },
+  orath:      { name:'Orath',     element:'redencion',      set:'Erik', category:'Eriks', hp:11, emoji:'🗿', img:'img/orath.png',      concept:'', comingSoon:true, abilities:[] },
+  maria:      { name:'María',     element:'aceptacion',     set:'Erik', category:'Eriks', hp:11, emoji:'🌺', img:'img/maria.png',      concept:'', comingSoon:true, abilities:[] },
+  erikxd:     { name:'ErikXD',    element:'proteccion',     set:'Erik', category:'Eriks', hp:11, emoji:'😎', img:'img/erikxd.png',     concept:'', comingSoon:true, abilities:[] },
+  bella:      { name:'Bella',     element:'transformacion', set:'Erik', category:'Eriks', hp:11, emoji:'🦢', img:'img/bella.png',      concept:'', comingSoon:true, abilities:[] },
+  esmeralda:  { name:'Esmeralda', element:'aceptacion',     set:'Erik', category:'Eriks', hp:11, emoji:'💎', img:'img/esmeralda.png',  concept:'', comingSoon:true, abilities:[] },
+  iris:       { name:'Iris',      element:'proteccion',     set:'Erik', category:'Eriks', hp:11, emoji:'🌈', img:'img/iris.png',       concept:'', comingSoon:true, abilities:[] },
+  amaya:      { name:'Amaya',     element:'comprension',    set:'Erik', category:'Eriks', hp:11, emoji:'🦉', img:'img/amaya.png',      concept:'', comingSoon:true, abilities:[] },
+  adela:      { name:'Adela',     element:'transformacion', set:'Erik', category:'Eriks', hp:11, emoji:'🕊️', img:'img/adela.png',      concept:'', comingSoon:true, abilities:[] }
 };
 
 var CARD_DB = {
