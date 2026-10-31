@@ -28,7 +28,9 @@ var STATUS_DESCRIPTIONS = {
   marca: { name:'🏷️ Marca elemental', text:'Si se aplica otra marca distinta a este personaje, ambas desaparecen al instante y se desencadena una Resonancia.' },
   manuelStacks: { name:'📈 Acumulación (Decadencia)', text:'Cada stack de Decadencia de Manuel suma +1 al daño de su habilidad Degradación (tanto al enemigo como a sí mismo) y reduce en 1 el coste de dados de Degradación.' },
   obraMaestra: { name:'💥 Obra Maestra', text:'Mientras esté activa, las habilidades definitivas de los aliados hacen el doble de daño base (una vez por aliado).' },
-  rencor: { name:'💢 Rencor', text:'Acumulación de Abla sobre este personaje. La habilidad definitiva de Abla inflige daño adicional por cada acumulación y consume todas al golpear.' }
+  rencor: { name:'💢 Rencor', text:'Acumulación de Abla sobre este personaje. La habilidad definitiva de Abla inflige daño adicional por cada acumulación y consume todas al golpear.' },
+  vuelo: { name:'🦅 Vuelo', text:'Artemis en vuelo: reduce en 2 el daño recibido. Si recibe daño verdadero recibe +3 de daño adicional, gana 1 de energía y pierde este efecto.' },
+  carrerilla: { name:'🏃 Carrerilla', text:'El siguiente ataque de Artemis que cause daño añade +2 de daño. Si ese ataque es su ataque normal, gana 1 de energía adicional.' }
 };
 
 var PHILOSOPHIES = {
@@ -157,6 +159,13 @@ var CHARACTERS = {
     { type:'ultimate', icon:'💥', name:'Canon', cost:'x5 dados de expresión, x2 puntos de energía', effect:'Roba hasta 3 cartas de apoyo del mazo y activa inmediatamente el beneficio de cada carta de apoyo propia que ya esté en el campo, sin reducir su duración restante.' },
     { type:'passive', icon:'🛡️', name:'Vestigios del Origen', effect:'Cuando una carta de apoyo propia desaparece del campo, otorga 1 dado del tipo del aliado activo.' },
     { type:'ex', icon:'🌟', name:'EX', effect:'Las cartas de apoyo cuestan un dado menos.' }
+  ]},
+    artemis: { name:'Artemis', element:'aceptacion', set:'Vuelo', hp:11, emoji:'🦅', img:'img/artemis.png', concept:'Vuela alto. Vuela alto por mí. Vuela alto por tí. Vuela alto por todos aquellos que dudaron de tu vuelo. Vuela alto por todo aquello que sientes que es correcto.', abilities: [
+    { type:'normal', icon:'⚔️', name:'Disparo divino', cost:'x2 dados de aceptación, x2 dados cualesquiera', effect:'Causa 3 de daño físico al enemigo activo.' },
+    { type:'elemental', icon:'🔮', name:'Carrerilla', cost:'x3 dados de aceptación', effect:'Su siguiente habilidad que cause daño añade 2 puntos de daño adicional. Esta habilidad no otorga energía. Si el siguiente ataque dañino es su ataque normal, el output de energía de ese ataque aumenta en 1 adicionalmente.' },
+    { type:'ultimate', icon:'💥', name:'Mis dedos palpan el borde de la estratosfera', cost:'x6 dados de aceptación, x3 puntos de energía', effect:'Si no tiene el efecto "Vuelo", lo recibe. Si tenía el efecto "Vuelo" antes de usar esta habilidad, causa 6 de daño elemental a todos los enemigos, los marca con "Aceptación" y muere.' },
+    { type:'passive', icon:'🛡️', name:'Vuelo', effect:'Bajo el efecto "Vuelo" recibe una reducción de daño de 2. Si recibe daño verdadero, recibe 3 de daño adicional, gana 1 de energía y pierde el efecto. No puede ser resucitada. Cartas que "resucitan" pueden ser consumidas por ella si está viva para recibir alternativamente salud equivalente a la de la resurrección. No puede usar cartas que aumenten su energía.' },
+    { type:'ex', icon:'🌟', name:'EX', effect:'Su definitiva cuesta 2 dados más y aumenta en 2 su poder base.' }
   ]}
 };
 
@@ -282,7 +291,12 @@ var COMBAT_CHARS = {
   abla: { name:'Abla', element:'redencion', emoji:'🗡️', hp:10, abilities: { normal:{ name:'Rencor', cost:{redencion:1, any:2}, target:'enemy', kind:'damage', damage:2, energy:1 }, elemental:{ name:'Deuda de Sangre', cost:{redencion:4}, target:'enemy', kind:'deudaSangre', energy:1 }, ultimate:{ name:'Retribución Final', cost:{redencion:3}, energyCost:3, target:'enemy', kind:'retribucionFinal' } }},
   manuel: { name:'Manuel', element:'redencion', emoji:'⚡', hp:11, abilities: { normal:{ name:'Ruptura', cost:{redencion:2, any:2}, target:'enemy', kind:'damage', damage:3, energy:1 }, elemental:{ name:'Degradación', cost:{redencion:5}, target:'enemy', kind:'degradacion', energy:1 }, ultimate:{ name:'Decadencia', cost:{redencion:3}, energyCost:2, target:'self', kind:'decadencia' } }},
   jose: { name:'Jose', element:'transformacion', emoji:'🦋', hp:10, abilities: { normal:{ name:'Acelerón', cost:{transformacion:2, any:1}, target:'enemy', kind:'aceleron', energy:1 }, elemental:{ name:'Impulso', cost:{transformacion:3}, target:'self', kind:'impulso', energy:1 }, ultimate:{ name:'Instinto', cost:{transformacion:4}, energyCost:2, target:'enemy', kind:'instinto' } }},
-  josemi: { name:'Josemi', element:'expresion', emoji:'🎤', hp:10, abilities: { normal:{ name:'Esbozo', cost:{expresion:1, any:2}, target:'enemy', kind:'damage', damage:2, energy:1 }, elemental:{ name:'Reescritura', cost:{expresion:3}, target:'enemy', kind:'reescritura', energy:1 }, ultimate:{ name:'Canon', cost:{expresion:5}, energyCost:2, target:'self', kind:'canon' } }}
+  josemi: { name:'Josemi', element:'expresion', emoji:'🎤', hp:10, abilities: { normal:{ name:'Esbozo', cost:{expresion:1, any:2}, target:'enemy', kind:'damage', damage:2, energy:1 }, elemental:{ name:'Reescritura', cost:{expresion:3}, target:'enemy', kind:'reescritura', energy:1 }, ultimate:{ name:'Canon', cost:{expresion:5}, energyCost:2, target:'self', kind:'canon' } }},
+  artemis: { name:'Artemis', element:'aceptacion', emoji:'🦅', hp:11, abilities: { 
+    normal: { name:'Disparo divino', cost:{aceptacion:2, any:2}, target:'enemy', kind:'damage', damage:3, energy:1 }, 
+    elemental: { name:'Carrerilla', cost:{aceptacion:3}, target:'self', kind:'carrerilla', energy:0 }, 
+    ultimate: { name:'Mis dedos palpan el borde de la estratosfera', cost:{aceptacion:6}, energyCost:3, target:'enemy', kind:'estratosfera' } 
+  }},
 };
 
 function normalize(s){ return String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(); }
@@ -471,7 +485,9 @@ function dealDamageToChar(targetCs, rawDamage, opts) {
   if (targetCs.dead) return 0;
   var side = opts.targetSide, sideKey = opts.targetSideKey, idx = opts.targetIdx;
   var flat = getDamageReduction(targetCs, side);
+  if (csHasState(targetCs, 'vuelo')) flat += 2;
   if (flat > 0) rawDamage = Math.max(0, rawDamage - flat);
+  if (csHasState(targetCs, 'vuelo') && rawDamage >= 0) logCombat('🦅 Vuelo: -2 daño');
   var vulnRed = 0;
   if (csHasState(targetCs, 'vulnerable') && rawDamage > 0) {
     vulnRed = 1; csSetState(targetCs, 'vulnerable', false);
@@ -500,6 +516,12 @@ function dealDamageToChar(targetCs, rawDamage, opts) {
     targetCs.hp = Math.max(0, targetCs.hp - res.overflow);
     logCombat('💥 Daño verdadero: ' + res.overflow + ' · HP: ' + targetCs.hp + '/' + targetCs.maxHp);
     triggerVibrate(sideKey, idx); playSound(opts.piercing ? 'pierce' : 'impact');
+    if (csHasState(targetCs, 'vuelo')) {
+      targetCs.hp = Math.max(0, targetCs.hp - 3);
+      targetCs.energy = Math.min(targetCs.maxEnergy, targetCs.energy + 1);
+      csSetState(targetCs, 'vuelo', false);
+      logCombat('🦅 Vuelo perdido: +3 daño, +1 energía · HP: ' + targetCs.hp + '/' + targetCs.maxHp);
+    }
     if (targetCs.id === 'alaya' && csHasState(targetCs, 'castigada') && targetCs.hp > 0) {
       targetCs.states.condena = (targetCs.states.condena || 0) + 1;
       logCombat('💀 Alaya gana 1 condena · Total: ' + targetCs.states.condena);
@@ -1975,6 +1997,12 @@ function computeBaseDamageForAbility(attackerCs, ability, actionType) {
   var enemySide = combatState[enemyKey];
   var enemyActive = enemySide.characters[enemySide.activeIndex];
   switch (kind) {
+    case 'estratosfera': {
+      if (!csHasState(attackerCs, 'vuelo')) return 0;
+      var carrB = csHasState(attackerCs, 'carrerilla') ? 2 : 0;
+      return 6 + carrB;
+    }
+    case 'carrerilla': return 0;
     case 'damage': return ability.damage || 0;
     case 'trazoVivo': { var b = ability.damage || 1; if (attackerCs.paintEquipped === 'roja') b += 2; return b; }
     case 'intervencion': return (enemyActive && csHasState(enemyActive, 'amenaza')) ? 3 : 2;
@@ -2098,8 +2126,48 @@ function executeAction(who, actionType, preSpentDice) {
   }
 
   switch (ability.kind) {
+    case 'carrerilla': {
+      csSetState(active, 'carrerilla', true);
+      logCombat('🏃 Carrerilla: siguiente ataque +2 daño · +1 energía extra si es normal');
+      break;
+    }
+    case 'estratosfera': {
+      var wasInVuelo = csHasState(active, 'vuelo');
+      if (!wasInVuelo) {
+        csSetState(active, 'vuelo', true);
+        logCombat('🦅 Artemis entra en Vuelo');
+      } else {
+        var carrerillaBonus = 0;
+        if (csHasState(active, 'carrerilla')) {
+          carrerillaBonus = 2;
+          csSetState(active, 'carrerilla', false);
+          logCombat('🏃 Carrerilla: +2 daño a cada enemigo');
+        }
+        var hitCount = 0;
+        enemySide.characters.forEach(function(c, i){
+          if (c.dead) return;
+          applyDamageWithMods(c, 6 + carrerillaBonus, false, enemyKey, i, active);
+          hitCount++;
+          if (!c.dead) triggerMarkOrResonance(c, 'aceptacion', who, enemyKey, i);
+        });
+        logCombat('💥 Estratosfera: ' + (6 + carrerillaBonus) + ' daño a ' + hitCount + ' enemigo(s)');
+        if (!active.dead) {
+          active.hp = 0;
+          handleDeath(who, side.activeIndex);
+          logCombat('💀 Artemis muere por el precio de su definitiva');
+        }
+      }
+      break;
+    }
     case 'damage': {
       var dmg = ability.damage || 0;
+      var carrerillaEnergyBonus = 0;
+      if (active.id === 'artemis' && csHasState(active, 'carrerilla')) {
+        dmg += 2;
+        csSetState(active, 'carrerilla', false);
+        logCombat('🏃 Carrerilla: +2 daño');
+        if (actionType === 'normal') carrerillaEnergyBonus = 1;
+      }
       dmg = applyGenericDamageMods(active, dmg);
       if (active.pendingBuff) pendingBuffConsumed = true;
       if (actionType === 'normal' || actionType === 'elemental') { var ob = getOptimizationBonus(side); if (ob > 0) { dmg += ob; logCombat('🏛️ Optimización: +' + ob); } }
@@ -2107,6 +2175,11 @@ function executeAction(who, actionType, preSpentDice) {
       if (active.id === 'erik') { var eb = applyErikPassive(active); if (eb > 0) { dmg += eb; logCombat('🩸 Inspiración: +' + eb); } }
       if (active.id === 'eevee' && csHasState(active, 'furia') && active.states.furiaTarget === enemyActive.id && actionType === 'normal') { dmg += 1; logCombat('🔥 Furia: +1'); }
       applyDamageWithMods(enemyActive, dmg, predictPiercing(active, ability), enemyKey, enemySide.activeIndex, active);
+      if (carrerillaEnergyBonus > 0 && !active.dead) {
+        var pe = active.energy;
+        active.energy = Math.min(active.maxEnergy, active.energy + carrerillaEnergyBonus);
+        if (active.energy > pe) logCombat('🏃 Carrerilla: +' + (active.energy - pe) + ' energía extra');
+      }
       break;
     }
     case 'autolesion': {
@@ -2600,19 +2673,46 @@ function applyCardEffect(card) {
   }
 }
 function canPayCardCost(cost){ var side = getActiveSide(); if (!side) return false; var t = sumCost(cost); if (t === 0) return true; return trySpendDice(side.dice, cost).ok; }
+function cardEnergyTargetType(card) {
+  if (card.effectType === 'energy') return 'active';
+  if (card.category === 'apoyo' && card.effect) {
+    if (card.effect.energyPerRound) return 'active';
+    if (card.effect.teamEnergyPerRound) return 'team';
+  }
+  if (card.category === 'equipo' && card.effect) {
+    if (card.effect.teamEnergyBonus || card.effect.teamEnergyPerRound) return 'team';
+    if (card.effect.energyBonus || card.effect.energyPerRound) return 'target';
+  }
+  return null;
+}
+function cardWouldGiveEnergyToArtemis(card, side) {
+  var tt = cardEnergyTargetType(card);
+  if (!tt) return false;
+  if (tt === 'active') {
+    var act = side.characters[side.activeIndex];
+    return act && act.id === 'artemis';
+  }
+  if (tt === 'team') {
+    return side.characters.some(function(c){ return c.id === 'artemis' && !c.dead; });
+  }
+  return false; // 'target' → se comprueba al elegir a quién equipar
+}
 function playCardRequest(cardId) {
   if (!combatState || combatState.phase !== 'playing') return;
   if (isTurnDone()) return;
   var side = getTurnSide(); if (!side) return;
   var card = CARD_DB[cardId] || PAINT_CARDS[cardId]; if (!card) return;
+
   if (card.oncePerRound && side.cardsUsedThisRound[cardId]) { playSound('error'); return; }
   if (card.oncePerGame && side.cardsUsedThisGame[cardId]) { playSound('error'); return; }
+
+  var artemisBlock = cardWouldGiveEnergyToArtemis(card, side);
   var adjustedCost = adjustCardCostForPassives(card, side);
   showCardConfirmation(cardId, adjustedCost, function(selectedDice){
     var spentIds = {}; selectedDice.forEach(function(d){ spentIds[d.id] = true; });
     side.dice = side.dice.filter(function(d){ return !spentIds[d.id]; });
     applyCardPlay(cardId, selectedDice);
-  });
+  }, artemisBlock);
 }
 function finalizeCardPlay(cardId) {
   var card = CARD_DB[cardId] || PAINT_CARDS[cardId]; if (!card) return;
@@ -2674,6 +2774,8 @@ function applyCardPlay(cardId, spentDice) {
 function hideConfirmation(){ var ov = document.getElementById('confirmOverlay'); if (ov) ov.classList.remove('show'); }
 function showEquipmentTargetDialog(cardId, onConfirm, onCancel) {
   var card = CARD_DB[cardId]; if (!card) return;
+  var _targetType = cardEnergyTargetType(card);
+  var _blocksArtemisTarget = (_targetType === 'target');
   var player = getActiveSide(); if (!player) return;
   if (silentActionApply) { onConfirm(player.activeIndex, (player.characters[player.activeIndex].equipment||[]).length >= 2 ? 0 : -1); return; }
   var ov = document.getElementById('confirmOverlay'), content = document.getElementById('confirmContent');
@@ -2682,14 +2784,20 @@ function showEquipmentTargetDialog(cardId, onConfirm, onCancel) {
   var html = '<div class="confirm-title">⚔️ Equipar Carta</div><div class="confirm-subtitle">' + card.emoji + ' ' + card.name + '</div><div class="confirm-body">' + card.effectText + '</div><div class="confirm-char-selector">';
   player.characters.forEach(function(cs, i){
     if (cs.dead) return;
-    html += '<div class="confirm-char-option" data-idx="' + i + '" style="--el: ' + ELEMENT_COLORS[cs.character.element] + ';"><div class="confirm-char-emoji">' + cs.character.emoji + '</div><div class="confirm-char-name">' + cs.character.name + '</div><div class="confirm-char-equip">';
+    var _isArtemisBlocked = _blocksArtemisTarget && cs.id === 'artemis';
+    html += '<div class="confirm-char-option' + (_isArtemisBlocked ? ' confirm-char-option-blocked' : '') + '" data-idx="' + i + '" style="--el: ' + ELEMENT_COLORS[cs.character.element] + ';"' + (_isArtemisBlocked ? ' title="Artemis no puede recibir energía"' : '') + '><div class="confirm-char-emoji">' + cs.character.emoji + '</div><div class="confirm-char-name">' + cs.character.name + '</div><div class="confirm-char-equip">';
     if (!cs.equipment) cs.equipment = [];
     for (var ei = 0; ei < 2; ei++) { var eqId = cs.equipment[ei]; if (eqId && CARD_DB[eqId]) html += '<span class="confirm-char-equip-icon">' + CARD_DB[eqId].emoji + '</span>'; else html += '<span class="confirm-char-equip-empty">+</span>'; }
     html += '</div></div>';
   });
   html += '</div><div class="confirm-buttons"><button class="confirm-btn confirm-cancel" id="equipCancelBtn">Cancelar</button></div>';
   content.innerHTML = html;
-  content.querySelectorAll('.confirm-char-option').forEach(function(el){ el.addEventListener('click', function(){ var i = parseInt(el.dataset.idx, 10), t = player.characters[i]; if (t.equipment && t.equipment.length >= 2) showEquipmentReplaceDialog(cardId, i, onConfirm, onCancel); else { hideConfirmation(); onConfirm(i, -1); } }); });
+  content.querySelectorAll('.confirm-char-option').forEach(function(el){ el.addEventListener('click', function(){
+    if (el.classList.contains('confirm-char-option-blocked')) { playSound('error'); return; }
+    var i = parseInt(el.dataset.idx, 10), t = player.characters[i];
+    if (t.equipment && t.equipment.length >= 2) showEquipmentReplaceDialog(cardId, i, onConfirm, onCancel);
+    else { hideConfirmation(); onConfirm(i, -1); }
+  }); });
   document.getElementById('equipCancelBtn').addEventListener('click', function(){ hideConfirmation(); onCancel(); });
   ov.classList.add('show');
 }
@@ -2768,7 +2876,7 @@ function showDiscardDieSelection(cardId, onConfirmDiscard) {
   }
   build(); ov.classList.add('show');
 }
-function showCardConfirmation(cardId, adjustedCost, onConfirm) {
+function showCardConfirmation(cardId, adjustedCost, onConfirm, artemisBlock) {
   var ov = document.getElementById('confirmOverlay'), content = document.getElementById('confirmContent'); if (!ov || !content) return;
   hideTooltip();
   var card = CARD_DB[cardId] || PAINT_CARDS[cardId]; if (!card) return;
@@ -2781,6 +2889,7 @@ function showCardConfirmation(cardId, adjustedCost, onConfirm) {
   function build() {
     var sc = Object.keys(selectedIds).length, isFull = sc === totalCost;
     var isComplete = totalCost === 0 || (isFull && trySpendDice(getSel(), adjustedCost).ok);
+    var canPlay = isComplete && !artemisBlock;
     var catL = card.category === 'equipo' ? '⚔️ Equipo' : card.category === 'apoyo' ? '📜 Apoyo' : card.category === 'pintura' ? '🎨 Pintura' : '✨ Evento';
     var html = '<div class="confirm-title">' + catL + ' · ' + card.tag + '</div><div class="confirm-subtitle">' + card.emoji + ' ' + card.name + '</div><div class="confirm-body">' + card.effectText + '</div>';
     if (totalCost === 0) html += '<div class="confirm-cost-section"><div class="confirm-cost-label">Coste</div><div class="confirm-cost-dice"><span class="die die-energy">Sin coste</span></div></div>';
@@ -2793,10 +2902,13 @@ function showCardConfirmation(cardId, adjustedCost, onConfirm) {
       html += '<div class="confirm-dice-picker"><div class="confirm-dice-label"><span>Selecciona dados</span><span class="confirm-dice-count' + (isFull ? ' is-complete' : '') + '">' + sc + ' / ' + totalCost + '</span></div><div class="confirm-dice-pool">' + dh + '</div></div>';
       if (isComplete) html += '<div class="confirm-valid-msg ok">✓ Listo</div>';
     }
+    if (artemisBlock) {
+      html += '<div class="confirm-warning">🦅 Artemis no puede recibir energía. Puedes descartar esta carta, pero no jugarla.</div>';
+    }
     html += '<div class="confirm-buttons"><button class="confirm-btn confirm-cancel" id="confirmCancelBtn">Cancelar</button>';
     if (side.dice.length > 0) html += '<button class="confirm-btn confirm-discard" id="confirmDiscardBtn" title="Descartar esta carta para cambiar un dado al tipo del activo">🗑️ Descartar</button>';
-    html += '<button class="confirm-btn confirm-accept" id="confirmAcceptBtn"' + (!isComplete ? ' disabled' : '') + '>Jugar</button></div>';
-    content.innerHTML = html;
+    html += '<button class="confirm-btn confirm-accept" id="confirmAcceptBtn"' + (!canPlay ? ' disabled' : '') + '>Jugar</button></div>';
+    content.innerHTML = html;                       // ← LÍNEA QUE FALTABA
     var picker = content.querySelector('.confirm-dice-pool');
     if (picker) picker.addEventListener('click', function(e){ var de = e.target.closest('.confirm-die'); if (!de || de.classList.contains('locked')) return; var id = de.dataset.dieId; if (selectedIds[id]) { delete selectedIds[id]; playSound('deselect'); } else { if (Object.keys(selectedIds).length >= totalCost) { playSound('error'); return; } selectedIds[id] = true; playSound('select'); } build(); });
     document.getElementById('confirmCancelBtn').addEventListener('click', function(){ hideConfirmation(); playSound('deselect'); });
@@ -2830,7 +2942,7 @@ function previewPlayerAction(actionType) {
   var preview = {
     ability:ability, active:active, target:target,
     piercing:false, baseDmg:0, buffDmg:0, cardBonus:0, redencionDmg:0, markBonus:0,
-    equipDmg:0, supportDmg:0, optimizationDmg:0, erikBonus:0, obraMaestraDmg:0,
+    equipDmg:0, supportDmg:0, optimizationDmg:0, erikBonus:0, obraMaestraDmg:0, carrerillaBonus:0,
     flatReduction:0, rawDmg:0, totalDmg:0, trueDmg:0, shieldAbsorbed:0,
     heal:0, healApplied:0, shieldSelf:0, selfDamage:0, reflectDmg:0, condenaGain:0,
     energyGain:ability.energy || 0, energyCost:ability.energyCost || 0,
@@ -2861,9 +2973,14 @@ function previewPlayerAction(actionType) {
       var consR = side.consonance;
       if (consR && consR.type === 'single' && consR.element === 'redencion' && !side.firstAttackUsed) preview.redencionDmg = consR.level === 3 ? 3 : 2;
       if (target.cardMarkBonus) preview.markBonus = target.cardMarkBonus;
+            if (active.id === 'artemis' && csHasState(active, 'carrerilla') && ability.kind === 'damage') {
+        preview.carrerillaBonus = 2;
+        preview.notes.push('🏃 Carrerilla: +2 daño');
+        if (actionType === 'normal') preview.notes.push('⚡ +1 energía extra');
+      }
     }
-    if (actionType === 'ultimate' && side.obraMaestraTurns > 0) preview.obraMaestraDmg = preview.baseDmg;
-    var coreDmg = preview.baseDmg;
+    if (actionType === 'ultimate' && side.obraMaestraTurns > 0 && applyGeneric) preview.obraMaestraDmg = preview.baseDmg;
+    var coreDmg = preview.baseDmg + (preview.carrerillaBonus || 0);
     if (active.cardNextAttackDouble && applyGeneric) coreDmg *= 2;
     if (preview.obraMaestraDmg > 0) coreDmg += preview.obraMaestraDmg;
     var raw = coreDmg + preview.buffDmg + preview.cardBonus + preview.equipDmg + preview.supportDmg + preview.optimizationDmg + preview.erikBonus + preview.markBonus + preview.redencionDmg;
@@ -2881,6 +2998,24 @@ function previewPlayerAction(actionType) {
   }
 
   // ==== Predicciones específicas por habilidad ====
+
+  if (ability.kind === 'carrerilla') {
+    preview.notes.push('🏃 Siguiente ataque +2 daño (+1 energía extra si es el ataque normal)');
+    preview.notes.push('⚡ No gana energía con esta habilidad');
+  }
+  if (ability.kind === 'estratosfera') {
+    if (csHasState(active, 'vuelo')) {
+      var carrP = csHasState(active, 'carrerilla') ? 2 : 0;
+      if (carrP > 0) preview.notes.push('🏃 Carrerilla: +2 daño (aplicado)');
+      preview.notes.push('💥 ' + (6 + carrP) + ' daño penetrante a TODOS los enemigos');
+      preview.notes.push('🏷️ Marca con aceptación a los que sobrevivan');
+      preview.notes.push('💀 Artemis muere');
+      preview.willDieFromSelf = true;
+    } else {
+      preview.notes.push('🦅 Entra en Vuelo (no hace daño)');
+    }
+  }
+
   if (ability.kind === 'autolesion' && active.id === 'alaya' && csHasState(active, 'castigada')) {
     preview.condenaGain = 1;
     preview.notes.push('💀 +1 condena');
@@ -3016,7 +3151,7 @@ function previewPlayerAction(actionType) {
 function buildPreviewBodyHTML(preview) {
   var html = '<div class="confirm-body">';
   if (preview.rawDmg > 0 || preview.trueDmg > 0) {
-    var hasB = preview.buffDmg || preview.cardBonus || preview.equipDmg || preview.supportDmg || preview.optimizationDmg || preview.erikBonus || preview.markBonus || preview.redencionDmg || preview.obraMaestraDmg;
+    var hasB = preview.buffDmg || preview.cardBonus || preview.equipDmg || preview.supportDmg || preview.optimizationDmg || preview.erikBonus || preview.markBonus || preview.redencionDmg || preview.obraMaestraDmg || preview.carrerillaBonus;
     if (hasB) {
       html += '<div class="confirm-row"><span class="confirm-row-label">Daño base</span><span class="confirm-row-value damage">' + preview.baseDmg + '</span></div>';
       if (preview.buffDmg) html += '<div class="confirm-row"><span class="confirm-row-label">+ Impulso</span><span class="confirm-row-value bonus">+' + preview.buffDmg + '</span></div>';
@@ -3028,6 +3163,7 @@ function buildPreviewBodyHTML(preview) {
       if (preview.erikBonus) html += '<div class="confirm-row"><span class="confirm-row-label">+ Inspiración</span><span class="confirm-row-value bonus">+' + preview.erikBonus + '</span></div>';
       if (preview.redencionDmg) html += '<div class="confirm-row"><span class="confirm-row-label">+ Redención</span><span class="confirm-row-value bonus">+' + preview.redencionDmg + '</span></div>';
       if (preview.markBonus) html += '<div class="confirm-row"><span class="confirm-row-label">+ Marca</span><span class="confirm-row-value bonus">+' + preview.markBonus + '</span></div>';
+            if (preview.carrerillaBonus) html += '<div class="confirm-row"><span class="confirm-row-label">+ Carrerilla</span><span class="confirm-row-value bonus">+' + preview.carrerillaBonus + '</span></div>';
     } else {
       html += '<div class="confirm-row"><span class="confirm-row-label">Daño base</span><span class="confirm-row-value damage">' + preview.baseDmg + '</span></div>';
     }
@@ -3261,6 +3397,8 @@ function renderTeamCards(who) {
       if (cs.states.sintonia) badges.push('<span class="ccc-badge sintonia" data-status="sintonia">🎵 Sintonía</span>');
       if (cs.states.acelerado) badges.push('<span class="ccc-badge acelerado" data-status="acelerado">💨 Acelerado</span>');
       if (cs.states.rencor) badges.push('<span class="ccc-badge" data-status="rencor" data-value="' + cs.states.rencor + '" style="--bc: 200,80,80;">💢 Rencor ' + cs.states.rencor + '</span>');
+      if (cs.states.vuelo) badges.push('<span class="ccc-badge vuelo" data-status="vuelo">🦅 Vuelo</span>');
+      if (cs.states.carrerilla) badges.push('<span class="ccc-badge carrerilla" data-status="carrerilla">🏃 Carrerilla</span>');
     }
     if (cs.manuelStacks > 0) badges.push('<span class="ccc-badge" data-status="manuelStacks" data-value="' + cs.manuelStacks + '" style="--bc: 200,150,60;">📈 +' + cs.manuelStacks + '</span>');
     if (side.obraMaestraTurns > 0 && isActive) badges.push('<span class="ccc-badge" data-status="obraMaestra" data-value="' + side.obraMaestraTurns + '" style="--bc: 240,200,96;">💥 Obra Maestra (' + side.obraMaestraTurns + ')</span>');
