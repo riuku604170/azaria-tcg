@@ -6236,3 +6236,6 @@ footer span {
   background: rgba(var(--dc), 0.4);
   transform: rotate(90deg);
 }
+
+.ccc-badge.vuelo      { --bc: 100, 200, 255; }
+.ccc-badge.carrerilla { --bc: 255, 200, 100; }
