@@ -668,7 +668,7 @@ function renderConsonancias() {
 var CHAR_SORT_MODES = ['alpha', 'element', 'category'];
 var CHAR_SORT_LABELS = {
   alpha:    '🔤 A → Z',
-  element:  '🌿 Tipo',
+  element:  '🌈 Tipo',
   category: '📁 Categoría'
 };
 var CHAR_SORT_TITLES = {
