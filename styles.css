@@ -6239,3 +6239,33 @@ footer span {
 
 .ccc-badge.vuelo      { --bc: 100, 200, 255; }
 .ccc-badge.carrerilla { --bc: 255, 200, 100; }
+
+#charFilterBar {
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.char-sort-btn {
+  padding: 0.7rem 1.2rem;
+  border-radius: 50px;
+  background: linear-gradient(135deg, rgba(240, 200, 96, 0.15), rgba(165, 131, 255, 0.1));
+  border: 1px solid rgba(240, 200, 96, 0.5);
+  color: var(--accent);
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s;
+  white-space: nowrap;
+  flex-shrink: 0;
+  letter-spacing: 0.02em;
+}
+.char-sort-btn:hover {
+  background: linear-gradient(135deg, rgba(240, 200, 96, 0.28), rgba(165, 131, 255, 0.18));
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(240, 200, 96, 0.3);
+}
+.char-sort-btn:active {
+  transform: translateY(0);
+}
