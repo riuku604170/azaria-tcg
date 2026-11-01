@@ -185,6 +185,7 @@ var STATUS_DESCRIPTIONS = {
   carrerilla: { name:'🏃 Carrerilla', text:'El siguiente ataque de Artemis que cause daño añade +2 de daño. Si ese ataque es su ataque normal, gana 1 de energía adicional.' },
   cruzMadera: { name:'✝️ Cruz de Madera', text:'Estructura exclusiva de Orath. Causa 1 punto de daño al enemigo activo al ser destruida. Al final de la ronda, si Orath está activa, marca al enemigo activo con redención y se destruye.' },
   cruzSangre: { name:'✝️ Cruz de Sangre', text:'Estructura exclusiva de Orath generada al morir ella. Se destruye si un aliado muere. Al destruirse, revive al último aliado caído con 1 HP y 2 de escudo.' },
+    invulnerabilidad: { name:'🛡️ Invulnerabilidad', text:'Cada punto de invulnerabilidad reduce en 1 el daño verdadero que recibe Alter. No se consume al absorber daño: Alter pierde 1 punto al final de cada ronda (máx 3). Solo se elimina por efectos que la quiten o por esta pérdida al final de ronda.' },
 };
 
 var PHILOSOPHIES = {
@@ -342,7 +343,13 @@ var CHARACTERS = {
   iris:       { name:'Iris',      element:'proteccion',     set:'Erik', category:'Eriks', hp:11, emoji:'🌈', img:'img/iris.png',       concept:'', comingSoon:true, abilities:[] },
   amaya:      { name:'Amaya',     element:'comprension',    set:'Erik', category:'Eriks', hp:11, emoji:'🦉', img:'img/amaya.png',      concept:'', comingSoon:true, abilities:[] },
   adela:      { name:'Adela',     element:'transformacion', set:'Erik', category:'Eriks', hp:11, emoji:'🕊️', img:'img/adela.png',      concept:'', comingSoon:true, abilities:[] },
-  alter:      { name:'Alter',     element:'ilusion',        set:'Erik', category:'Eriks', hp:11, emoji:'🎭', img:'img/alter.png',      concept:'', comingSoon:true, abilities:[] },
+  alter: { name:'Alter', element:'ilusion', set:'Erik', category:'Eriks', hp:12, emoji:'🎭', img:'img/alter.png', concept:'Un set con el propósito de alzarse sobre el prójimo, de escalar desde el abismo hasta la más alta divinidad. Un set que, en manos indicadas, es capaz de traer consigo el poder de una inigualable deidad.', abilities: [
+    { type:'normal', icon:'⚔️', name:'Amenaza a la Ontología', cost:'x1 dado de ilusión, x2 dados cualesquiera', effect:'Inflige 1 punto de daño al enemigo activo. Alter no genera energía con este ataque.' },
+    { type:'elemental', icon:'🔮', name:'Conversión Psicológica', cost:'x3 dados de ilusión', effect:'Se otorga 1 punto de invulnerabilidad (máx. 3). Roba toda la energía del resto de personajes del equipo (si roba más puntos de energía de los que necesita, los desecha). Alter no genera energía con esta habilidad.' },
+        { type:'ultimate', icon:'💥', name:'Omnes Deam Salutate', cost:'x4 dados de ilusión, x3 puntos de energía', effect:'Aumenta el daño de las habilidades elementales del resto de personajes del equipo en 3 puntos durante 2 rondas.' },
+    { type:'passive', icon:'🛡️', name:'Dualismo Ontológico', effect:'Alter no genera energía con el uso del ataque normal o habilidad elemental. Por cada punto de invulnerabilidad, el daño verdadero que recibe Alter se reduce en 1 punto.' },
+    { type:'ex', icon:'🌟', name:'EX · Buen Provecho', effect:'La habilidad elemental, en lugar de desechar los puntos de energía sobrantes (los que superan el máximo de energía de Alter), transforma dichos puntos en dados de ilusión.' }
+  ]},
   eve:        { name:'Eve',       element:'comprension',    set:'Erik', category:'Eriks', hp:11, emoji:'🍎', img:'img/eve.png',        concept:'', comingSoon:true, abilities:[] },
   opal:       { name:'Opal',      element:'expresion',      set:'Erik', category:'Eriks', hp:11, emoji:'💠', img:'img/opal.png',       concept:'', comingSoon:true, abilities:[] }
 };
@@ -488,7 +495,13 @@ var COMBAT_CHARS = {
     // exSystemEnabled && orathCs.exActive. Aquí solo la declaramos para que
     // aparezca el botón EX del sidebar.
     ex: { name:'EX · Cruz de Sangre', kind:'ex', target:'self' }
-  }}
+  }},
+  alter: { name:'Alter', element:'ilusion', emoji:'🎭', hp:12, abilities: {
+    normal: { name:'Amenaza a la Ontología', cost:{ilusion:1, any:1}, target:'enemy', kind:'damage', damage:1, energy:0 },
+    elemental: { name:'Conversión Psicológica', cost:{ilusion:3}, target:'self', kind:'conversionPsicologica', energy:0 },
+    ultimate: { name:'Omnes Deam Salutate', cost:{ilusion:4}, energyCost:3, target:'self', kind:'omnesDeam' },
+    ex: { name:'EX · Buen Provecho', kind:'ex', target:'self' }
+  }},
 };
 
 function normalize(s){ return String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(); }
@@ -516,6 +529,11 @@ function isTurnDone(){
   var tk = getTurnKey();
   if (!combatState) return false;
   return tk === 'player' ? combatState.playerDone : combatState.botDone;
+}
+function isPlayerTurn(){
+  if (!combatState) return false;
+  if (combatState.phase !== 'playing') return false;
+  return combatState.turn === 'player';
 }
 function isOnline(){ return false; }
 function isOnlineHost(){ return false; }
@@ -820,6 +838,18 @@ function dealDamageToChar(targetCs, rawDamage, opts) {
     }
   }
   if (res.overflow > 0) {
+    // ✅ Alter: cada punto de invulnerabilidad reduce el daño verdadero en 1.
+    // NO se consume: solo reduce. Se pierde 1 al final de cada ronda.
+    if (targetCs.id === 'alter' && targetCs.states && targetCs.states.invulnerabilidad > 0) {
+      var inv = targetCs.states.invulnerabilidad;
+      var reduced = Math.min(inv, res.overflow);
+      res.overflow -= reduced;
+      logCombat('🛡️ Invulnerabilidad de Alter: -' + reduced + ' daño (invulnerabilidad sigue en ' + inv + ')');
+      if (res.overflow <= 0) {
+        logCombat('💥 Daño verdadero anulado por invulnerabilidad');
+        return 0;
+      }
+    }
     targetCs.hp = Math.max(0, targetCs.hp - res.overflow);
     logCombat('💥 Daño verdadero: ' + res.overflow + ' · HP: ' + targetCs.hp + '/' + targetCs.maxHp);
     triggerVibrate(sideKey, idx); playSound(opts.piercing ? 'pierce' : 'impact');
@@ -970,6 +1000,7 @@ function buildSideState(ids) {
     cruzMaderaFromShield: false, // para la Cruz generada por el escudo de Orath
     cruzSangreActive: false,     // Cruz de Sangre de Orath viva
     lastDeadAlly: null,          // último aliado caído (para resurrección de Cruz de Sangre)
+    alterUltBuff: { amount: 0, roundsLeft: 0 }, // ✅ Alter: bono a elementales del equipo (amount, rondas restantes)
   };
 }
 function preloadCombatImages(){ Object.keys(COMBAT_CHARS).forEach(function(id){ var img = new Image(); img.src = 'img/' + id + '.png'; }); }
@@ -2603,7 +2634,8 @@ function computeBaseDamageForAbility(attackerCs, ability, actionType) {
     case 'estratosfera': {
       if (!csHasState(attackerCs, 'vuelo')) return 0;
       var carrB = csHasState(attackerCs, 'carrerilla') ? 2 : 0;
-      return 6 + carrB;
+      var exB = (attackerCs.exActive && exSystemEnabled) ? 2 : 0; // ✅ EX de Artemis: +2 daño base
+      return 6 + carrB + exB;
     }
     case 'carrerilla': return 0;
     case 'damage': return ability.damage || 0;
@@ -2663,8 +2695,16 @@ function getEffectiveCostFull(active, ability) {
     }
     return newCost;
   }
+  // ✅ EX de Artemis: la definitiva cuesta 2 dados más (de aceptación)
+  if (active.id === 'artemis' && ability.kind === 'estratosfera' && active.exActive) {
+    var exCost = {};
+    Object.keys(base).forEach(function(k){ exCost[k] = base[k]; });
+    exCost.aceptacion = (exCost.aceptacion || 0) + 2;
+    return exCost;
+  }
   return base;
 }
+
 function getEffectiveAbilityCost(active, cost) {
   if (active.cardNextAbilityFree) return {};
   var disc = active.cardNextAbilityDiscount || 0; if (disc <= 0) return cost;
@@ -2674,7 +2714,7 @@ function getEffectiveAbilityCost(active, cost) {
   Object.keys(cost).forEach(function(k){ if (k === 'any' || k === 'same') return; var r3 = Math.min(cost[k], rem); if (cost[k] - r3 > 0) res[k] = cost[k] - r3; rem -= r3; });
   return res;
 }
-function applyGenericDamageMods(active, dmg) {
+function applyGenericDamageMods(active, dmg, isElemental) {
   var add = 0;
   if (active.pendingBuff) { add += active.pendingBuff; logCombat('💪 Impulso: +' + active.pendingBuff); }
   if (active.cardNextAttackBonus) { add += active.cardNextAttackBonus; logCombat('🎴 Carta: +' + active.cardNextAttackBonus); }
@@ -2689,6 +2729,11 @@ function applyGenericDamageMods(active, dmg) {
       base += bonusR;
       side.firstAttackUsed = true;
       logCombat('🩸 Redención: +' + bonusR + ' daño (primer ataque)');
+    }
+    // ✅ Alter: bono a elementales del equipo (si hay buff activo)
+    if (isElemental && side.alterUltBuff && side.alterUltBuff.amount > 0 && side.alterUltBuff.roundsLeft > 0 && active.id !== 'alter') {
+      base += side.alterUltBuff.amount;
+      logCombat('💥 Omnes Deam Salutate: +' + side.alterUltBuff.amount + ' daño');
     }
   }
   return base;
@@ -2751,13 +2796,15 @@ function executeAction(who, actionType, preSpentDice) {
           logCombat('🏃 Carrerilla: +2 daño a cada enemigo');
         }
         var hitCount = 0;
+        var exEstratosfera = (active.exActive && exSystemEnabled) ? 2 : 0; // ✅ EX: +2 daño base
+        var estratosferaDmg = 6 + carrerillaBonus + exEstratosfera;
         enemySide.characters.forEach(function(c, i){
           if (c.dead) return;
-          applyDamageWithMods(c, 6 + carrerillaBonus, false, enemyKey, i, active);
+          applyDamageWithMods(c, estratosferaDmg, false, enemyKey, i, active);
           hitCount++;
           if (!c.dead) triggerMarkOrResonance(c, 'aceptacion', who, enemyKey, i);
         });
-        logCombat('💥 Estratosfera: ' + (6 + carrerillaBonus) + ' daño a ' + hitCount + ' enemigo(s)');
+        logCombat('💥 Estratosfera: ' + estratosferaDmg + ' daño a ' + hitCount + ' enemigo(s)');
         if (!active.dead) {
           active.hp = 0;
           handleDeath(who, side.activeIndex);
@@ -2775,7 +2822,7 @@ function executeAction(who, actionType, preSpentDice) {
         logCombat('🏃 Carrerilla: +2 daño');
         if (actionType === 'normal') carrerillaEnergyBonus = 1;
       }
-      dmg = applyGenericDamageMods(active, dmg);
+      dmg = applyGenericDamageMods(active, dmg, actionType === 'elemental');
       if (active.pendingBuff) pendingBuffConsumed = true;
       if (actionType === 'normal' || actionType === 'elemental') { var ob = getOptimizationBonus(side); if (ob > 0) { dmg += ob; logCombat('🏛️ Optimización: +' + ob); } }
       if (actionType === 'ultimate' && side.obraMaestraTurns > 0) { dmg *= 2; logCombat('💥 Obra Maestra: daño x2'); }
@@ -2914,8 +2961,60 @@ function executeAction(who, actionType, preSpentDice) {
       if (active.states && active.states.furiaTarget === enemyActive.id && !enemyActive.dead) triggerMarkOrResonance(enemyActive, 'proteccion', who, enemyKey, enemySide.activeIndex);
       break;
     }
+    case 'conversionPsicologica': {
+      // +1 invulnerabilidad (máx 3)
+      var invBefore = (active.states && active.states.invulnerabilidad) || 0;
+      var invAfter = Math.min(3, invBefore + 1);
+      csSetState(active, 'invulnerabilidad', invAfter);
+      logCombat('🛡️ Alter: invulnerabilidad ' + invBefore + ' → ' + invAfter);
+
+      // Robar toda la energía de los aliados
+      var stolenEnergy = 0;
+      side.characters.forEach(function(ally){
+        if (ally === active || ally.dead) return;
+        if (ally.energy > 0) {
+          stolenEnergy += ally.energy;
+          logCombat('🔮 ' + ally.character.name + ' pierde ' + ally.energy + ' energía');
+          ally.energy = 0;
+        }
+      });
+
+      if (stolenEnergy === 0) {
+        logCombat('🔮 No había energía que robar');
+      } else {
+        // ✅ Alter gana energía hasta su máximo (3). El sobrante se convierte
+        // en dados de ilusión (siempre, sin necesidad de EX).
+        var roomForEnergy = Math.max(0, active.maxEnergy - active.energy);
+        var energyGained = Math.min(roomForEnergy, stolenEnergy);
+        var overflow = stolenEnergy - energyGained;
+        active.energy += energyGained;
+        if (energyGained > 0) logCombat('🔮 Alter recupera ' + energyGained + ' energía (total: ' + active.energy + '/' + active.maxEnergy + ')');
+        if (overflow > 0) {
+          for (var di = 0; di < overflow; di++) {
+            side.dice.push({ type:'ilusion', id:uid(), justAdded:true });
+          }
+          logCombat('🔮 ' + overflow + ' energía sobrante → ' + overflow + ' dado(s) de ilusión');
+        }
+      }
+      break;
+    }
+    case 'omnesDeam': {
+      // +3 daño a elementales del resto del equipo durante 2 rondas.
+      // Si ya había un bono activo, se acumula el daño y se refresca a 2 rondas.
+      if (!side.alterUltBuff) side.alterUltBuff = { amount: 0, roundsLeft: 0 };
+      side.alterUltBuff.amount = (side.alterUltBuff.amount || 0) + 3;
+      side.alterUltBuff.roundsLeft = 2;
+      logCombat('💥 Omnes Deam Salutate: +' + side.alterUltBuff.amount + ' daño a elementales del equipo (2 rondas)');
+      break;
+    }
     case 'inconsistencia': {
-      applyDamageWithMods(enemyActive, 2, true, enemyKey, enemySide.activeIndex, active);
+      // ✅ Buff de Alter: +3 al daño base si es elemental y hay buff activo
+      var incDmg = 2;
+      if (actionType === 'elemental' && side.alterUltBuff && side.alterUltBuff.amount > 0 && side.alterUltBuff.roundsLeft > 0 && active.id !== 'alter') {
+        incDmg += side.alterUltBuff.amount;
+        logCombat('💥 Omnes Deam Salutate: +' + side.alterUltBuff.amount + ' daño');
+      }
+      applyDamageWithMods(enemyActive, incDmg, true, enemyKey, enemySide.activeIndex, active);
       var nx = getNextAliveIndex(enemySide, enemySide.activeIndex);
       if (nx >= 0) { enemySide.activeIndex = nx; logCombat('🔄 Enemigo forzado a ' + enemySide.characters[nx].character.name); triggerMarkOrResonance(enemySide.characters[nx], 'ilusion', who, enemyKey, nx); }
       var rsv = getNextAliveIndex(side, side.activeIndex);
@@ -2942,7 +3041,7 @@ function executeAction(who, actionType, preSpentDice) {
       break;
     }
     case 'deudaSangre': {
-      var baseDeuda = applyGenericDamageMods(active, 3);
+      var baseDeuda = applyGenericDamageMods(active, 3, actionType === 'elemental');
       var dealt = applyDamageWithMods(enemyActive, baseDeuda, predictPiercing(active, ability), enemyKey, enemySide.activeIndex, active);
       if (!enemyActive.dead) {
         enemyActive.states = enemyActive.states || {};
@@ -2988,7 +3087,13 @@ function executeAction(who, actionType, preSpentDice) {
       active.hp = Math.max(0, active.hp - self);
       logCombat('🩸 Autolesión ' + self);
       if (active.hp <= 0) { handleDeath(who, side.activeIndex); break; }
-      applyDamageWithMods(enemyActive, 4 + (active.manuelStacks || 0), predictPiercing(active, ability), enemyKey, enemySide.activeIndex, active);
+      // ✅ Buff de Alter: +3 al daño base si es elemental y hay buff activo
+      var degDmg = 4 + (active.manuelStacks || 0);
+      if (actionType === 'elemental' && side.alterUltBuff && side.alterUltBuff.amount > 0 && side.alterUltBuff.roundsLeft > 0 && active.id !== 'alter') {
+        degDmg += side.alterUltBuff.amount;
+        logCombat('💥 Omnes Deam Salutate: +' + side.alterUltBuff.amount + ' daño');
+      }
+      applyDamageWithMods(enemyActive, degDmg, predictPiercing(active, ability), enemyKey, enemySide.activeIndex, active);
       if (!enemyActive.dead) triggerMarkOrResonance(enemyActive, 'redencion', who, enemyKey, enemySide.activeIndex);
       active.manuelStacks = 0;
       enemySide.characters.forEach(function(c){ csRemoveMark(c, 'redencion'); });
@@ -3278,6 +3383,17 @@ function endRound() {
   combatState.round++; combatState.playerDone = false; combatState.botDone = false;
   combatState.player.firstChangeUsed = false; combatState.player.firstAttackUsed = false;
   combatState.bot.firstChangeUsed = false; combatState.bot.firstAttackUsed = false;
+  // ✅ Alter: la definitiva dura 2 rondas; al final de cada ronda se decrementa.
+  ['player','bot'].forEach(function(wk){
+    var sd = combatState[wk];
+    if (sd.alterUltBuff && sd.alterUltBuff.roundsLeft > 0) {
+      sd.alterUltBuff.roundsLeft--;
+      if (sd.alterUltBuff.roundsLeft <= 0) {
+        sd.alterUltBuff.amount = 0;
+        logCombat('💥 Omnes Deam Salutate se desvanece');
+      }
+    }
+  });
   if (combatState.player.obraMaestraTurns > 0) combatState.player.obraMaestraTurns--;
   if (combatState.bot.obraMaestraTurns > 0) combatState.bot.obraMaestraTurns--;
   ['player','bot'].forEach(function(wk){ combatState[wk].characters.forEach(function(c){
@@ -3285,6 +3401,13 @@ function endRound() {
     if (c.states) {
       c.states.acelerado = false;
       c.states.furia = false; c.states.furiaPending = false; c.states.furiaTarget = null;
+      // ✅ Alter: pierde 1 punto de invulnerabilidad al final de cada ronda
+      if (c.id === 'alter' && c.states.invulnerabilidad > 0) {
+        c.states.invulnerabilidad = Math.max(0, c.states.invulnerabilidad - 1);
+        logCombat('🛡️ Alter pierde 1 invulnerabilidad (queda ' + c.states.invulnerabilidad + ')');
+      }
+      // Cualquier otro personaje con invulnerabilidad (no debería haber) se resetea
+      if (c.id !== 'alter') c.states.invulnerabilidad = 0;
     }
   }); });
   combatState.player.rerolled = false; combatState.player.selected = {}; combatState.player.rollingIds = {};
@@ -3391,6 +3514,7 @@ function cardWouldGiveEnergyToArtemis(card, side) {
 }
 function playCardRequest(cardId) {
   if (!combatState || combatState.phase !== 'playing') return;
+  if (!isPlayerTurn()) return;   // ✅ solo en tu turno
   if (isTurnDone()) return;
   var side = getTurnSide(); if (!side) return;
   var card = CARD_DB[cardId] || PAINT_CARDS[cardId]; if (!card) return;
@@ -3529,10 +3653,24 @@ function showDiscardDieSelection(cardId, onConfirmDiscard) {
   var active = side.characters[side.activeIndex]; if (!active || active.dead) return;
   var targetElement = active.character.element;
   var selectedDieId = null;
+  // ✅ Usar la prioridad real de "qué dado es más prescindible":
+  //   1 = tipo que no tienes en el equipo (mejor candidato a convertir)
+  //   2 = tipo de aliado muerto
+  //   3 = tipo de aliado vivo (no activo)
+  //   4 = tipo del activo (no se puede convertir, ya es del tipo correcto)
+  //   5 = omni (nunca se convierte)
+  // Elegimos el dado con MENOR prioridad (más prescindible) que no sea
+  // del tipo del activo ni omni.
+  var teamEls = computeTeamElements(side);
+  var bestPriority = 999;
   for (var i = 0; i < side.dice.length; i++) {
-    if (side.dice[i].type !== targetElement) {
-      selectedDieId = side.dice[i].id;
-      break;
+    var d = side.dice[i];
+    if (d.type === targetElement) continue; // ya es del tipo del activo
+    if (d.type === 'omni') continue;         // nunca convertir un omni
+    var prio = getDiePriority(d, teamEls, targetElement);
+    if (prio < bestPriority) {
+      bestPriority = prio;
+      selectedDieId = d.id;
     }
   }
   function build() {
@@ -3542,10 +3680,13 @@ function showDiscardDieSelection(cardId, onConfirmDiscard) {
     html += '<div class="confirm-dice-picker"><div class="confirm-dice-label"><span>Selecciona 1 dado</span><span class="confirm-dice-count' + (selectedDieId ? ' is-complete' : '') + '">' + (selectedDieId ? '1 / 1' : '0 / 1') + '</span></div><div class="confirm-dice-pool">';
     sortDiceForDisplay(side.dice, side).forEach(function(d){
       var alreadyTarget = d.type === targetElement;
-      var col = d.type === 'omni' ? '240, 200, 96' : ELEMENT_COLORS[d.type];
-      var em = d.type === 'omni' ? '✨' : ELEMENT_EMOJI[d.type];
+      var isOmni = d.type === 'omni';
+      // ✅ Omnidado: bloqueado (no se puede seleccionar para convertir)
+      // ✅ Dado ya del tipo del activo: bloqueado (no tiene sentido convertirlo)
+      var col = isOmni ? '240, 200, 96' : ELEMENT_COLORS[d.type];
+      var em = isOmni ? '✨' : ELEMENT_EMOJI[d.type];
       var isSel = selectedDieId === d.id;
-      var isLocked = alreadyTarget || (!isSel && selectedDieId !== null);
+      var isLocked = alreadyTarget || isOmni || (!isSel && selectedDieId !== null);
       var cls = 'confirm-die';
       if (isSel) cls += ' selected';
       if (isLocked) cls += ' locked';
@@ -3635,6 +3776,7 @@ function previewPlayerAction(actionType) {
     ability:ability, active:active, target:target,
     piercing:false, baseDmg:0, buffDmg:0, cardBonus:0, redencionDmg:0, markBonus:0,
     equipDmg:0, supportDmg:0, optimizationDmg:0, erikBonus:0, obraMaestraDmg:0, carrerillaBonus:0,
+    alterBuffDmg:0,
     flatReduction:0, rawDmg:0, totalDmg:0, trueDmg:0, shieldAbsorbed:0,
     heal:0, healApplied:0, shieldSelf:0, selfDamage:0, reflectDmg:0, condenaGain:0,
     energyGain:ability.energy || 0, energyCost:ability.energyCost || 0,
@@ -3665,17 +3807,30 @@ function previewPlayerAction(actionType) {
       var consR = side.consonance;
       if (consR && consR.type === 'single' && consR.element === 'redencion' && !side.firstAttackUsed) preview.redencionDmg = consR.level === 3 ? 3 : 2;
       if (target.cardMarkBonus) preview.markBonus = target.cardMarkBonus;
-            if (active.id === 'artemis' && csHasState(active, 'carrerilla') && ability.kind === 'damage') {
+      // ✅ Alter: bono a elementales del equipo (si hay buff activo)
+      if (actionType === 'elemental' && side.alterUltBuff && side.alterUltBuff.amount > 0 && side.alterUltBuff.roundsLeft > 0 && active.id !== 'alter') {
+        preview.alterBuffDmg = side.alterUltBuff.amount;
+        preview.notes.push('💥 Omnes Deam Salutate: +' + side.alterUltBuff.amount + ' daño');
+      }
+      if (active.id === 'artemis' && csHasState(active, 'carrerilla') && ability.kind === 'damage') {
         preview.carrerillaBonus = 2;
         preview.notes.push('🏃 Carrerilla: +2 daño');
         if (actionType === 'normal') preview.notes.push('⚡ +1 energía extra');
+      }
+    }
+    // ✅ Buff de Alter también para elementales que no pasan por applyGeneric
+    // (inconsistencia, degradacion)
+    if (!applyGeneric && actionType === 'elemental' && side.alterUltBuff && side.alterUltBuff.amount > 0 && side.alterUltBuff.roundsLeft > 0 && active.id !== 'alter') {
+      if (ability.kind === 'inconsistencia' || ability.kind === 'degradacion') {
+        preview.alterBuffDmg = side.alterUltBuff.amount;
+        preview.notes.push('💥 Omnes Deam Salutate: +' + side.alterUltBuff.amount + ' daño');
       }
     }
     if (actionType === 'ultimate' && side.obraMaestraTurns > 0 && applyGeneric) preview.obraMaestraDmg = preview.baseDmg;
     var coreDmg = preview.baseDmg + (preview.carrerillaBonus || 0);
     if (active.cardNextAttackDouble && applyGeneric) coreDmg *= 2;
     if (preview.obraMaestraDmg > 0) coreDmg += preview.obraMaestraDmg;
-    var raw = coreDmg + preview.buffDmg + preview.cardBonus + preview.equipDmg + preview.supportDmg + preview.optimizationDmg + preview.erikBonus + preview.markBonus + preview.redencionDmg;
+    var raw = coreDmg + preview.buffDmg + preview.cardBonus + preview.equipDmg + preview.supportDmg + preview.optimizationDmg + preview.erikBonus + preview.markBonus + preview.redencionDmg + (preview.alterBuffDmg || 0);
     if (preview.notes.indexOf('🔥 Furia: +1') !== -1) raw += 1;
     preview.rawDmg = raw;
     preview.flatReduction = getDamageReduction(target, enemySide);
@@ -3698,8 +3853,10 @@ function previewPlayerAction(actionType) {
   if (ability.kind === 'estratosfera') {
     if (csHasState(active, 'vuelo')) {
       var carrP = csHasState(active, 'carrerilla') ? 2 : 0;
+      var exP = (active.exActive && exSystemEnabled) ? 2 : 0;
       if (carrP > 0) preview.notes.push('🏃 Carrerilla: +2 daño (aplicado)');
-      preview.notes.push('💥 ' + (6 + carrP) + ' daño penetrante a TODOS los enemigos');
+      if (exP > 0) preview.notes.push('🌟 EX Artemis: +2 daño base');
+      preview.notes.push('💥 ' + (6 + carrP + exP) + ' daño penetrante a TODOS los enemigos');
       preview.notes.push('🏷️ Marca con aceptación a los que sobrevivan');
       preview.notes.push('💀 Artemis muere');
       preview.willDieFromSelf = true;
@@ -3860,13 +4017,32 @@ function previewPlayerAction(actionType) {
     preview.notes.push('💥 Destruye ' + totC + ' Cruz(es) de Madera en el campo');
     preview.notes.push('💥 ' + totC + ' daño a ' + resN + ' enemigo(s) en reserva');
   }
+  if (ability.kind === 'conversionPsicologica') {
+    var invNow = (active.states && active.states.invulnerabilidad) || 0;
+    preview.notes.push('🛡️ Invulnerabilidad: ' + invNow + ' → ' + Math.min(3, invNow + 1));
+    var totalStolenEnergy = 0;
+    var ownSide = (combatState.player.characters.indexOf(active) >= 0) ? combatState.player : combatState.bot;
+    ownSide.characters.forEach(function(a){ if (a !== active && !a.dead && a.energy > 0) totalStolenEnergy += a.energy; });
+    if (totalStolenEnergy === 0) preview.notes.push('🔮 No hay energía que robar');
+    else {
+      var roomE = Math.max(0, active.maxEnergy - active.energy);
+      var gainE = Math.min(roomE, totalStolenEnergy);
+      var overE = totalStolenEnergy - gainE;
+      if (gainE > 0) preview.notes.push('🔮 +' + gainE + ' energía (total: ' + (active.energy + gainE) + '/' + active.maxEnergy + ')');
+      if (overE > 0) preview.notes.push('🔮 ' + overE + ' sobrante → ' + overE + ' dado(s) de ilusión');
+    }
+  }
+  if (ability.kind === 'omnesDeam') {
+    var ultNow = (ownSide && ownSide.alterUltBuff) ? (ownSide.alterUltBuff.amount || 0) : 0;
+    preview.notes.push('💥 +3 daño a elementales del equipo durante 2 rondas (total: +' + (ultNow + 3) + ')');
+  }
 
   return preview;
 }
 function buildPreviewBodyHTML(preview) {
   var html = '<div class="confirm-body">';
   if (preview.rawDmg > 0 || preview.trueDmg > 0) {
-    var hasB = preview.buffDmg || preview.cardBonus || preview.equipDmg || preview.supportDmg || preview.optimizationDmg || preview.erikBonus || preview.markBonus || preview.redencionDmg || preview.obraMaestraDmg || preview.carrerillaBonus;
+    var hasB = preview.buffDmg || preview.cardBonus || preview.equipDmg || preview.supportDmg || preview.optimizationDmg || preview.erikBonus || preview.markBonus || preview.redencionDmg || preview.obraMaestraDmg || preview.carrerillaBonus || preview.alterBuffDmg;
     if (hasB) {
       html += '<div class="confirm-row"><span class="confirm-row-label">Daño base</span><span class="confirm-row-value damage">' + preview.baseDmg + '</span></div>';
       if (preview.buffDmg) html += '<div class="confirm-row"><span class="confirm-row-label">+ Impulso</span><span class="confirm-row-value bonus">+' + preview.buffDmg + '</span></div>';
@@ -3876,6 +4052,7 @@ function buildPreviewBodyHTML(preview) {
       if (preview.optimizationDmg) html += '<div class="confirm-row"><span class="confirm-row-label">+ Optimización</span><span class="confirm-row-value bonus">+' + preview.optimizationDmg + '</span></div>';
       if (preview.obraMaestraDmg) html += '<div class="confirm-row"><span class="confirm-row-label">+ Obra Maestra</span><span class="confirm-row-value bonus">+' + preview.obraMaestraDmg + '</span></div>';
       if (preview.erikBonus) html += '<div class="confirm-row"><span class="confirm-row-label">+ Inspiración</span><span class="confirm-row-value bonus">+' + preview.erikBonus + '</span></div>';
+      if (preview.alterBuffDmg) html += '<div class="confirm-row"><span class="confirm-row-label">+ Omnes Deam</span><span class="confirm-row-value bonus">+' + preview.alterBuffDmg + '</span></div>';
       if (preview.redencionDmg) html += '<div class="confirm-row"><span class="confirm-row-label">+ Redención</span><span class="confirm-row-value bonus">+' + preview.redencionDmg + '</span></div>';
       if (preview.markBonus) html += '<div class="confirm-row"><span class="confirm-row-label">+ Marca</span><span class="confirm-row-value bonus">+' + preview.markBonus + '</span></div>';
             if (preview.carrerillaBonus) html += '<div class="confirm-row"><span class="confirm-row-label">+ Carrerilla</span><span class="confirm-row-value bonus">+' + preview.carrerillaBonus + '</span></div>';
@@ -3939,6 +4116,7 @@ function showActionConfirmation(actionType, ability, onConfirm) {
 }
 function playerActionRequest(actionType) {
   if (!combatState || combatState.phase !== 'playing') return;
+  if (!isPlayerTurn()) return;   // ✅ solo en tu turno
   if (isTurnDone()) return;
   // ── Guard EX (pasiva permanente: solo bloquea si ya está activa) ──
   if (actionType === 'ex') {
@@ -4018,6 +4196,7 @@ function showChangeConfirmation(targetIndex, onConfirm) {
 }
 function playerChangeCharacterRequest(targetIndex) {
   if (!combatState || combatState.phase !== 'playing') return;
+  if (!isPlayerTurn()) return;   // ✅ solo en tu turno
   if (isTurnDone()) return;
   var turnKey = getTurnKey();
   var side = combatState[turnKey];
@@ -4060,7 +4239,7 @@ function renderHand() {
   if (!side) return;
   var hc = document.getElementById('handCount'); if (hc) hc.textContent = side.hand.length;
   if (!side.hand.length) { c.innerHTML = '<div class="combat-hand-empty">Sin cartas en mano</div>'; return; }
-  var canAct = !isTurnDone() && combatState.phase === 'playing';
+  var canAct = !isTurnDone() && combatState.phase === 'playing' && isPlayerTurn();
   c.innerHTML = side.hand.map(function(cid){
     if (cid === 'hidden') return '<div class="combat-card disabled" style="--dc: 100,100,100; --cat: 100,100,100; min-height: 56px;"><div class="combat-card-header"><span class="combat-card-emoji">🂠</span><span class="combat-card-name">Carta oculta</span></div></div>';
     var card = CARD_DB[cid] || PAINT_CARDS[cid]; if (!card) return '';
@@ -4123,11 +4302,20 @@ function renderTeamCards(who) {
       if (cs.states.rencor) badges.push('<span class="ccc-badge" data-status="rencor" data-value="' + cs.states.rencor + '" style="--bc: 200,80,80;">💢 Rencor ' + cs.states.rencor + '</span>');
       if (cs.states.vuelo) badges.push('<span class="ccc-badge vuelo" data-status="vuelo">🦅 Vuelo</span>');
       if (cs.states.carrerilla) badges.push('<span class="ccc-badge carrerilla" data-status="carrerilla">🏃 Carrerilla</span>');
+      if (cs.states.invulnerabilidad) badges.push('<span class="ccc-badge" data-status="invulnerabilidad" data-value="' + cs.states.invulnerabilidad + '" style="--bc: 240,200,96;">🛡️ Invuln. ' + cs.states.invulnerabilidad + '</span>');
     }
     if (cs.manuelStacks > 0) badges.push('<span class="ccc-badge" data-status="manuelStacks" data-value="' + cs.manuelStacks + '" style="--bc: 200,150,60;">📈 +' + cs.manuelStacks + '</span>');
     if (side.obraMaestraTurns > 0 && isActive) badges.push('<span class="ccc-badge" data-status="obraMaestra" data-value="' + side.obraMaestraTurns + '" style="--bc: 240,200,96;">💥 Obra Maestra (' + side.obraMaestraTurns + ')</span>');
     if (cs.marks) Object.keys(cs.marks).forEach(function(el){ var em = ELEMENT_EMOJI[el] || '🏷️'; var cl = ELEMENT_COLORS[el] || '240,200,96'; badges.push('<span class="ccc-badge mark" data-status="marca" style="--bc: ' + cl + ';">' + em + ' Marca</span>'); });
+    // ✅ Alter: marcar a los aliados potenciados por Omnes Deam Salutate
+    if (side.alterUltBuff && side.alterUltBuff.amount > 0 && side.alterUltBuff.roundsLeft > 0 && cs.id !== 'alter' && !isDead) {
+      badges.push('<span class="ccc-badge alter-buff" title="Omnes Deam Salutate: +' + side.alterUltBuff.amount + ' daño a elementales (' + side.alterUltBuff.roundsLeft + ' ronda(s))">💥 +' + side.alterUltBuff.amount + ' elem. (' + side.alterUltBuff.roundsLeft + ')</span>');
+    }
     if (badges.length) html += '<div class="ccc-badges">' + badges.join('') + '</div>';
+    // ✅ Alter: badge en el propio Alter indicando que su definitiva está activa
+    if (side.alterUltBuff && side.alterUltBuff.amount > 0 && side.alterUltBuff.roundsLeft > 0 && cs.id === 'alter' && !isDead) {
+      badges.push('<span class="ccc-badge alter-buff" title="Tu definitiva Omnes Deam Salutate está activa">💥 Buff activo (' + side.alterUltBuff.roundsLeft + ')</span>');
+    }
     html += '<div class="ccc-equip-row">';
     for (var ei = 0; ei < 2; ei++) { var eqId = cs.equipment[ei]; if (eqId && CARD_DB[eqId]) html += '<div class="ccc-equip-slot filled" title="' + CARD_DB[eqId].name + '">' + CARD_DB[eqId].emoji + '</div>'; else html += '<div class="ccc-equip-slot"></div>'; }
     if (cs.paintEquipped && PAINT_CARDS['paint_' + cs.paintEquipped]) html += '<div class="ccc-equip-slot filled" title="Pintura ' + cs.paintEquipped + '">' + PAINT_CARDS['paint_' + cs.paintEquipped].emoji + '</div>';
@@ -4199,7 +4387,7 @@ function updateTurnIndicator() {
 }
 function updateCombatActions() {
   if (!combatState) return;
-  var isTurn = !isTurnDone() && combatState.phase === 'playing';
+  var isTurn = !isTurnDone() && combatState.phase === 'playing' && isPlayerTurn();
   var side = getActiveSide();
   if (!side) return;
   var active = side.characters[side.activeIndex]; if (!active) return;
@@ -4277,6 +4465,8 @@ var elementalBtn = document.getElementById('elementalBtn'); if (elementalBtn) el
 var ultimateBtn = document.getElementById('ultimateBtn'); if (ultimateBtn) ultimateBtn.addEventListener('click', function(){ playerActionRequest('ultimate'); });
 var exBtn = document.getElementById('exBtn'); if (exBtn) exBtn.addEventListener('click', function(){ playerActionRequest('ex'); });
 var endRoundBtn = document.getElementById('endRoundBtn'); if (endRoundBtn) endRoundBtn.addEventListener('click', function(){
+  // ✅ Solo se puede declarar fin de ronda en tu turno
+  if (!isPlayerTurn()) { playSound('error'); return; }
   declareEnd(getTurnKey());
 });
 var rollRerollBtn = document.getElementById('rollRerollBtn'); if (rollRerollBtn) rollRerollBtn.addEventListener('click', rerollSelected);
