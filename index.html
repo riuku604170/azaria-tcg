@@ -13,6 +13,10 @@
 
 <nav>
   <div class="logo">AZARIA</div>
+  <button class="ex-toggle-btn" id="exToggleBtn" title="Activar/desactivar sistema EX en combate" aria-pressed="false">
+    <span class="ex-toggle-dot"></span>
+    <span class="ex-toggle-label">EX</span>
+  </button>
   <ul>
     <li><a href="#cartas">Colección</a></li>
     <li><a href="#mazo">Mazo</a></li>
@@ -23,6 +27,7 @@
     <li><a href="#resonancias">Resonancias</a></li>
     <li><a href="#calculadora">Calculadora</a></li>
     <li><a href="#jugar">Jugar</a></li>
+    <li><a href="#" id="patchesNavLink">Parches</a></li>
   </ul>
 </nav>
 
@@ -211,12 +216,12 @@
       <div class="card-bottom" title="Coste de su Habilidad Definitiva"><span class="ult-icon">💥</span><span class="cost">🛡️ ?</span><span class="cost">⚡ ?</span></div>
     </div>
 
-    <div class="char-card reveal" data-el="redencion" data-character="orath" title="Próximamente">
-      <div class="card-top"><span class="el-badge">🩸</span><span class="hp-badge">?</span></div>
+    <div class="char-card reveal" data-el="redencion" data-character="orath" title="Erik">
+      <div class="card-top"><span class="el-badge">🩸</span><span class="hp-badge">9</span></div>
       <div class="portrait" data-fallback="🗿"><img src="img/orath.png" alt="Orath" class="portrait-img" style="opacity:0;" loading="lazy" onload="this.style.opacity=1;" onerror="this.style.display='none';"></div>
       <div class="card-name">Orath</div>
       <div class="card-element">Redención</div>
-      <div class="card-bottom" title="Coste de su Habilidad Definitiva"><span class="ult-icon">💥</span><span class="cost">🩸 ?</span><span class="cost">⚡ ?</span></div>
+      <div class="card-bottom" title="Coste de su Habilidad Definitiva"><span class="ult-icon">💥</span><span class="cost">🩸 3</span><span class="cost">⚡ 2</span></div>
     </div>
 
     <div class="char-card reveal" data-el="aceptacion" data-character="maria" title="Próximamente">
@@ -651,6 +656,11 @@
             <span class="ca-cost" id="ultCost"></span>
             <span class="ca-ready">✓</span>
           </button>
+          <button class="combat-action-btn ex-btn" id="exBtn" style="display:none;">
+            <span class="ca-name">🌟 EX</span>
+            <span class="ca-cost" id="exCost">Habilidad EX</span>
+            <span class="ca-ready">✓</span>
+          </button>
           <button class="combat-end-inline" id="endRoundBtn">🛑 Fin de ronda</button>
         </div>
 
@@ -669,6 +679,19 @@
         <button class="btn" id="combatEndBtn">Volver</button>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ═══ Modal de Parches ═══ -->
+<div class="patches-modal" id="patchesModal" role="dialog" aria-modal="true" aria-labelledby="patchesTitle">
+  <div class="patches-backdrop"></div>
+  <div class="patches-content">
+    <button class="patches-close" id="patchesCloseBtn" aria-label="Cerrar">✕</button>
+    <div class="patches-header">
+      <h2 class="patches-title" id="patchesTitle">📜 Historial de Parches</h2>
+      <p class="patches-sub">Todos los cambios de Azaria TCG, ordenados del más reciente al más antiguo.</p>
+    </div>
+    <div class="patches-body" id="patchesBody"></div>
   </div>
 </div>
 
