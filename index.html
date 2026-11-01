@@ -13,10 +13,6 @@
 
 <nav>
   <div class="logo">AZARIA</div>
-  <button class="ex-toggle-btn" id="exToggleBtn" title="Activar/desactivar sistema EX en combate" aria-pressed="false">
-    <span class="ex-toggle-dot"></span>
-    <span class="ex-toggle-label">EX</span>
-  </button>
   <ul>
     <li><a href="#cartas">Colección</a></li>
     <li><a href="#mazo">Mazo</a></li>
@@ -486,7 +482,12 @@
 <div class="card-modal" id="cardModal" role="dialog" aria-modal="true"><div class="card-modal-backdrop"></div><div class="card-modal-content" id="modalContent"></div></div>
 
 <div class="combat-start-confirm" id="combatStartConfirm">
-  <div class="combat-start-confirm-content">
+  <div class="combat-start-confirm-content" style="position: relative;">
+    <button class="ex-toggle-btn" id="exToggleBtn" title="Activar/desactivar sistema EX en combate" aria-pressed="false">
+      <span class="ex-toggle-dot"></span>
+      <span class="ex-toggle-label">EX</span>
+    </button>
+    <button class="game-mode-btn" id="gameModeBtn" title="Cambiar modo de juego" aria-label="Cambiar modo de juego">NORMAL</button>
     <div class="combat-start-confirm-title">⚔️ ¿Iniciar Combate?</div>
     <p class="combat-start-confirm-sub" id="combatStartConfirmSub">Tu equipo y mazo están listos para la batalla</p>
     <div class="combat-start-confirm-team" id="combatStartTeamPreview"></div>
@@ -654,11 +655,6 @@
           <button class="combat-action-btn ult-btn" id="ultimateBtn">
             <span class="ca-name" id="ultName">💥 Definitiva</span>
             <span class="ca-cost" id="ultCost"></span>
-            <span class="ca-ready">✓</span>
-          </button>
-          <button class="combat-action-btn ex-btn" id="exBtn" style="display:none;">
-            <span class="ca-name">🌟 EX</span>
-            <span class="ca-cost" id="exCost">Habilidad EX</span>
             <span class="ca-ready">✓</span>
           </button>
           <button class="combat-end-inline" id="endRoundBtn">🛑 Fin de ronda</button>
