@@ -6645,3 +6645,39 @@ footer span {
 .combat-start-confirm-buttons .confirm-btn.shake {
   animation: shakeError 0.35s ease;
 }
+
+/* === Botón para alternar Adela <-> Hunger en el modal === */
+.modal-toggle-view {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 1rem;
+  padding: 0.45rem 1rem;
+  border-radius: 50px;
+  background: linear-gradient(135deg, rgba(255,120,60,0.18), rgba(165,131,255,0.12));
+  border: 1px solid rgba(255,120,60,0.55);
+  color: #ffb08a;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 0.2s;
+  align-self: flex-start;
+}
+.modal-toggle-view:hover {
+  background: linear-gradient(135deg, rgba(255,120,60,0.32), rgba(165,131,255,0.22));
+  border-color: #ff7840;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(255,120,60,0.35);
+}
+.modal-toggle-view:active {
+  transform: translateY(0);
+}
+@media (max-width: 700px) {
+  .modal-toggle-view {
+    font-size: 0.78rem;
+    padding: 0.4rem 0.85rem;
+    margin-top: 0.8rem;
+  }
+}
