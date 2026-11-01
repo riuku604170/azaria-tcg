@@ -342,7 +342,20 @@ var CHARACTERS = {
   esmeralda:  { name:'Esmeralda', element:'aceptacion',     set:'Erik', category:'Eriks', hp:11, emoji:'💎', img:'img/esmeralda.png',  concept:'', comingSoon:true, abilities:[] },
   iris:       { name:'Iris',      element:'proteccion',     set:'Erik', category:'Eriks', hp:11, emoji:'🌈', img:'img/iris.png',       concept:'', comingSoon:true, abilities:[] },
   amaya:      { name:'Amaya',     element:'comprension',    set:'Erik', category:'Eriks', hp:11, emoji:'🦉', img:'img/amaya.png',      concept:'', comingSoon:true, abilities:[] },
-  adela:      { name:'Adela',     element:'transformacion', set:'Erik', category:'Eriks', hp:11, emoji:'🕊️', img:'img/adela.png',      concept:'', comingSoon:true, abilities:[] },
+  adela: { name:'Adela', element:'transformacion', set:'Erik', category:'Eriks', hp:10, emoji:'🕊️', img:'img/adela.png', concept:'Un set dedicado a un alma pícara, una chica capaz, un alma libre que disfruta de las pequeñas gracias y desgracias de la vida.', abilities: [
+    { type:'normal', icon:'⚔️', name:'Gracia Pícara', cost:'x2 dados de transformación, x1 dado cualquiera', effect:'Quita 1 punto de vida al enemigo activo. Se cura 1 punto de vida si causa daño verdadero al enemigo con dicho ataque.' },
+    { type:'elemental', icon:'🔮', name:'Flechazo Tentador', cost:'x3 dados de transformación', effect:'Si el enemigo activo estaba marcado, le quita su marca primero y le causa 2 puntos de daño penetrante. Marca al enemigo activo con Transformación.' },
+    { type:'ultimate', icon:'💥', name:'Mis Modales en el Suelo', cost:'x5 dados de transformación, x2 puntos de energía', effect:'Si no estaba marcada, se marca a ella misma con Transformación y pasa a tener 5 de vida (independientemente de si su cantidad de puntos de vida era mayor o menor). Si estaba marcada con Transformación, causa 4 puntos de daño al enemigo activo. Si estaba marcada con un elemento distinto a Transformación, se suicida.' },
+    { type:'passive', icon:'🛡️', name:'Alma Pícara', effect:'Si es revivida y era marcada antaño con algún elemento, se transforma en Hunger Incarnate. Si está marcada con algún elemento, aumenta en 1 TODOS los efectos de sus habilidades y en 1 dado el precio consecuente (en dados de transformación).' },
+    { type:'ex', icon:'🌟', name:'EX · Café para llevar', effect:'Comienza la partida con 2 cartas de "Café solo" en la mano (si existen en el mazo) y roba 3 cartas menos en su mano inicial.' }
+  ]},
+  hunger: { name:'Hunger Incarnate', element:'transformacion', set:'Erik', category:'Eriks', hp:5, emoji:'👹', img:'img/hunger.png', concept:'Un set dedicado a un monstruo, un ser hecho para manipular a todo aquello que toca, una entidad que destruye aquello que roza como si su tacto fuera veneno puro, un demonio traído desde lo más profundo del infierno para causar nada más que dolor y desesperación y que, no importa cuánto muera, siempre acaba volviendo para hacer de la vida de todos una absoluta pesadilla.', abilities: [
+    { type:'normal', icon:'⚔️', name:'Muere', cost:'x1 dado de transformación, x1 dado cualquiera', effect:'Quita 1 punto de vida al enemigo activo. El daño aumenta en 1 punto si el enemigo activo está marcado por algún elemento.' },
+    { type:'elemental', icon:'🔮', name:'MUERE', cost:'x3 dados de transformación', effect:'Si el enemigo activo estaba marcado, le quita su marca primero y le causa 2 de daño penetrante. Marca al enemigo activo con Transformación. El enemigo activo cambia al siguiente enemigo en reserva.' },
+    { type:'ultimate', icon:'💥', name:'Mi cordura, en el suelo, hecha pedazos', cost:'x4 dados de transformación, x2 puntos de energía', effect:'Si no estaba marcada con Transformación, se marca a ella misma con Transformación y se cura al máximo. Si estaba marcada con Transformación, causa 4 de daño al enemigo activo.' },
+    { type:'passive', icon:'🛡️', name:'Hambre Eterna', effect:'Siempre que sea revivida será curada hasta su salud máxima. Es inmune al límite de veces que puede ser revivida. Cambiar a ella causa 1 punto de daño al aliado que cambió a ella y cura 1 punto de vida a ella misma. Si está afectada por una marca, su daño base se duplica al igual que el coste de dados de todas sus habilidades. Si al final de la ronda está afectada por una marca, pierde 2 puntos de vida.' },
+    { type:'ex', icon:'🌟', name:'EX · Café amargo', effect:'El "Café solo" pasa a ser gratis para ella, pero adicionalmente le causa 2 puntos de daño al usarlo.' }
+  ]},
   alter: { name:'Alter', element:'ilusion', set:'Erik', category:'Eriks', hp:12, emoji:'🎭', img:'img/alter.png', concept:'Un set con el propósito de alzarse sobre el prójimo, de escalar desde el abismo hasta la más alta divinidad. Un set que, en manos indicadas, es capaz de traer consigo el poder de una inigualable deidad.', abilities: [
     { type:'normal', icon:'⚔️', name:'Amenaza a la Ontología', cost:'x1 dado de ilusión, x2 dados cualesquiera', effect:'Inflige 1 punto de daño al enemigo activo. Alter no genera energía con este ataque.' },
     { type:'elemental', icon:'🔮', name:'Conversión Psicológica', cost:'x3 dados de ilusión', effect:'Se otorga 1 punto de invulnerabilidad (máx. 3). Roba toda la energía del resto de personajes del equipo (si roba más puntos de energía de los que necesita, los desecha). Alter no genera energía con esta habilidad.' },
@@ -351,7 +364,14 @@ var CHARACTERS = {
     { type:'ex', icon:'🌟', name:'EX · Buen Provecho', effect:'La habilidad elemental, en lugar de desechar los puntos de energía sobrantes (los que superan el máximo de energía de Alter), transforma dichos puntos en dados de ilusión.' }
   ]},
   eve:        { name:'Eve',       element:'comprension',    set:'Erik', category:'Eriks', hp:11, emoji:'🍎', img:'img/eve.png',        concept:'', comingSoon:true, abilities:[] },
-  opal:       { name:'Opal',      element:'expresion',      set:'Erik', category:'Eriks', hp:11, emoji:'💠', img:'img/opal.png',       concept:'', comingSoon:true, abilities:[] }
+  opal:       { name:'Opal',      element:'expresion',      set:'Erik', category:'Eriks', hp:11, emoji:'💠', img:'img/opal.png',       concept:'', comingSoon:true, abilities:[] },
+  internet: { name:'Internet', element:'proteccion', set:'BTC', category:'BTC', hp:5, emoji:'🌐', img:'img/internet.png', concept:'Un set con el propósito de resistir, de aguantar el peso del mundo sobre sus hombros y de proteger lo que queda.', abilities: [
+    { type:'normal', icon:'⚔️', name:'Orden', cost:'x1 dado de protección, x2 dados cualesquiera', effect:'Inflige 2 puntos de daño.' },
+    { type:'elemental', icon:'🔮', name:'Daga de Ola', cost:'x3 dados de protección', effect:'Inflige 3 puntos de daño e Internet obtiene un escudo.' },
+    { type:'ultimate', icon:'💥', name:'Fase de Limpieza', cost:'x3 dados de protección, x3 puntos de energía', effect:'Inflige 2 de daño a todo el equipo rival. Si con este golpe no se logra derrotar al menos al personaje activo del rival, Internet recibe 2 puntos de daño. Sin embargo, si eliminas al objetivo, robas una carta de tu mazo.' },
+    { type:'passive', icon:'🛡️', name:'Orgullo de la Creadora', effect:'Cuando baje hasta 2 puntos de vida, gana inmediatamente 1 punto de energía de forma automática.' },
+    { type:'ex', icon:'🌟', name:'EX · Último Recurso', effect:'Si su vida es de 2 puntos o menos, sus habilidades cuestan 1 dado menos y duplican su daño.' }
+  ]},
 };
 
 var CARD_DB = {
@@ -384,7 +404,8 @@ var CARD_DB = {
   c_distraccion:{ id:'c_distraccion', name:'Distracción', tag:'Utilidad', emoji:'💨', color:'255,130,190', cost:{}, effectText:'El próximo ataque enemigo hace 1 de daño menos. Una vez por ronda.', effectType:'enemyAttackDebuff', value:1, oncePerRound:true },
   c_hechizo:{ id:'c_hechizo', name:'Hechizo Definitivo', tag:'Potente', emoji:'🌟', color:'255,215,100', cost:{same:3}, effectText:'Tu próxima habilidad cuesta 0 dados y 0 energía. Una vez por partida.', effectType:'nextAbilityFree', oncePerGame:true },
   c_claridad:{ id:'c_claridad', name:'Momento de Claridad', tag:'Potente', emoji:'☀️', color:'255,215,100', cost:{any:3}, effectText:'Tu próximo ataque hace +3 de daño e ignora escudos. Una vez por ronda.', effectType:'nextAttackCritical', value:3, oncePerRound:true },
-  c_bendicion_destino:{ id:'c_bendicion_destino', name:'Bendición del Destino', tag:'Potente', emoji:'🔮', color:'255,215,100', cost:{same:2}, effectText:'Añade 1 dado de cada tipo de tu equipo (máx. 3). Una vez por ronda.', effectType:'drawTeamDice', oncePerRound:true }
+  c_bendicion_destino:{ id:'c_bendicion_destino', name:'Bendición del Destino', tag:'Potente', emoji:'🔮', color:'255,215,100', cost:{same:2}, effectText:'Añade 1 dado de cada tipo de tu equipo (máx. 3). Una vez por ronda.', effectType:'drawTeamDice', oncePerRound:true },
+  c_cafe_solo:{ id:'c_cafe_solo', name:'Café solo', tag:'Energía', emoji:'☕', color:'240,200,96', cost:{same:3}, effectText:'Otorga 2 puntos de energía al aliado activo.', effectType:'energy', value:2 },
 };
 
 var EQUIPMENT_CARDS = {
@@ -501,6 +522,24 @@ var COMBAT_CHARS = {
     elemental: { name:'Conversión Psicológica', cost:{ilusion:3}, target:'self', kind:'conversionPsicologica', energy:0 },
     ultimate: { name:'Omnes Deam Salutate', cost:{ilusion:4}, energyCost:3, target:'self', kind:'omnesDeam' },
     ex: { name:'EX · Buen Provecho', kind:'ex', target:'self' }
+  }},
+  adela: { name:'Adela', element:'transformacion', emoji:'🕊️', hp:10, abilities: {
+    normal: { name:'Gracia Pícara', cost:{transformacion:2, any:1}, target:'enemy', kind:'graciaPicara', damage:1, energy:1 },
+    elemental: { name:'Flechazo Tentador', cost:{transformacion:3}, target:'enemy', kind:'flechazoTentador', energy:1 },
+    ultimate: { name:'Mis Modales en el Suelo', cost:{transformacion:5}, energyCost:2, target:'enemy', kind:'misModales' },
+    ex: { name:'EX · Café para llevar', kind:'ex', target:'self' }
+  }},
+  hunger: { name:'Hunger Incarnate', element:'transformacion', emoji:'👹', hp:5, abilities: {
+    normal: { name:'Muere', cost:{transformacion:1, any:1}, target:'enemy', kind:'muereNormal', damage:1, energy:1 },
+    elemental: { name:'MUERE', cost:{transformacion:3}, target:'enemy', kind:'muereElemental', energy:1 },
+    ultimate: { name:'Mi cordura, en el suelo, hecha pedazos', cost:{transformacion:4}, energyCost:2, target:'enemy', kind:'miCordura' },
+    ex: { name:'EX · Café amargo', kind:'ex', target:'self' }
+  }},
+  internet: { name:'Internet', element:'proteccion', emoji:'🌐', hp:5, abilities: {
+    normal: { name:'Orden', cost:{proteccion:1, any:2}, target:'enemy', kind:'damage', damage:2, energy:1 },
+    elemental: { name:'Daga de Ola', cost:{proteccion:3}, target:'enemy', kind:'dagaDeOla', damage:3, energy:1 },
+    ultimate: { name:'Fase de Limpieza', cost:{proteccion:3}, energyCost:3, target:'enemy', kind:'faseDeLimpieza' },
+    ex: { name:'EX · Último Recurso', kind:'ex', target:'self' }
   }},
 };
 
@@ -715,8 +754,16 @@ function destroyCruzSangre(whoKey) {
       rev.hp = 1;
       if (!rev.shields) rev.shields = [];
       rev.shields.push({ source:'cruzSangre', hp:2, maxHp:2 });
+      if (rev.id === 'hunger') {
+        rev.hp = rev.maxHp;
+        logCombat('👹 Hunger revive y se cura al máximo (' + rev.hp + '/' + rev.maxHp + ')');
+      }
       if (side.activeIndex === -1 || side.characters[side.activeIndex].dead) side.activeIndex = side.characters.indexOf(rev);
       logCombat('✝️ Cruz de Sangre revive a ' + rev.character.name + ' con 1 HP y 2 escudo');
+      // ✅ Adela: si es revivida y tenía marca, se transforma en Hunger
+      if (rev.id === 'adela' && hasAnyMark(rev)) {
+        transformAdelaToHunger(rev);
+      }
     }
   }
 }
@@ -852,6 +899,12 @@ function dealDamageToChar(targetCs, rawDamage, opts) {
     }
     targetCs.hp = Math.max(0, targetCs.hp - res.overflow);
     logCombat('💥 Daño verdadero: ' + res.overflow + ' · HP: ' + targetCs.hp + '/' + targetCs.maxHp);
+    // ✅ Internet: si baja a 2 HP exactos (o por debajo por primera vez), +1 energía
+    if (targetCs.id === 'internet' && targetCs.hp > 0 && targetCs.hp <= 2 && !targetCs.states.internetEnergyGranted) {
+      targetCs.energy = Math.min(targetCs.maxEnergy, targetCs.energy + 1);
+      targetCs.states.internetEnergyGranted = true;
+      logCombat('🌐 Orgullo de la Creadora: Internet gana 1 energía al bajar a ' + targetCs.hp + ' HP');
+    }
     triggerVibrate(sideKey, idx); playSound(opts.piercing ? 'pierce' : 'impact');
     if (csHasState(targetCs, 'vuelo')) {
       targetCs.hp = Math.max(0, targetCs.hp - 3);
@@ -929,6 +982,51 @@ function applyErikPassive(cs) {
   if (alive === 1) return 2;
   return 0;
 }
+/* ═══ ADELA / HUNGER ═══ */
+function hasAnyMark(cs){ return cs && cs.marks && Object.keys(cs.marks).length > 0; }
+
+// Adela: +1 a TODOS los efectos de sus habilidades si tiene marca.
+// El +1 se aplica al valor "numérico" de cada efecto (daño, curación, penetrante, etc.)
+function adelaEffectBonus(cs){
+  if (!cs || cs.id !== 'adela') return 0;
+  return hasAnyMark(cs) ? 1 : 0;
+}
+// Adela: +1 dado de transformación al coste de sus habilidades si tiene marca.
+function adelaCostBonus(cs){
+  if (!cs || cs.id !== 'adela') return 0;
+  return hasAnyMark(cs) ? 1 : 0;
+}
+// Hunger: daño base x2 y coste x2 si tiene marca.
+function hungerMarkMultiplier(cs){
+  if (!cs || cs.id !== 'hunger') return 1;
+  return hasAnyMark(cs) ? 2 : 1;
+}
+// Cambio a Hunger: el aliado saliente recibe 1 de daño, Hunger se cura 1.
+function hungerOnEnter(sideKey, newHungerCs, oldActiveCs){
+  if (!newHungerCs || newHungerCs.id !== 'hunger') return;
+  if (oldActiveCs && !oldActiveCs.dead) {
+    var oldSide = sideOfChar(oldActiveCs);
+    if (oldSide) {
+      dealDamageToChar(oldActiveCs, 1, { targetSide:oldSide.side, targetSideKey:oldSide.key, targetIdx:oldSide.side.characters.indexOf(oldActiveCs) });
+    }
+  }
+  if (!newHungerCs.dead) healChar(newHungerCs, 1);
+}
+function transformAdelaToHunger(cs){
+  if (!cs || cs.id !== 'adela') return;
+  var hungerChar = COMBAT_CHARS.hunger;
+  cs.id = 'hunger';
+  cs.character = hungerChar;
+  cs.hp = hungerChar.hp;
+  cs.maxHp = hungerChar.hp;
+  cs.energy = 0;
+  cs.maxEnergy = getMaxEnergyFor(hungerChar);
+  cs.marks = {};
+  cs.states = cs.states || {};
+  cs.states.invulnerabilidad = 0;
+  cs.noResurrectLimit = true;
+  logCombat('👹 Adela se transforma en Hunger Incarnate');
+}
 /* ═══ HOOKS EX (pasivas permanentes) ═══
  * Una EX solo aplica si:
  *   1. El sistema EX global está ON (exSystemEnabled).
@@ -988,7 +1086,7 @@ function buildSideState(ids) {
   return {
     characters: ids.map(function(id) {
       var ch = COMBAT_CHARS[id];
-              return { id:id, character:ch, hp:ch.hp, maxHp:ch.hp, energy:0, maxEnergy:getMaxEnergyFor(ch), shields:[], pendingBuff:0, dead:false, equipment:[], paintEquipped:null, states:{}, marks:{}, cardNextAttackBonus:0, cardNextAttackPiercing:false, cardNextAttackDouble:false, cardNextAbilityDiscount:0, cardNextAbilityFree:false, cardMarkBonus:0, manuelStacks:0, exActive: false };
+      return { id:id, character:ch, hp:ch.hp, maxHp:ch.hp, energy:0, maxEnergy:getMaxEnergyFor(ch), shields:[], pendingBuff:0, dead:false, equipment:[], paintEquipped:null, states:{ internetEnergyGranted:false }, marks:{}, cardNextAttackBonus:0, cardNextAttackPiercing:false, cardNextAttackDouble:false, cardNextAbilityDiscount:0, cardNextAbilityFree:false, cardMarkBonus:0, manuelStacks:0, exActive: false, noResurrectLimit: (id === 'hunger') };
     }),
     activeIndex:0, dice:[], rerolled:false, selected:{}, isRollingAnim:false, rollingIds:{},
     consonance:null, firstChangeUsed:false, firstAttackUsed:false,
@@ -1069,8 +1167,8 @@ var CHAR_ELEMENT_ORDER = ['proteccion','comprension','expresion','transformacion
 var CHAR_CATEGORY_ORDER = ['Usuarios', 'Personajes', 'Eriks'];
 var charSortMode = 'alpha';
 var charFilterSet = {}, resFilterSet = {}, deckCatFilterSet = {}, deckTagFilterSet = {};
-var CHARACTER_CATEGORIES = ['Eriks', 'Personajes', 'Usuarios'];
-var CHARACTER_CATEGORY_COLORS = { 'Eriks':'255,120,60', 'Personajes':'130,220,140', 'Usuarios':'140,180,230' };
+var CHARACTER_CATEGORIES = ['Eriks', 'Personajes', 'Usuarios', 'BTC'];
+var CHARACTER_CATEGORY_COLORS = { 'Eriks':'255,120,60', 'Personajes':'130,220,140', 'Usuarios':'140,180,230', 'BTC':'92,179,255' };
 var charCatFilterSet = {};
 function updateCharSortBtn() {
   var btn = document.getElementById('charSortBtn');
@@ -1254,19 +1352,44 @@ function renderAbility(ab, elementColor) {
   var inlineStyle = ab.type === 'elemental' ? 'style="--abc:' + elementColor + ';"' : '';
   return '<div class="ability ability-' + ab.type + '" ' + inlineStyle + '><div class="ability-head"><span class="ability-type-icon">' + ab.icon + '</span><span class="ability-type">' + (ABILITY_TYPES[ab.type] || '') + '</span></div><h4 class="ability-name">' + ab.name + '</h4>' + costHtml + '<p class="ability-effect">' + ab.effect + '</p></div>';
 }
-function buildModalContent(charId, char) {
+function buildModalContent(charId, char, originalId) {
   var el = char.element;
   var obtainText = 'Se obtiene comprándolo en la tienda con cierto precio y un nivel de amistad concreto, tras vencerlo en una batalla (desbloqueado por ' + char.name + ').';
-  return '<div class="modal-header"><div class="modal-portrait" data-fallback="' + char.emoji + '"><img src="' + char.img + '" alt="' + char.name + '" class="portrait-img" style="opacity:0;" onload="this.style.opacity=1;" onerror="this.style.display=\'none\';"><div class="modal-hp-badge">' + char.hp + ' HP</div></div><div class="modal-info"><div class="modal-eyebrow"><span class="el-badge-lg">' + ELEMENT_EMOJI[el] + '</span>' + ELEMENT_NAMES[el] + ' · ' + char.set + '</div><h2 class="modal-title" id="modalTitle">' + char.name + '</h2><p class="modal-concept">"' + char.concept + '"</p></div><button class="modal-close" aria-label="Cerrar">×</button></div><div class="modal-body"><div class="obtain-box"><div class="obtain-label">📍 Obtención</div><p class="obtain-text">' + obtainText + '</p></div><div class="abilities">' + char.abilities.map(function(ab){ return renderAbility(ab, ELEMENT_COLORS[el]); }).join('') + '</div></div>';
+  // ✅ Botón de alternar Adela <-> Hunger
+  var toggleHtml = '';
+  if (charId === 'adela') {
+    toggleHtml = '<button class="modal-toggle-view" data-toggle-view="hunger" title="Ver Hunger Incarnate">👹 Ver Hunger Incarnate</button>';
+  } else if (charId === 'hunger') {
+    toggleHtml = '<button class="modal-toggle-view" data-toggle-view="adela" title="Volver a Adela">🕊️ Volver a Adela</button>';
+  }
+  return '<div class="modal-header"><div class="modal-portrait" data-fallback="' + char.emoji + '"><img src="' + char.img + '" alt="' + char.name + '" class="portrait-img" style="opacity:0;" onload="this.style.opacity=1;" onerror="this.style.display=\'none\';"><div class="modal-hp-badge">' + char.hp + ' HP</div></div><div class="modal-info"><div class="modal-eyebrow"><span class="el-badge-lg">' + ELEMENT_EMOJI[el] + '</span>' + ELEMENT_NAMES[el] + ' · ' + char.set + '</div><h2 class="modal-title" id="modalTitle">' + char.name + '</h2><p class="modal-concept">"' + char.concept + '"</p>' + toggleHtml + '</div><button class="modal-close" aria-label="Cerrar">×</button></div><div class="modal-body"><div class="obtain-box"><div class="obtain-label">📍 Obtención</div><p class="obtain-text">' + obtainText + '</p></div><div class="abilities">' + char.abilities.map(function(ab){ return renderAbility(ab, ELEMENT_COLORS[el]); }).join('') + '</div></div>';
 }
 var modal = document.getElementById('cardModal');
 var modalContent = document.getElementById('modalContent');
-function openCharacter(id) {
-  var char = CHARACTERS[id]; if (!char || !modal || !modalContent) return;
+function openCharacter(id, viewId) {
+  // viewId permite abrir el modal mostrando una "vista" distinta a la del id
+  // (ej: abrir 'adela' pero mostrando 'hunger').
+  var showId = viewId || id;
+  var char = CHARACTERS[showId]; if (!char || !modal || !modalContent) return;
   modalContent.style.setProperty('--el', ELEMENT_COLORS[char.element]);
-  modalContent.innerHTML = buildModalContent(id, char);
+  modalContent.innerHTML = buildModalContent(showId, char, id);
   var closeBtn = modalContent.querySelector('.modal-close'); if (closeBtn) closeBtn.addEventListener('click', closeModal);
-
+  // Botón para alternar Adela <-> Hunger dentro del mismo modal
+  var toggleBtn = modalContent.querySelector('[data-toggle-view]');
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', function() {
+      var targetView = toggleBtn.getAttribute('data-toggle-view');
+      openCharacter(targetView, targetView);
+    });
+  }
+  // Botón para cambiar el personaje activo del modal (solo Adela)
+  var changeBtn = modalContent.querySelector('[data-modal-team-btn]');
+  if (changeBtn) {
+    changeBtn.addEventListener('click', function() {
+      closeModal();
+      toggleTeam(changeBtn.getAttribute('data-modal-team-btn'));
+    });
+  }
   modal.classList.add('open'); document.body.style.overflow = 'hidden';
 }
 function closeModal(){ if (!modal) return; modal.classList.remove('open'); document.body.style.overflow = ''; }
@@ -2389,9 +2512,31 @@ function startDrawPhase() {
   if (combatState.round === 1) side.mulliganUsed = false;
   var base = combatState.round === 1 ? 5 : 2;
   var bonus = getCardDrawBonus(side, combatState.round === 1);
+  // ✅ Adela EX: roba 3 cartas menos en la mano inicial
+  if (combatState.round === 1) {
+    var adelaCs = side.characters.find(function(c){ return c.id === 'adela'; });
+    if (adelaCs && adelaCs.exActive) {
+      base = Math.max(0, base - 3);
+      logCombat('🌟 EX Adela: -3 cartas en la mano inicial');
+    }
+  }
   var dc = base + bonus, drawn = [];
   for (var i = 0; i < dc; i++) { var c = drawFromDeck(sideKey); if (c) drawn.push(c); }
   side.initialDrawThisRound = drawn;
+  // ✅ Adela EX: 2 Café solo en la mano (si están en el mazo)
+  if (combatState.round === 1) {
+    var adelaCs2 = side.characters.find(function(c){ return c.id === 'adela'; });
+    if (adelaCs2 && adelaCs2.exActive) {
+      for (var cs2i = 0; cs2i < 2; cs2i++) {
+        var idxCafe = side.deck.indexOf('c_cafe_solo');
+        if (idxCafe >= 0) {
+          side.deck.splice(idxCafe, 1);
+          side.hand.push('c_cafe_solo');
+          logCombat('🌟 EX Adela: Café solo añadido a la mano');
+        }
+      }
+    }
+  }
   var msg = bonus > 0 ? ' (+' + bonus + ' por Expresión)' : '';
   var who = combatState.pvp ? (sideKey === 'player' ? 'J1' : 'J2') : 'Tú';
   logCombat('🎴 ' + who + ' roba ' + drawn.length + ' carta(s)' + msg);
@@ -2701,6 +2846,35 @@ function getEffectiveCostFull(active, ability) {
     Object.keys(base).forEach(function(k){ exCost[k] = base[k]; });
     exCost.aceptacion = (exCost.aceptacion || 0) + 2;
     return exCost;
+  }
+  // ✅ Adela: +1 dado de transformación al coste si tiene marca
+  if (active.id === 'adela' && adelaCostBonus(active) > 0 && base.transformacion) {
+    var adelaCost = {};
+    Object.keys(base).forEach(function(k){ adelaCost[k] = base[k]; });
+    adelaCost.transformacion = (adelaCost.transformacion || 0) + adelaCostBonus(active);
+    return adelaCost;
+  }
+  // ✅ Hunger: x2 en TODOS los costes si tiene marca
+  if (active.id === 'hunger' && hungerMarkMultiplier(active) > 1) {
+    var hCost = {};
+    Object.keys(base).forEach(function(k){ hCost[k] = base[k] * hungerMarkMultiplier(active); });
+    return hCost;
+  }
+  // ✅ Internet EX: -1 dado en TODAS sus habilidades si su vida ≤ 2
+  if (active.id === 'internet' && active.exActive && active.hp <= 2) {
+    var intCost = {};
+    var rem = 1;
+    Object.keys(base).forEach(function(k){
+      if (rem > 0) {
+        var take = Math.min(base[k], rem);
+        var left = base[k] - take;
+        rem -= take;
+        if (left > 0) intCost[k] = left;
+      } else {
+        intCost[k] = base[k];
+      }
+    });
+    return intCost;
   }
   return base;
 }
@@ -3221,6 +3395,132 @@ function executeAction(who, actionType, preSpentDice) {
       // al activar), añádelo aquí. Los efectos continuos van en los hooks exHook*.
       break;
     }
+    case 'graciaPicara': {
+      // Adela: 1 daño al enemigo +1 si tiene marca (efecto). Se cura 1 (+1 si tiene marca) si hace daño verdadero.
+      var gpDmg = 1 + adelaEffectBonus(active);
+      var gpDealt = applyDamageWithMods(enemyActive, gpDmg, predictPiercing(active, ability), enemyKey, enemySide.activeIndex, active);
+      if (gpDealt > 0) {
+        var gpHeal = 1 + adelaEffectBonus(active);
+        healChar(active, gpHeal);
+        logCombat('🩸 Gracia Pícara: cura ' + gpHeal + ' HP');
+      }
+      break;
+    }
+    case 'flechazoTentador': {
+      // Adela: si el enemigo estaba marcado, quita la marca y le causa
+      // 2 (+1 si Adela tiene marca) de daño penetrante.
+      // SIEMPRE marca con Transformación al enemigo (si sobrevive), con o sin daño.
+      var ftDmg = 2 + adelaEffectBonus(active);
+      var ftHadMark = csAllMarks(enemyActive).length > 0;
+      if (ftHadMark) {
+        var oldMarks = csAllMarks(enemyActive);
+        oldMarks.forEach(function(el){ csRemoveMark(enemyActive, el); });
+        logCombat('🏷️ Flechazo Tentador: marca quitada (' + oldMarks.map(function(e){ return ELEMENT_EMOJI[e]; }).join(' ') + ')');
+        applyDamageWithMods(enemyActive, ftDmg, true, enemyKey, enemySide.activeIndex, active);
+      }
+      // ✅ Marcar SIEMPRE con Transformación (si el enemigo sigue vivo)
+      if (!enemyActive.dead) triggerMarkOrResonance(enemyActive, 'transformacion', who, enemyKey, enemySide.activeIndex);
+      break;
+    }
+    case 'misModales': {
+      // Adela: si no estaba marcada, se marca con Transformación y pasa a 5 HP. Si estaba marcada con Transformación, 4 (+1 si marca) de daño. Si marcada con otro, se suicida.
+      var mmMarks = csAllMarks(active);
+      if (mmMarks.length === 0) {
+        triggerMarkOrResonance(active, 'transformacion', who, who, side.activeIndex);
+        var targetHp = 5;
+        active.hp = Math.min(targetHp, active.maxHp);
+        logCombat('💥 Mis Modales en el Suelo: Adela se marca y pasa a ' + active.hp + ' HP');
+      } else if (mmMarks.indexOf('transformacion') !== -1) {
+        var mmDmg = 4 + adelaEffectBonus(active);
+        applyDamageWithMods(enemyActive, mmDmg, predictPiercing(active, ability), enemyKey, enemySide.activeIndex, active);
+      } else {
+        // Marcada con otro elemento → se suicida
+        active.hp = 0;
+        logCombat('💀 Adela se suicida (marcada con ' + mmMarks.map(function(e){ return ELEMENT_EMOJI[e]; }).join(' ') + ')');
+        handleDeath(who, side.activeIndex);
+      }
+      break;
+    }
+    case 'muereNormal': {
+      // Hunger: 1 daño, +1 si el enemigo está marcado. Multiplicado x2 si Hunger tiene marca.
+      var mnDmg = 1 + (hasAnyMark(enemyActive) ? 1 : 0);
+      mnDmg = mnDmg * hungerMarkMultiplier(active);
+      applyDamageWithMods(enemyActive, mnDmg, predictPiercing(active, ability), enemyKey, enemySide.activeIndex, active);
+      break;
+    }
+    case 'muereElemental': {
+      // Hunger: si el enemigo estaba marcado, quita la marca y 2 de daño penetrante. Luego marca con Transformación. Fuerza cambio de enemigo.
+      var meDmg = 2 * hungerMarkMultiplier(active);
+      var meHadMark = csAllMarks(enemyActive).length > 0;
+      if (meHadMark) {
+        var oldMe = csAllMarks(enemyActive);
+        oldMe.forEach(function(el){ csRemoveMark(enemyActive, el); });
+        logCombat('🏷️ MUERE: marca quitada (' + oldMe.map(function(e){ return ELEMENT_EMOJI[e]; }).join(' ') + ')');
+        applyDamageWithMods(enemyActive, meDmg, true, enemyKey, enemySide.activeIndex, active);
+      }
+      if (!enemyActive.dead) triggerMarkOrResonance(enemyActive, 'transformacion', who, enemyKey, enemySide.activeIndex);
+      var meNext = getNextAliveIndex(enemySide, enemySide.activeIndex);
+      if (meNext >= 0) { enemySide.activeIndex = meNext; logCombat('🔄 Enemigo forzado a ' + enemySide.characters[meNext].character.name); }
+      break;
+    }
+    case 'miCordura': {
+      // Hunger: si no está marcada con Transformación, se marca y se cura al máximo. Si lo está, 4 daño (x2 si marca).
+      var mcMarks = csAllMarks(active);
+      if (mcMarks.indexOf('transformacion') === -1) {
+        triggerMarkOrResonance(active, 'transformacion', who, who, side.activeIndex);
+        var beforeHp = active.hp;
+        active.hp = active.maxHp;
+        logCombat('💥 Mi cordura: Hunger se marca y se cura ' + (active.hp - beforeHp) + ' HP (total ' + active.hp + '/' + active.maxHp + ')');
+      } else {
+        var mcDmg = 4 * hungerMarkMultiplier(active);
+        applyDamageWithMods(enemyActive, mcDmg, predictPiercing(active, ability), enemyKey, enemySide.activeIndex, active);
+      }
+      break;
+    }
+    case 'dagaDeOla': {
+      // 3 daño + escudo propio (1). Con EX, +1 dado menos (gestionado en getEffectiveCostFull)
+      // y daño x2.
+      var ddBase = 3;
+      var ddExMult = 1;
+      if (active.id === 'internet' && active.exActive && active.hp <= 2) {
+        ddExMult = 2;
+      }
+      var ddDmg = ddBase * ddExMult;
+      applyDamageWithMods(enemyActive, ddDmg, predictPiercing(active, ability), enemyKey, enemySide.activeIndex, active);
+      addOrRefreshShield(active, 'internet_daga', 1);
+      logCombat('🌊 Daga de Ola: +1 escudo a Internet');
+      break;
+    }
+    case 'faseDeLimpieza': {
+      // 2 daño a todo el equipo rival. Si no se derrota al activo, Internet recibe 2 de daño.
+      // Si se derrota al activo, roba 1 carta.
+      var fdlDmg = 2;
+      var fdlExMult = 1;
+      if (active.id === 'internet' && active.exActive && active.hp <= 2) {
+        fdlExMult = 2;
+      }
+      fdlDmg *= fdlExMult;
+      var fdlActiveDead = false;
+      enemySide.characters.forEach(function(c, i){
+        if (c.dead) return;
+        var wasActive = (i === enemySide.activeIndex);
+        applyDamageWithMods(c, fdlDmg, predictPiercing(active, ability), enemyKey, i, active);
+        if (wasActive && c.dead) fdlActiveDead = true;
+      });
+      if (!fdlActiveDead && !active.dead) {
+        // No se derrotó al activo → Internet recibe 2 de daño
+        var fdlSide = (combatState.player.characters.indexOf(active) >= 0) ? combatState.player : combatState.bot;
+        var fdlSideKey = (combatState.player.characters.indexOf(active) >= 0) ? 'player' : 'bot';
+        var fdlIdx = fdlSide.characters.indexOf(active);
+        dealDamageToChar(active, 2, { targetSide:fdlSide, targetSideKey:fdlSideKey, targetIdx:fdlIdx });
+        logCombat('💥 Fase de Limpieza: Internet recibe 2 de daño por no derrotar al activo');
+      } else if (fdlActiveDead) {
+        // Se derrotó al activo → roba 1 carta
+        drawFromDeck(who);
+        logCombat('🎴 Fase de Limpieza: robas 1 carta por derrotar al activo');
+      }
+      break;
+    }
     default: logCombat('⚠️ Habilidad sin implementar: ' + ability.name);
   }
 
@@ -3283,6 +3583,7 @@ function tryChangeCharacter(who, targetIndex) {
   var oldChar = side.characters[side.activeIndex];
   if (oldChar.id === 'jose') csSetState(oldChar, 'acelerado', false);
   side.activeIndex = targetIndex;
+  hungerOnEnter(who, side.characters[targetIndex], oldChar);
   if (side.characters[targetIndex].id === 'jose') csSetState(side.characters[targetIndex], 'acelerado', true);
   var sfx = rules.quick ? ' (acción rápida)' : (rules.discounted ? ' (gratis)' : '');
   logCombat('🔄 ' + (who === 'player' ? (combatState.pvp ? 'J1' : 'Tú') : (combatState.pvp ? 'J2' : 'El rival')) + ': ' + oldN + ' → ' + newN + sfx);
@@ -3406,8 +3707,16 @@ function endRound() {
         c.states.invulnerabilidad = Math.max(0, c.states.invulnerabilidad - 1);
         logCombat('🛡️ Alter pierde 1 invulnerabilidad (queda ' + c.states.invulnerabilidad + ')');
       }
-      // Cualquier otro personaje con invulnerabilidad (no debería haber) se resetea
       if (c.id !== 'alter') c.states.invulnerabilidad = 0;
+      // ✅ Hunger: si al final de la ronda tiene marca, pierde 2 HP
+      if (c.id === 'hunger' && !c.dead && hasAnyMark(c)) {
+        c.hp = Math.max(0, c.hp - 2);
+        logCombat('👹 Hunger pierde 2 HP por su marca (queda ' + c.hp + '/' + c.maxHp + ')');
+        if (c.hp <= 0) {
+          var hSide = combatState[wk];
+          handleDeath(wk, hSide.characters.indexOf(c));
+        }
+      }
     }
   }); });
   combatState.player.rerolled = false; combatState.player.selected = {}; combatState.player.rollingIds = {};
@@ -3486,6 +3795,14 @@ function applyCardEffect(card) {
     case 'enemyAttackDebuff': side.enemyAttackDebuff = (side.enemyAttackDebuff || 0) + card.value; break;
     case 'prepararContraataque': side.contraataque = (side.contraataque || 0) + (card.value || 2); break;
   }
+  // ✅ Hunger EX: Café solo le hace 2 de daño al usarlo
+  if (card.id === 'c_cafe_solo' && active && active.id === 'hunger' && active.exActive && exSystemEnabled) {
+    var hSideKey = (combatState.player.characters.indexOf(active) >= 0) ? 'player' : 'bot';
+    var hSide = combatState[hSideKey];
+    var hIdx = hSide.characters.indexOf(active);
+    dealDamageToChar(active, 2, { targetSide:hSide, targetSideKey:hSideKey, targetIdx:hIdx });
+    logCombat('☕ Café amargo: Hunger recibe 2 de daño');
+  }
 }
 function canPayCardCost(cost){ var side = getActiveSide(); if (!side) return false; var t = sumCost(cost); if (t === 0) return true; return trySpendDice(side.dice, cost).ok; }
 function cardEnergyTargetType(card) {
@@ -3524,6 +3841,11 @@ function playCardRequest(cardId) {
 
   var artemisBlock = cardWouldGiveEnergyToArtemis(card, side);
   var adjustedCost = adjustCardCostForPassives(card, side);
+  // ✅ Hunger EX: Café solo gratis
+  var hungerActive = side.characters[side.activeIndex];
+  if (card.id === 'c_cafe_solo' && hungerActive && hungerActive.id === 'hunger' && hungerActive.exActive && exSystemEnabled) {
+    adjustedCost = {};
+  }
   showCardConfirmation(cardId, adjustedCost, function(selectedDice){
     var spentIds = {}; selectedDice.forEach(function(d){ spentIds[d.id] = true; });
     side.dice = side.dice.filter(function(d){ return !spentIds[d.id]; });
@@ -4212,6 +4534,7 @@ function playerChangeCharacterRequest(targetIndex) {
     var oldChar = side.characters[side.activeIndex];
     if (oldChar.id === 'jose') csSetState(oldChar, 'acelerado', false);
     side.activeIndex = targetIndex;
+    hungerOnEnter(turnKey, side.characters[targetIndex], oldChar);
     if (side.characters[targetIndex].id === 'jose') csSetState(side.characters[targetIndex], 'acelerado', true);
     var sfx = rules.quick ? ' (acción rápida)' : (rules.discounted ? ' (gratis)' : '');
     var label = combatState.pvp ? (turnKey === 'player' ? 'J1' : 'J2') : 'Tú';
