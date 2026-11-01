@@ -7,6 +7,126 @@ var pvpSetupPhase = null;
 var pvpP2Team = null;
 var pvpP2Deck = null;
 
+// ── Sistema EX (toggle global) ──
+var exSystemEnabled = false;
+try {
+  var _storedEx = localStorage.getItem('azaria_ex_enabled');
+  if (_storedEx === 'true') exSystemEnabled = true;
+} catch (e) {}
+function saveExSystemEnabled() {
+  try { localStorage.setItem('azaria_ex_enabled', exSystemEnabled ? 'true' : 'false'); } catch (e) {}
+}
+function refreshExToggleBtn() {
+  var btn = document.getElementById('exToggleBtn');
+  if (!btn) return;
+  btn.setAttribute('aria-pressed', exSystemEnabled ? 'true' : 'false');
+  btn.title = exSystemEnabled ? 'Sistema EX ACTIVADO — clic para desactivar' : 'Sistema EX DESACTIVADO — clic para activar';
+}
+function initExToggle() {
+  var btn = document.getElementById('exToggleBtn');
+  if (!btn) return;
+  refreshExToggleBtn();
+  btn.addEventListener('click', function() {
+    exSystemEnabled = !exSystemEnabled;
+    saveExSystemEnabled();
+    refreshExToggleBtn();
+    // Si hay combate abierto, refrescar para mostrar/ocultar el botón EX
+    if (typeof combatState !== 'undefined' && combatState) {
+      try { renderCombat(); } catch (e) {}
+    }
+  });
+}
+
+/* ═══ SISTEMA DE PARCHES ═══ */
+var PATCHES = [
+  {
+    version: 'v46',
+    date: '2026-11-1',
+    type: 'minor',
+    title: 'Sistema de parches y arreglos varios',
+    changes: [
+      'Nuevo apartado "Parches" en el menú de navegación.',
+      'Infraestructura del sistema EX preparada (toggle en el menú, botón en combate y hooks no-op).',
+      'Añadido Orath al roster con sus habilidades y estructuras Cruz de Madera / Cruz de Sangre.',
+      'La duración de las estructuras permanentes (999) ya no se muestra en el tablero.',
+      'Las estructuras Cruz de Madera y Cruz de Sangre usan emoji propio (✝️ / 🩸) en vez del genérico 🧠.',
+      'Corregido error de sintaxis en COMBAT_CHARS que impedía la carga del script.',
+      'Corregido showStructureTooltip para que muestre correctamente Cruz de Madera y Cruz de Sangre.'
+    ]
+  }
+  // Añade aquí nuevos parches al principio del array (el más reciente primero).
+  // Estructura: { version, date, type, title, changes: [] }
+  // type: 'major' | 'minor' | 'fix' | 'balance'  (solo afecta al color del borde)
+];
+
+var PATCH_TYPE_LABEL = {
+  major: 'Major',
+  minor: 'Minor',
+  fix: 'Fix',
+  balance: 'Balance'
+};
+
+function renderPatches() {
+  var body = document.getElementById('patchesBody');
+  if (!body) return;
+  if (!PATCHES.length) {
+    body.innerHTML = '<div style="text-align:center; color: var(--muted); font-style: italic; padding: 2rem;">Aún no hay parches registrados.</div>';
+    return;
+  }
+  body.innerHTML = PATCHES.map(function(p, i) {
+    var isLatest = i === 0;
+    var typeCls = isLatest ? 'latest' : (p.type || 'minor');
+    var typeLabel = isLatest ? 'Última' : (PATCH_TYPE_LABEL[p.type] || 'Cambios');
+    var versionTxt = p.version + ' — ' + (p.title || '');
+    var changesHtml = (p.changes || []).map(function(c) { return '<li>' + c + '</li>'; }).join('');
+    return '<div class="patch-entry ' + typeCls + '">' +
+      '<div class="patch-entry-head">' +
+        '<span class="patch-version">' + p.version + '</span>' +
+        '<span class="patch-badge ' + (isLatest ? 'latest' : '') + '">' + typeLabel + '</span>' +
+        '<span class="patch-date">' + (p.date || '') + '</span>' +
+      '</div>' +
+      (p.title ? '<div class="patch-title">' + p.title + '</div>' : '') +
+      '<ul class="patch-changes">' + changesHtml + '</ul>' +
+    '</div>';
+  }).join('');
+}
+
+function openPatchesModal() {
+  var m = document.getElementById('patchesModal');
+  if (!m) return;
+  renderPatches();
+  m.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closePatchesModal() {
+  var m = document.getElementById('patchesModal');
+  if (!m) return;
+  m.classList.remove('open');
+  document.body.style.overflow = '';
+}
+function initPatches() {
+  var link = document.getElementById('patchesNavLink');
+  if (link) {
+    link.addEventListener('click', function(e) {
+      e.preventDefault();
+      openPatchesModal();
+    });
+  }
+  var m = document.getElementById('patchesModal');
+  if (m) {
+    var closeBtn = document.getElementById('patchesCloseBtn');
+    if (closeBtn) closeBtn.addEventListener('click', closePatchesModal);
+    var backdrop = m.querySelector('.patches-backdrop');
+    if (backdrop) backdrop.addEventListener('click', closePatchesModal);
+  }
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      var modal = document.getElementById('patchesModal');
+      if (modal && modal.classList.contains('open')) closePatchesModal();
+    }
+  });
+}
+
 /* ═══ CONSTANTES ═══ */
 var ELEMENT_EMOJI = { redencion:'🩸', comprension:'💡', expresion:'🌸', proteccion:'🛡️', ilusion:'🎭', transformacion:'🔥', aceptacion:'🌿' };
 var ELEMENT_COLORS = { redencion:'200,45,60', comprension:'255,215,100', expresion:'255,130,190', proteccion:'140,180,230', ilusion:'180,100,230', transformacion:'255,120,60', aceptacion:'130,220,140' };
@@ -30,7 +150,9 @@ var STATUS_DESCRIPTIONS = {
   obraMaestra: { name:'💥 Obra Maestra', text:'Mientras esté activa, las habilidades definitivas de los aliados hacen el doble de daño base (una vez por aliado).' },
   rencor: { name:'💢 Rencor', text:'Acumulación de Abla sobre este personaje. La habilidad definitiva de Abla inflige daño adicional por cada acumulación y consume todas al golpear.' },
   vuelo: { name:'🦅 Vuelo', text:'Artemis en vuelo: reduce en 2 el daño recibido. Si recibe daño verdadero recibe +3 de daño adicional, gana 1 de energía y pierde este efecto.' },
-  carrerilla: { name:'🏃 Carrerilla', text:'El siguiente ataque de Artemis que cause daño añade +2 de daño. Si ese ataque es su ataque normal, gana 1 de energía adicional.' }
+  carrerilla: { name:'🏃 Carrerilla', text:'El siguiente ataque de Artemis que cause daño añade +2 de daño. Si ese ataque es su ataque normal, gana 1 de energía adicional.' },
+  cruzMadera: { name:'✝️ Cruz de Madera', text:'Estructura exclusiva de Orath. Causa 1 punto de daño al enemigo activo al ser destruida. Al final de la ronda, si Orath está activa, marca al enemigo activo con redención y se destruye.' },
+  cruzSangre: { name:'✝️ Cruz de Sangre', text:'Estructura exclusiva de Orath generada al morir ella. Se destruye si un aliado muere. Al destruirse, revive al último aliado caído con 1 HP y 2 de escudo.' },
 };
 
 var PHILOSOPHIES = {
@@ -174,7 +296,13 @@ var CHARACTERS = {
   ah:         { name:'A/H',       element:'ilusion',        set:'Erik', category:'Eriks', hp:11, emoji:'🎩', img:'img/ah.png',         concept:'', comingSoon:true, abilities:[] },
   felicia:    { name:'Felicia',   element:'expresion',      set:'Erik', category:'Eriks', hp:11, emoji:'🎀', img:'img/felicia.png',    concept:'', comingSoon:true, abilities:[] },
   nc:         { name:'NC',        element:'proteccion',     set:'Erik', category:'Eriks', hp:11, emoji:'🎯', img:'img/nc.png',         concept:'', comingSoon:true, abilities:[] },
-  orath:      { name:'Orath',     element:'redencion',      set:'Erik', category:'Eriks', hp:11, emoji:'🗿', img:'img/orath.png',      concept:'', comingSoon:true, abilities:[] },
+  orath: { name:'Orath', element:'redencion', set:'Erik', category:'Eriks', hp:9, emoji:'🗿', img:'img/orath.png', concept:'Los demonios aman el frío y el silencio, pues la paz la desean todos los seres vivos. Sin embargo, sus pecados deben ser respondidos con un dolor similar al provocado hacia la vida misma, por lo que, en muerte, reciben un castigo de eterno sufrimiento, agonía que perciben en todos sus sentidos hasta que su cordura se calcine hasta terminar de chamuscar hasta la última mota de ceniza que quede de ellos.', abilities: [
+    { type:'normal', icon:'⚔️', name:'Ojo por ojo', cost:'x2 dados de redención, x1 dado cualquiera', effect:'Causa 1 punto de daño físico al enemigo activo. Aumenta el daño en 1 punto por cada "Cruz de Madera" presente en el campo.' },
+    { type:'elemental', icon:'🔮', name:'Minuto de silencio', cost:'x4 dados de redención', effect:'Genera un escudo de 2 puntos de vida para sí misma que, si no es destruido, desaparece al final de la ronda. Si su escudo es golpeado, genera 1 "Cruz de Madera" propia (solo puede generar una estructura de esta manera hasta que dicha estructura sea destruida).' },
+    { type:'ultimate', icon:'💥', name:'Dios te ampare, maldito pecador', cost:'x3 dados de redención, x2 puntos de energía', effect:'Destruye todas las estructuras "Cruz de Madera" del campo. Causa 1 punto de daño a los enemigos en reserva por cada "Cruz de Madera" eliminada.' },
+    { type:'passive', icon:'🛡️', name:'Vía Crucis', effect:'Si un aliado (diferente a Orath) recibe daño verdadero, se genera una estructura "Cruz de Madera" (una vez por aliado hasta que la cruz correspondiente sea destruida). Si termina la ronda, Orath está activa y hay estructuras "Cruz de Madera", el enemigo activo es marcado con redención y las cruces se destruyen. Cada "Cruz de Madera" causa 1 punto de daño al enemigo activo al ser destruida.' },
+    { type:'ex', icon:'🌟', name:'EX', effect:'Si Orath muere genera una estructura "Cruz de Sangre". Si un aliado muere se destruye esta estructura. Al destruirse, revive al último aliado caído con 1 punto de salud y 2 puntos de escudo.' }
+  ]},
   maria:      { name:'María',     element:'aceptacion',     set:'Erik', category:'Eriks', hp:11, emoji:'🌺', img:'img/maria.png',      concept:'', comingSoon:true, abilities:[] },
   erikxd:     { name:'ErikXD',    element:'proteccion',     set:'Erik', category:'Eriks', hp:11, emoji:'😎', img:'img/erikxd.png',     concept:'', comingSoon:true, abilities:[] },
   bella:      { name:'Bella',     element:'transformacion', set:'Erik', category:'Eriks', hp:11, emoji:'🦢', img:'img/bella.png',      concept:'', comingSoon:true, abilities:[] },
@@ -298,7 +426,12 @@ var PAINT_CARDS = {
 };
 
 var COMBAT_CHARS = {
-  alaya: { name:'Alaya', element:'redencion', emoji:'🌹', hp:10, abilities: { normal:{ name:'Autolesión', cost:{redencion:1, any:1}, target:'self', kind:'autolesion', selfDamage:1, energy:1 }, elemental:{ name:'Penitencia', cost:{redencion:2}, target:'self', kind:'penitencia', energy:1 }, ultimate:{ name:'El Fin del Comienzo', cost:{redencion:3}, energyCost:3, target:'enemy', kind:'finComienzo' } }},
+  alaya: { name:'Alaya', element:'redencion', emoji:'🌹', hp:10, abilities: { 
+    normal:{ name:'Autolesión', cost:{redencion:1, any:1}, target:'self', kind:'autolesion', selfDamage:1, energy:1 }, 
+    elemental:{ name:'Penitencia', cost:{redencion:2}, target:'self', kind:'penitencia', energy:1 }, 
+    ultimate:{ name:'El Fin del Comienzo', cost:{redencion:3}, energyCost:3, target:'enemy', kind:'finComienzo' },
+    ex:{ name:'EX · Repetición del Fin', kind:'ex', target:'self', oncePerGame:true }
+  }},
   oliver: { name:'Óliver', element:'comprension', emoji:'🧠', hp:11, abilities: { normal:{ name:'Corrección', cost:{comprension:1, any:1}, target:'enemy', kind:'damage', damage:1, energy:1 }, elemental:{ name:'Optimización', cost:{comprension:3}, target:'self', kind:'optimizacion', energy:1 }, ultimate:{ name:'Obra Maestra', cost:{comprension:4}, energyCost:2, target:'self', kind:'obraMaestra' } }},
   erik: { name:'Erik', element:'expresion', emoji:'🎨', hp:10, abilities: { normal:{ name:'Trazo Vivo', cost:{expresion:2, any:1}, target:'enemy', kind:'trazoVivo', damage:1, energy:1 }, elemental:{ name:'Interpretación', cost:{expresion:3}, target:'self', kind:'interpretacion', selfDamage:1, energy:1 }, ultimate:{ name:'Lienzo de Sangre', cost:{expresion:3}, energyCost:2, target:'self', kind:'lienzoSangre' } }},
   tenshi: { name:'Tenshi', element:'proteccion', emoji:'⚔️', hp:11, abilities: { normal:{ name:'Intervención', cost:{proteccion:2, any:1}, target:'enemy', kind:'intervencion', damage:2, energy:1 }, elemental:{ name:'Bajo mis Alas', cost:{proteccion:3}, target:'self', kind:'bajoAlas', energy:1 }, ultimate:{ name:'Suficiente', cost:{proteccion:4}, energyCost:3, target:'enemy', kind:'suficiente' } }},
@@ -315,6 +448,11 @@ var COMBAT_CHARS = {
     elemental: { name:'Carrerilla', cost:{aceptacion:3}, target:'self', kind:'carrerilla', energy:0 }, 
     ultimate: { name:'Mis dedos palpan el borde de la estratosfera', cost:{aceptacion:6}, energyCost:3, target:'enemy', kind:'estratosfera' } 
   }},
+  orath: { name:'Orath', element:'redencion', emoji:'🗿', hp:9, abilities: {
+    normal: { name:'Ojo por ojo', cost:{redencion:2, any:1}, target:'enemy', kind:'ojoPorOjo', damage:1, energy:1 },
+    elemental: { name:'Minuto de silencio', cost:{redencion:4}, target:'self', kind:'minutoSilencio', energy:1 },
+    ultimate: { name:'Dios te ampare, maldito pecador', cost:{redencion:3}, energyCost:2, target:'enemy', kind:'diosTeAmpare' }
+  }}
 };
 
 function normalize(s){ return String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(); }
@@ -449,6 +587,85 @@ function getOptimizationBonus(side) {
   for (var i = 0; i < side.structures.length; i++) if (side.structures[i].kind === 'optimizacion') return 2;
   return 0;
 }
+function sideOfChar(cs) {
+  if (!combatState || !cs) return null;
+  if (combatState.player.characters.indexOf(cs) >= 0) return { key:'player', side:combatState.player };
+  if (combatState.bot.characters.indexOf(cs) >= 0) return { key:'bot', side:combatState.bot };
+  return null;
+}
+function getEnemyActiveOf(whoKey) {
+  var ek = whoKey === 'player' ? 'bot' : 'player';
+  var es = combatState[ek];
+  return { side:es, key:ek, active:es.characters[es.activeIndex] };
+}
+function countCruzMadera(side) {
+  if (!side || !side.structures) return 0;
+  return side.structures.filter(function(s){ return s.kind === 'cruzMadera'; }).length;
+}
+function spawnCruzMadera(whoKey, allyId, source) {
+  var side = combatState[whoKey];
+  if (!side.structures) side.structures = [];
+  if (!side.cruzMaderaByAlly) side.cruzMaderaByAlly = {};
+  var tag = source || allyId;
+  if (side.cruzMaderaByAlly[tag]) return false;
+  side.structures.push({ kind:'cruzMadera', duration:999, ownerId:allyId, source:tag });
+  side.cruzMaderaByAlly[tag] = true;
+  logCombat('✝️ Se genera una Cruz de Madera (' + (source === 'shield' ? 'escudo de Orath' : allyId) + ')');
+  return true;
+}
+function destroyCruzMadera(side, whoKey, st, opts) {
+  opts = opts || {};
+  var idx = side.structures.indexOf(st);
+  if (idx < 0) return;
+  side.structures.splice(idx, 1);
+  if (side.cruzMaderaByAlly) {
+    if (st.ownerId && side.cruzMaderaByAlly[st.ownerId]) delete side.cruzMaderaByAlly[st.ownerId];
+    if (st.source && side.cruzMaderaByAlly[st.source]) delete side.cruzMaderaByAlly[st.source];
+  }
+  logCombat('✝️ Cruz de Madera destruida');
+  if (!opts.silent) {
+    var ea = getEnemyActiveOf(whoKey);
+    if (ea.active && !ea.active.dead) {
+      dealDamageToChar(ea.active, 1, { targetSide:ea.side, targetSideKey:ea.key, targetIdx:ea.side.activeIndex });
+    }
+  }
+}
+function destroyAllCruzMadera(whoKey, opts) {
+  var side = combatState[whoKey];
+  if (!side.structures) return 0;
+  var cruces = side.structures.filter(function(s){ return s.kind === 'cruzMadera'; });
+  var count = cruces.length;
+  cruces.forEach(function(st){ destroyCruzMadera(side, whoKey, st, opts); });
+  return count;
+}
+function spawnCruzSangre(whoKey) {
+  var side = combatState[whoKey];
+  if (!side.structures) side.structures = [];
+  if (side.cruzSangreActive) return;
+  side.structures.push({ kind:'cruzSangre', duration:999 });
+  side.cruzSangreActive = true;
+  logCombat('✝️ Se genera la Cruz de Sangre');
+}
+function destroyCruzSangre(whoKey) {
+  var side = combatState[whoKey];
+  if (!side.structures) return;
+  var idx = side.structures.findIndex(function(s){ return s.kind === 'cruzSangre'; });
+  if (idx < 0) return;
+  side.structures.splice(idx, 1);
+  side.cruzSangreActive = false;
+  logCombat('✝️ Cruz de Sangre destruida');
+  if (side.lastDeadAlly) {
+    var rev = side.characters.find(function(c){ return c.id === side.lastDeadAlly; });
+    if (rev && rev.dead) {
+      rev.dead = false;
+      rev.hp = 1;
+      if (!rev.shields) rev.shields = [];
+      rev.shields.push({ source:'cruzSangre', hp:2, maxHp:2 });
+      if (side.activeIndex === -1 || side.characters[side.activeIndex].dead) side.activeIndex = side.characters.indexOf(rev);
+      logCombat('✝️ Cruz de Sangre revive a ' + rev.character.name + ' con 1 HP y 2 escudo');
+    }
+  }
+}
 function csHasState(cs, k){ return !!(cs && cs.states && cs.states[k]); }
 function csSetState(cs, k, v){ if (!cs.states) cs.states = {}; cs.states[k] = v; }
 function csAddMark(cs, el){ if (!cs.marks) cs.marks = {}; if (cs.marks[el]) return false; cs.marks[el] = true; return true; }
@@ -490,6 +707,20 @@ function handleDeath(who, index) {
   if (!t || t.dead) return 'ok';
   t.dead = true;
   logCombat('💀 ' + t.character.name + ' ha caído');
+
+  // 1) Si muere Orath → generar Cruz de Sangre (antes de cualquier otra lógica de cruz)
+  if (t.id === 'orath') {
+    spawnCruzSangre(who);
+  }
+
+  // 2) Si muere un aliado distinto de Orath → registrar como último caído y destruir la Cruz de Sangre
+  if (t.id !== 'orath') {
+    side.lastDeadAlly = t.id;
+    if (side.cruzSangreActive) {
+      destroyCruzSangre(who);
+    }
+  }
+
   if (side.activeIndex === index) {
     var nx = getNextAliveIndex(side, index);
     if (nx === -1) return 'all_dead';
@@ -501,6 +732,8 @@ function handleDeath(who, index) {
 function dealDamageToChar(targetCs, rawDamage, opts) {
   opts = opts || {};
   if (targetCs.dead) return 0;
+  // ── EX hook entrante ──
+  rawDamage = exHookModifyIncomingDamage(targetCs, rawDamage, opts.attackerCs);
   var side = opts.targetSide, sideKey = opts.targetSideKey, idx = opts.targetIdx;
   var flat = getDamageReduction(targetCs, side);
   if (csHasState(targetCs, 'vuelo')) flat += 2;
@@ -522,6 +755,11 @@ function dealDamageToChar(targetCs, rawDamage, opts) {
   var res = absorbWithShields(targetCs, rawDamage, !!opts.piercing);
   if (res.absorbed > 0) {
     logCombat('🛡️ Escudo absorbe ' + res.absorbed + (totalShield(targetCs) > 0 ? ' (queda ' + totalShield(targetCs) + ')' : ' ¡roto!'));
+    // Escudo de Orath golpeado → Cruz de Madera
+    if (opts.attackerCs && targetCs.id === 'orath' && csHasState(targetCs, 'minutoSilencioShield')) {
+      var okCruz = spawnCruzMadera(sideKey, 'orath_shield', 'shield');
+      if (okCruz) logCombat('✝️ El escudo de Orath es golpeado: Cruz de Madera propia');
+    }
     if (csHasState(targetCs, 'hipotesisShieldActive') && opts.attackerCs && !opts.attackerCs.dead) {
       var attKey = (combatState.player.characters.indexOf(opts.attackerCs) >= 0) ? 'player' : 'bot';
       var attSide = combatState[attKey];
@@ -549,7 +787,19 @@ function dealDamageToChar(targetCs, rawDamage, opts) {
       if (opts.attackerCs) csSetState(targetCs, 'furiaTarget', opts.attackerCs.id);
       logCombat('🔥 Eevee entra en Furia contra ' + (opts.attackerCs ? opts.attackerCs.character.name : 'el atacante'));
     }
-    if (targetCs.hp <= 0) handleDeath(sideKey, idx);
+    // Pasiva de Orath: si un aliado recibe daño verdadero → Cruz de Madera
+    if (res.overflow > 0 && targetCs.id !== 'orath' && sideKey) {
+      var orathAlly = combatState[sideKey].characters.find(function(c){ return c.id === 'orath' && !c.dead; });
+      if (orathAlly) {
+        spawnCruzMadera(sideKey, targetCs.id, targetCs.id);
+      }
+    }
+    if (targetCs.hp <= 0) {
+      // ── EX hook evitar muerte ──
+      if (!exHookPreventDeath(targetCs, sideKey, idx)) {
+        handleDeath(sideKey, idx);
+      }
+    }
   }
   if (defensaReduction > 0 && opts.attackerCs && !opts.attackerCs.dead && combatState) {
     var attCs = opts.attackerCs;
@@ -566,6 +816,8 @@ function dealDamageToChar(targetCs, rawDamage, opts) {
 }
 function healChar(cs, amount) {
   if (!cs || cs.dead) return 0;
+  // ── EX hook curación ──
+  amount = exHookModifyHealing(cs, amount);
   if (cs.id === 'alaya' && csHasState(cs, 'castigada')) {
     logCombat('🩸 Alaya castigada: curación → daño verdadero');
     var sideKey = (combatState.player.characters.indexOf(cs) >= 0) ? 'player' : 'bot';
@@ -596,6 +848,39 @@ function applyErikPassive(cs) {
   if (alive === 1) return 2;
   return 0;
 }
+/* ═══ HOOKS EX (pasivas permanentes) ═══
+ * Una EX solo aplica si:
+ *   1. El sistema EX global está ON (exSystemEnabled).
+ *   2. El personaje concreto ha activado su pasiva (cs.exActive === true).
+ * Mientras cs.exActive sea false, la EX de ese personaje no hace nada,
+ * aunque el sistema global esté ON.
+ */
+
+function exHookModifyIncomingDamage(targetCs, damage, attackerCs) {
+  if (!exSystemEnabled || !targetCs || !targetCs.exActive) return damage;
+  // Ejemplo futuro (Alaya EX): if (targetCs.id === 'alaya') { ... }
+  return damage;
+}
+
+function exHookModifyHealing(targetCs, amount) {
+  if (!exSystemEnabled || !targetCs || !targetCs.exActive) return amount;
+  return amount;
+}
+
+function exHookPreventDeath(cs, sideKey, idx) {
+  if (!exSystemEnabled || !cs || !cs.exActive) return false;
+  return false;
+}
+
+function exHookRoundStart(cs, sideKey) {
+  if (!exSystemEnabled || !cs || !cs.exActive) return;
+  // switch (cs.id) { case 'alaya': ... }
+}
+
+function exHookModifyOutgoingDamage(attackerCs, damage, targetCs) {
+  if (!exSystemEnabled || !attackerCs || !attackerCs.exActive) return damage;
+  return damage;
+}
 function getConsonanceForIds(ids) {
   var counts = {};
   ids.forEach(function(id){ var ch = COMBAT_CHARS[id]; if (!ch) return; counts[ch.element] = (counts[ch.element] || 0) + 1; });
@@ -622,14 +907,18 @@ function buildSideState(ids) {
   return {
     characters: ids.map(function(id) {
       var ch = COMBAT_CHARS[id];
-      return { id:id, character:ch, hp:ch.hp, maxHp:ch.hp, energy:0, maxEnergy:getMaxEnergyFor(ch), shields:[], pendingBuff:0, dead:false, equipment:[], paintEquipped:null, states:{}, marks:{}, cardNextAttackBonus:0, cardNextAttackPiercing:false, cardNextAttackDouble:false, cardNextAbilityDiscount:0, cardNextAbilityFree:false, cardMarkBonus:0, manuelStacks:0 };
+      return { id:id, character:ch, hp:ch.hp, maxHp:ch.hp, energy:0, maxEnergy:getMaxEnergyFor(ch), shields:[], pendingBuff:0, dead:false, equipment:[], paintEquipped:null, states:{}, marks:{}, cardNextAttackBonus:0, cardNextAttackPiercing:false, cardNextAttackDouble:false, cardNextAbilityDiscount:0, cardNextAbilityFree:false, cardMarkBonus:0, manuelStacks:0, exActive:false };
     }),
     activeIndex:0, dice:[], rerolled:false, selected:{}, isRollingAnim:false, rollingIds:{},
     consonance:null, firstChangeUsed:false, firstAttackUsed:false,
     deck:[], hand:[], discardPile:[], supports:[null,null,null,null], structures:[],
     initialDrawThisRound:[], mulliganUsed:false, drawSelection:{},
     cardsUsedThisRound:{}, cardsUsedThisGame:{},
-    enemyAttackDebuff:0, contraataque:0, obraMaestraTurns:0
+    enemyAttackDebuff:0, contraataque:0, obraMaestraTurns:0,
+    cruzMaderaByAlly: {},        // id de personaje → true si ya tiene cruz viva (pasiva)
+    cruzMaderaFromShield: false, // para la Cruz generada por el escudo de Orath
+    cruzSangreActive: false,     // Cruz de Sangre de Orath viva
+    lastDeadAlly: null,          // último aliado caído (para resurrección de Cruz de Sangre)
   };
 }
 function preloadCombatImages(){ Object.keys(COMBAT_CHARS).forEach(function(id){ var img = new Image(); img.src = 'img/' + id + '.png'; }); }
@@ -1477,8 +1766,16 @@ function showSupportTooltip(anchor, sup) {
 function showStructureTooltip(anchor, st) {
   if (!st) return;
   var html = '<div class="ht-header">🏛️ Estructura</div>';
-  if (st.kind === 'optimizacion') html += '<div class="ht-name">🧠 Optimización</div><div class="ht-sub">' + st.duration + ' ronda(s) · de Óliver</div><div class="ht-effect">+2 daño a ataques normales y elementales de los aliados. Inflige 1 de daño al enemigo al final de la ronda y lo marca con comprensión.</div>';
-  hoverTooltip.innerHTML = html; hoverTooltip.classList.add('show'); positionTooltip(hoverTooltip, anchor.getBoundingClientRect(), 'left');
+  if (st.kind === 'optimizacion') {
+    html += '<div class="ht-name">🧠 Optimización</div><div class="ht-sub">' + st.duration + ' ronda(s) · de Óliver</div><div class="ht-effect">+2 daño a ataques normales y elementales de los aliados. Inflige 1 de daño al enemigo al final de la ronda y lo marca con comprensión.</div>';
+  } else if (st.kind === 'cruzMadera') {
+    html += '<div class="ht-name">✝️ Cruz de Madera</div><div class="ht-sub">Estructura de Orath</div><div class="ht-effect">Causa 1 punto de daño al enemigo activo al ser destruida. Al final de la ronda, si Orath está activa, marca al enemigo activo con redención y se destruye.</div>';
+  } else if (st.kind === 'cruzSangre') {
+    html += '<div class="ht-name">✝️ Cruz de Sangre</div><div class="ht-sub">Estructura de Orath</div><div class="ht-effect">Se destruye si un aliado muere. Al destruirse, revive al último aliado caído con 1 HP y 2 de escudo.</div>';
+  }
+  hoverTooltip.innerHTML = html;
+  hoverTooltip.classList.add('show');
+  positionTooltip(hoverTooltip, anchor.getBoundingClientRect(), 'left');
 }
 function showShieldTooltip(anchor, cs) {
   if (!cs) return;
@@ -1607,7 +1904,9 @@ function openCombat(mode){
 /* ═══ PvP SETUP ═══ */
 function pvpPhaseSequence(){
   if (!combatState) return [];
-  if (combatState.round === 1) return ['p1-roll','p1-draw','p1-select','p2-roll','p2-draw','p2-select','combat'];
+  // ✅ Nuevo orden: el personaje inicial se elige ANTES de lanzar dados,
+  // para que la consonancia de Ilusión pueda garantizar dados del tipo del activo.
+  if (combatState.round === 1) return ['p1-select','p1-roll','p1-draw','p2-select','p2-roll','p2-draw','combat'];
   return ['p1-roll','p1-draw','p2-roll','p2-draw','combat'];
 }
 function actuallyStartPvpLocalCombat(){
@@ -1645,7 +1944,7 @@ function startPvpLocalCombat(){
   logCombat('🦋 J1: ' + pids.map(function(id){ return COMBAT_CHARS[id].name; }).join(', '));
   logCombat('🦋 J2: ' + bids.map(function(id){ return COMBAT_CHARS[id].name; }).join(', '));
 
-  pvpSetupPhase = 'p1-roll';
+  pvpSetupPhase = 'p1-select';
   renderCombat();
   runPvpSetupStep();
 }
@@ -1653,7 +1952,10 @@ function runPvpSetupStep(){
   if (!combatState || !combatState.pvp) return;
   var phase = pvpSetupPhase;
   var isRound1 = combatState.round === 1;
-  if (phase === 'p1-roll') {
+  if (phase === 'p1-select') {
+    combatState.turn = 'player';
+    showSelectOverlay();
+  } else if (phase === 'p1-roll') {
     combatState.turn = 'player';
     combatState.phase = 'rolling';
     combatState.player.dice = rollCombatDice(8);
@@ -1663,8 +1965,8 @@ function runPvpSetupStep(){
   } else if (phase === 'p1-draw') {
     combatState.turn = 'player';
     startDrawPhase();
-  } else if (phase === 'p1-select') {
-    combatState.turn = 'player';
+  } else if (phase === 'p2-select') {
+    combatState.turn = 'bot';
     showSelectOverlay();
   } else if (phase === 'p2-roll') {
     combatState.turn = 'bot';
@@ -1676,9 +1978,6 @@ function runPvpSetupStep(){
   } else if (phase === 'p2-draw') {
     combatState.turn = 'bot';
     startDrawPhase();
-  } else if (phase === 'p2-select') {
-    combatState.turn = 'bot';
-    showSelectOverlay();
   }
 }
 function advancePvpSetup(){
@@ -1724,15 +2023,15 @@ function resumeCombatFromSlot(s) {
   if (!combatState.bot.discardPile) combatState.bot.discardPile = [];
   if (typeof combatState.player.obraMaestraTurns === 'undefined') combatState.player.obraMaestraTurns = 0;
   if (typeof combatState.bot.obraMaestraTurns === 'undefined') combatState.bot.obraMaestraTurns = 0;
-  combatState.player.characters.forEach(function(c){ if (COMBAT_CHARS[c.id]) c.character = COMBAT_CHARS[c.id]; if (!c.equipment) c.equipment = []; if (!c.states) c.states = {}; if (!c.marks) c.marks = {}; });
-  combatState.bot.characters.forEach(function(c){ if (COMBAT_CHARS[c.id]) c.character = COMBAT_CHARS[c.id]; if (!c.equipment) c.equipment = []; if (!c.states) c.states = {}; if (!c.marks) c.marks = {}; });
+  combatState.player.characters.forEach(function(c){ if (COMBAT_CHARS[c.id]) c.character = COMBAT_CHARS[c.id]; if (!c.equipment) c.equipment = []; if (!c.states) c.states = {}; if (!c.marks) c.marks = {}; if (typeof c.exActive === 'undefined') c.exActive = false; });
+  combatState.bot.characters.forEach(function(c){ if (COMBAT_CHARS[c.id]) c.character = COMBAT_CHARS[c.id]; if (!c.equipment) c.equipment = []; if (!c.states) c.states = {}; if (!c.marks) c.marks = {}; if (typeof c.exActive === 'undefined') c.exActive = false; });
   if (typeof combatState.player.mulliganUsed === 'undefined') combatState.player.mulliganUsed = false;
   pendingPvpMode = !!combatState.pvp;
   hideSlotSelectionDialog();
   var m = document.getElementById('combatModal'); m.classList.add('open'); document.body.style.overflow = 'hidden';
   initAudio(); preloadCombatImages(); initCombatStars();
 
-  // PvP mid-setup: reiniciar setup desde P1-roll
+  // PvP mid-setup: reiniciar setup desde P1-select
   if (combatState.pvp && (combatState.phase === 'rolling' || combatState.phase === 'drawing')) {
     combatState.phase = 'rolling';
     combatState.turn = 'player';
@@ -1742,7 +2041,10 @@ function resumeCombatFromSlot(s) {
     combatState.player.drawSelection = {};
     combatState.bot.initialDrawThisRound = [];
     combatState.bot.drawSelection = {};
-    pvpSetupPhase = 'p1-roll';
+    // ✅ Reiniciar el setup desde la elección de personaje (nuevo orden)
+    pvpSetupPhase = 'p1-select';
+    combatState.starterChosen = false;
+    combatState.firstDeclarer = null;
     renderCombat();
     runPvpSetupStep();
     return;
@@ -1784,13 +2086,22 @@ function startCombat() {
   var pc = combatState.player.consonance;
   if (pc) { if (pc.type === 'diverse') logCombat('🎯 Consonancia J1: 🌈 Diverso'); else logCombat('🎯 Consonancia J1: ' + ELEMENT_EMOJI[pc.element] + ' ' + ELEMENT_NAMES[pc.element] + ' (' + pc.level + ' personajes)'); }
 
-  logCombat('▶️ Ronda 1 · Lanza tus dados');
-  rollDiceForSide('player', true);
-  rollDiceForSide('bot', true);
+  logCombat('▶️ Ronda 1 · Elige tu personaje inicial');
+  // ✅ Primero se elige el personaje (para que la consonancia de Ilusión
+  // pueda garantizar dados del tipo del activo al lanzar después).
+  combatState.phase = 'rolling'; // el select overlay se muestra por encima; phase se mantiene coherente
   renderCombat();
-  showRollOverlay();
+  showSelectOverlay();
 }
-function rollDiceForSide(who, first){ var s = combatState[who]; s.dice = rollCombatDice(8); if (!(who === 'player' && first)) applyIlusion(s, who); }
+// ✅ Con el nuevo orden (select → roll), la consonancia de Ilusión debe
+// aplicarse también en la tirada inicial del jugador, porque ya se conoce
+// el personaje activo. El parámetro `first` se mantiene por compatibilidad
+// pero ya no bloquea la Ilusión.
+function rollDiceForSide(who, first){
+  var s = combatState[who];
+  s.dice = rollCombatDice(8);
+  applyIlusion(s, who);
+}
 function applyIlusion(side, who) {
   var c = side.consonance; if (!c || c.type !== 'single' || c.element !== 'ilusion') return;
   var active = side.characters[side.activeIndex]; if (!active || active.dead) return;
@@ -2019,11 +2330,19 @@ function showSelectDetail(idx) {
     var who = combatState.pvp ? (sk === 'player' ? 'J1' : 'J2') : '';
     playSound('confirm');
     logCombat('🦋 ' + (who ? who + ' empieza' : 'Empiezas') + ' con ' + cs.character.name);
-    applyIlusion(combatState[sk], sk);
     hideSelectOverlay(); renderCombat();
+
+    // PvP: el flujo lo controla runPvpSetupStep/advancePvpSetup (que ahora
+    // pondrá a cada jugador a elegir → tirar → robar en ese orden).
     if (combatState.pvp && pvpSetupPhase) { advancePvpSetup(); return; }
+
+    // No-PvP: ahora toca lanzar dados.
     combatState.starterChosen = true;
-    setTimeout(beginRoundPlay, 250);
+    logCombat('▶️ Ronda 1 · Lanza tus dados');
+    rollDiceForSide('player', true);
+    rollDiceForSide('bot', true);
+    renderCombat();
+    showRollOverlay();
   });
   playSound('select');
 }
@@ -2102,6 +2421,7 @@ function applyStructureEndOfRoundEffects(who) {
       }
       st.duration--; if (st.duration <= 0) { logCombat('🏛️ Optimización se desvanece'); side.structures.splice(i, 1); }
     }
+    if (st.kind === 'cruzSangre') { /* persistente */ continue; }
   }
 }
 function beginRoundPlay() {
@@ -2118,6 +2438,10 @@ function beginRoundPlay() {
   renderCombat();
   var applyEff = function() {
     if (!combatState || combatState.phase === 'ended') return;
+    // ── EX hooks de inicio de ronda ──
+    ['player','bot'].forEach(function(wk){
+      combatState[wk].characters.forEach(function(c){ if (!c.dead) exHookRoundStart(c, wk); });
+    });
     var pm = applyRoundStartEffects('player'), bm = applyRoundStartEffects('bot');
     if (combatState.round === 1) { var cm = applyComprensionStart('player'); if (cm) pm.push(cm); var cmb = applyComprensionStart('bot'); if (cmb) bm.push(cmb); }
     applyEquipmentRoundStartEffects('player'); applyEquipmentRoundStartEffects('bot');
@@ -2232,7 +2556,11 @@ function applyGenericDamageMods(active, dmg) {
 }
 function applyDamageWithMods(targetCs, dmg, forcedPiercing, sideKey, idx, attackerCs) {
   var side = combatState[sideKey], piercing = forcedPiercing;
-  if (attackerCs) { var eq = getEquipmentAttackBonus(attackerCs); if (eq.piercing) piercing = true; }
+  if (attackerCs) {
+    var eq = getEquipmentAttackBonus(attackerCs); if (eq.piercing) piercing = true;
+    // ── EX hook saliente (se aplica antes de escudos/reducciones) ──
+    dmg = exHookModifyOutgoingDamage(attackerCs, dmg, targetCs);
+  }
   if (targetCs.cardMarkBonus) dmg += targetCs.cardMarkBonus;
   return dealDamageToChar(targetCs, dmg, { piercing:piercing, targetSide:side, targetSideKey:sideKey, targetIdx:idx, attackerCs:attackerCs });
 }
@@ -2590,6 +2918,46 @@ function executeAction(who, actionType, preSpentDice) {
       logCombat('💥 Obra Maestra activa durante 2 rondas: definitivas x2 daño');
       break;
     }
+    case 'ojoPorOjo': {
+      var crucesP = countCruzMadera(side);
+      var dmgO = 1 + crucesP;
+      logCombat('✝️ Ojo por ojo: ' + crucesP + ' cruz(es) → ' + dmgO + ' daño');
+      dmgO = applyGenericDamageMods(active, dmgO);
+      applyDamageWithMods(enemyActive, dmgO, predictPiercing(active, ability), enemyKey, enemySide.activeIndex, active);
+      break;
+    }
+    case 'minutoSilencio': {
+      addOrRefreshShield(active, 'orath_minuto', 2);
+      csSetState(active, 'minutoSilencioShield', true);
+      logCombat('🔮 Minuto de silencio: +2 escudo (se desvanece al final de la ronda)');
+      break;
+    }
+    case 'diosTeAmpare': {
+      // Destruye TODAS las Cruces de Madera del campo (ambos lados)
+      var countP = destroyAllCruzMadera('player', { silent:true });
+      var countB = destroyAllCruzMadera('bot', { silent:true });
+      var total = countP + countB;
+      logCombat('💥 Dios te ampare: ' + total + ' Cruz(es) de Madera destruida(s)');
+      // Daño a enemigos en reserva por cada cruz
+      var reserva = enemySide.characters.filter(function(c, i){ return !c.dead && i !== enemySide.activeIndex; });
+      reserva.forEach(function(c){
+        var i = enemySide.characters.indexOf(c);
+        applyDamageWithMods(c, total, false, enemyKey, i, active);
+      });
+      if (reserva.length) logCombat('💥 ' + total + ' daño a ' + reserva.length + ' enemigo(s) en reserva');
+      break;
+    }
+    case 'ex': {
+      // Activa la pasiva EX del personaje para el resto de la partida.
+      // No es una acción que "se gasta": es un interruptor que se enciende
+      // y se queda encendido hasta que el personaje muera.
+      // Los hooks (exHook*) consultan active.exActive para saber si aplican.
+      active.exActive = true;
+      logCombat('🌟 EX activada (pasiva permanente): ' + (ability.name || 'Habilidad EX') + ' de ' + active.character.name);
+      // NOTA: si la EX debe tener un efecto inmediato al activarse (ej: curar 2 HP
+      // al activar), añádelo aquí. Los efectos continuos van en los hooks exHook*.
+      break;
+    }
     default: logCombat('⚠️ Habilidad sin implementar: ' + ability.name);
   }
 
@@ -2717,6 +3085,32 @@ function endRound() {
   if (!combatState) return;
   playSound('endRound'); showBanner('FIN DE RONDA', 1600);
   applySupportEndOfRoundEffects('player'); applySupportEndOfRoundEffects('bot');
+  // ── Orath: pasiva al final de ronda ──
+  ['player','bot'].forEach(function(wk){
+    var sd = combatState[wk];
+    var orathCs = sd.characters.find(function(c){ return c.id === 'orath' && !c.dead; });
+    var cruces = countCruzMadera(sd);
+    if (orathCs && cruces > 0 && sd.activeIndex === sd.characters.indexOf(orathCs)) {
+      var ek = wk === 'player' ? 'bot' : 'player';
+      var es = combatState[ek];
+      var ea = es.characters[es.activeIndex];
+      if (ea && !ea.dead) {
+        triggerMarkOrResonance(ea, 'redencion', wk, ek, es.activeIndex);
+        logCombat('✝️ Orath marca al enemigo activo con redención');
+      }
+      destroyAllCruzMadera(wk);
+    }
+  });
+  // ── Minuto de Silencio: el escudo se desvanece ──
+  ['player','bot'].forEach(function(wk){
+    combatState[wk].characters.forEach(function(c){
+      if (c.id === 'orath' && csHasState(c, 'minutoSilencioShield')) {
+        csSetState(c, 'minutoSilencioShield', false);
+        c.shields = (c.shields || []).filter(function(sh){ return sh.source !== 'orath_minuto'; });
+        logCombat('🔮 El escudo de Minuto de Silencio se desvanece');
+      }
+    });
+  });
   applyStructureEndOfRoundEffects('player'); applyStructureEndOfRoundEffects('bot');
   ['player','bot'].forEach(function(wk){ var sd = combatState[wk]; if (sd.hand) sd.hand = sd.hand.filter(function(cid){ return !PAINT_CARDS[cid]; }); });
   var pdead = processDeathsAtRoundEnd('player'), bdead = processDeathsAtRoundEnd('bot');
@@ -3286,6 +3680,22 @@ function previewPlayerAction(actionType) {
     preview.notes.push('🏷️ Marca con redención a TODOS los enemigos vivos');
   }
 
+  if (ability.kind === 'ojoPorOjo') {
+    var cP = countCruzMadera(side);
+    preview.notes.push('✝️ ' + cP + ' cruz(es) en campo → +' + cP + ' daño');
+  }
+  if (ability.kind === 'minutoSilencio') {
+    preview.notes.push('🔮 +2 escudo; se desvanece al final de la ronda');
+    preview.notes.push('✝️ Si el escudo es golpeado: Cruz de Madera');
+  }
+  if (ability.kind === 'diosTeAmpare') {
+    var cPP = countCruzMadera(combatState.player), cBB = countCruzMadera(combatState.bot);
+    var totC = cPP + cBB;
+    var resN = enemySide.characters.filter(function(c, i){ return !c.dead && i !== enemySide.activeIndex; }).length;
+    preview.notes.push('💥 Destruye ' + totC + ' Cruz(es) de Madera en el campo');
+    preview.notes.push('💥 ' + totC + ' daño a ' + resN + ' enemigo(s) en reserva');
+  }
+
   return preview;
 }
 function buildPreviewBodyHTML(preview) {
@@ -3365,6 +3775,15 @@ function showActionConfirmation(actionType, ability, onConfirm) {
 function playerActionRequest(actionType) {
   if (!combatState || combatState.phase !== 'playing') return;
   if (isTurnDone()) return;
+  // ── Guard EX (pasiva permanente: solo bloquea si ya está activa) ──
+  if (actionType === 'ex') {
+    if (!exSystemEnabled) { playSound('error'); return; }
+    var _tkEx = getTurnKey();
+    var _sideEx = combatState[_tkEx];
+    var _actEx = _sideEx.characters[_sideEx.activeIndex];
+    if (!_actEx || _actEx.dead || !_actEx.character.abilities.ex) { playSound('error'); return; }
+    if (_actEx.exActive) { playSound('error'); return; }
+  }
   var turnKey = getTurnKey();
   var side = combatState[turnKey];
   var active = side.characters[side.activeIndex]; if (!active || active.dead) return;
@@ -3579,11 +3998,20 @@ function renderSupports(uiWho) {
   var structId = uiWho === 'player' ? 'playerStructuresGrid' : 'botStructuresGrid';
   var sg = document.getElementById(structId);
   if (sg) {
-    var structs = side.structures || []; var sHtml = '';
-    for (var si = 0; si < 4; si++) { var st = structs[si]; if (st) sHtml += '<div class="side-slot-filled" data-struct-slot="' + si + '" style="--dc: 130,220,140;">🧠<span class="side-slot-duration">' + st.duration + '</span></div>'; else sHtml += '<div class="side-slot-empty">+</div>'; }
-    sg.innerHTML = sHtml;
-    sg.querySelectorAll('.side-slot-filled').forEach(function(el){ el.addEventListener('mouseenter', function(){ var i = parseInt(el.dataset.structSlot, 10); if (structs[i]) showStructureTooltip(el, structs[i]); }); el.addEventListener('mouseleave', hideTooltip); });
+  var structs = side.structures || []; var sHtml = '';
+  for (var si = 0; si < 4; si++) {
+    var st = structs[si];
+    if (st) {
+      // ✅ Sin duración si es 999 (estructuras permanentes tipo Cruz de Madera/Sangre)
+      var durHtml = (st.duration && st.duration < 999) ? '<span class="side-slot-duration">' + st.duration + '</span>' : '';
+      // ✅ Emoji según tipo de estructura
+      var stEmoji = st.kind === 'cruzMadera' ? '✝️' : (st.kind === 'cruzSangre' ? '🩸' : '🧠');
+      sHtml += '<div class="side-slot-filled" data-struct-slot="' + si + '" style="--dc: 130,220,140;">' + stEmoji + durHtml + '</div>';
+    } else sHtml += '<div class="side-slot-empty">+</div>';
   }
+  sg.innerHTML = sHtml;
+  sg.querySelectorAll('.side-slot-filled').forEach(function(el){ el.addEventListener('mouseenter', function(){ var i = parseInt(el.dataset.structSlot, 10); if (structs[i]) showStructureTooltip(el, structs[i]); }); el.addEventListener('mouseleave', hideTooltip); });
+}
 }
 function renderConsonanceCombat() {
   var el = document.getElementById('consonanceCardCombat'); if (!el || !combatState) return;
@@ -3633,7 +4061,29 @@ function updateCombatActions() {
   var ec = document.getElementById('elementalCost'); if (ec) ec.textContent = formatCost(eE);
   var un = document.getElementById('ultName'); if (un) un.textContent = '💥 ' + char.abilities.ultimate.name;
   var uc = document.getElementById('ultCost'); if (uc) uc.textContent = formatCost(eU, active.cardNextAbilityFree ? 0 : char.abilities.ultimate.energyCost);
+
+  // ── Botón EX (pasiva permanente) ──
+  var exB = document.getElementById('exBtn');
+  if (exB) {
+    var hasEx = !!(char.abilities && char.abilities.ex);
+    if (!exSystemEnabled || !hasEx) {
+      exB.style.display = 'none';
+    } else {
+      exB.style.display = '';
+      // Se puede pulsar si: es tu turno, está vivo y aún no está activa.
+      // Una vez activa, el botón queda deshabilitado (ya no se puede "re-activar").
+      var canActivateEx = isTurn && !active.exActive && !active.dead;
+      exB.disabled = !canActivateEx;
+      exB.classList.toggle('ca-can-pay', canActivateEx);
+      var exCostEl = document.getElementById('exCost');
+      if (exCostEl) {
+        if (active.exActive) exCostEl.textContent = 'Pasiva activa';
+        else exCostEl.textContent = char.abilities.ex.name || 'Habilidad EX';
+      }
+    }
+  }
 }
+
 function renderCombatLog(){ var el = document.getElementById('combatLog'); if (!el) return; el.innerHTML = combatState.log.map(function(l){ return '<div class="log-line">' + l + '</div>'; }).join(''); el.scrollTop = el.scrollHeight; }
 function renderCombat() {
   if (!combatState) return;
@@ -3660,6 +4110,7 @@ var combatEndBtn = document.getElementById('combatEndBtn'); if (combatEndBtn) co
 var normalBtn = document.getElementById('normalBtn'); if (normalBtn) normalBtn.addEventListener('click', function(){ playerActionRequest('normal'); });
 var elementalBtn = document.getElementById('elementalBtn'); if (elementalBtn) elementalBtn.addEventListener('click', function(){ playerActionRequest('elemental'); });
 var ultimateBtn = document.getElementById('ultimateBtn'); if (ultimateBtn) ultimateBtn.addEventListener('click', function(){ playerActionRequest('ultimate'); });
+var exBtn = document.getElementById('exBtn'); if (exBtn) exBtn.addEventListener('click', function(){ playerActionRequest('ex'); });
 var endRoundBtn = document.getElementById('endRoundBtn'); if (endRoundBtn) endRoundBtn.addEventListener('click', function(){
   declareEnd(getTurnKey());
 });
@@ -3771,7 +4222,9 @@ var initFns = [
   ['renderCardFilter', renderCardFilter],
   ['renderDeckGrid', renderDeckGrid],
   ['setupDamageCalculator', setupDamageCalculator],
-  ['renderTemplateSlots', renderTemplateSlots]
+  ['renderTemplateSlots', renderTemplateSlots],
+  ['initExToggle', initExToggle],
+  ['initPatches', initPatches]
 ];
 initFns.forEach(function(p){ try { p[1](); } catch (e) { console.error('Init error in ' + p[0] + ':', e); } });
 // Delegación permanente para el botón 👁️ de las plantillas
