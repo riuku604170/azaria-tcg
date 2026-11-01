@@ -30,11 +30,43 @@ function initExToggle() {
     exSystemEnabled = !exSystemEnabled;
     saveExSystemEnabled();
     refreshExToggleBtn();
-    // Si hay combate abierto, refrescar para mostrar/ocultar el botón EX
+    // ✅ El toggle del menú SOLO afecta a partidas NUEVAS.
+    // Una partida en curso conserva su estado EX congelado (combatState.exEnabled),
+    // y por tanto su exActive. No tocamos los personajes de un combate abierto.
     if (typeof combatState !== 'undefined' && combatState) {
       try { renderCombat(); } catch (e) {}
     }
   });
+}
+
+/* ═══ MODO DE JUEGO (NORMAL / AUTO / SANDBOX) ═══ */
+var GAME_MODES = ['normal', 'auto', 'sandbox'];
+var GAME_MODE_LABELS = { normal: 'NORMAL', auto: 'AUTO', sandbox: 'SANDBOX' };
+var currentGameMode = 'normal';
+
+function refreshGameModeBtn() {
+  var btn = document.getElementById('gameModeBtn');
+  if (!btn) return;
+  btn.textContent = GAME_MODE_LABELS[currentGameMode] || 'NORMAL';
+  btn.setAttribute('data-mode', currentGameMode);
+  btn.title = 'Modo: ' + (GAME_MODE_LABELS[currentGameMode] || 'NORMAL') + ' — clic para cambiar';
+}
+function cycleGameMode() {
+  var i = GAME_MODES.indexOf(currentGameMode);
+  currentGameMode = GAME_MODES[(i + 1) % GAME_MODES.length];
+  refreshGameModeBtn();
+  // Si el diálogo de inicio está abierto, refrescar el botón de empezar
+  var confirmContent = document.getElementById('combatStartConfirm');
+  if (confirmContent && confirmContent.classList.contains('show')) {
+    updateCombatStartConfirmState();
+  }
+  playSound('select');
+}
+function initGameMode() {
+  var btn = document.getElementById('gameModeBtn');
+  if (!btn) return;
+  refreshGameModeBtn();
+  btn.addEventListener('click', cycleGameMode);
 }
 
 /* ═══ SISTEMA DE PARCHES ═══ */
@@ -451,7 +483,11 @@ var COMBAT_CHARS = {
   orath: { name:'Orath', element:'redencion', emoji:'🗿', hp:9, abilities: {
     normal: { name:'Ojo por ojo', cost:{redencion:2, any:1}, target:'enemy', kind:'ojoPorOjo', damage:1, energy:1 },
     elemental: { name:'Minuto de silencio', cost:{redencion:4}, target:'self', kind:'minutoSilencio', energy:1 },
-    ultimate: { name:'Dios te ampare, maldito pecador', cost:{redencion:3}, energyCost:2, target:'enemy', kind:'diosTeAmpare' }
+    ultimate: { name:'Dios te ampare, maldito pecador', cost:{redencion:3}, energyCost:2, target:'enemy', kind:'diosTeAmpare' },
+    // ✅ EX: Cruz de Sangre. Sus efectos viven en handleDeath, gateados por
+    // exSystemEnabled && orathCs.exActive. Aquí solo la declaramos para que
+    // aparezca el botón EX del sidebar.
+    ex: { name:'EX · Cruz de Sangre', kind:'ex', target:'self' }
   }}
 };
 
@@ -708,12 +744,27 @@ function handleDeath(who, index) {
   t.dead = true;
   logCombat('💀 ' + t.character.name + ' ha caído');
 
-  // 1) Si muere Orath → generar Cruz de Sangre (antes de cualquier otra lógica de cruz)
+  // ✅ Buscar a Orath en el MISMO side (el del personaje que muere).
+  // Puede ser el propio Orath o un aliado suyo.
+  var orathCs = side.characters.find(function(c){ return c.id === 'orath'; });
+
+  // La Cruz de Sangre solo se genera si:
+  //   - El sistema EX global está ON.
+  //   - Orath existe en ese equipo.
+  //   - Orath activó su EX (exActive === true) ANTES de morir.
+  var cruzSangreAllowed = !!(exSystemEnabled && orathCs && orathCs.exActive);
+
+  // 1) Si muere Orath → generar Cruz de Sangre (solo si su EX estaba activa)
   if (t.id === 'orath') {
-    spawnCruzSangre(who);
+    if (cruzSangreAllowed) {
+      spawnCruzSangre(who);
+    } else {
+      logCombat('✝️ Orath cae sin su EX activa: no se genera la Cruz de Sangre');
+    }
   }
 
-  // 2) Si muere un aliado distinto de Orath → registrar como último caído y destruir la Cruz de Sangre
+  // 2) Si muere un aliado distinto de Orath → registrar como último caído
+  //    y destruir la Cruz de Sangre si existe.
   if (t.id !== 'orath') {
     side.lastDeadAlly = t.id;
     if (side.cruzSangreActive) {
@@ -907,7 +958,7 @@ function buildSideState(ids) {
   return {
     characters: ids.map(function(id) {
       var ch = COMBAT_CHARS[id];
-      return { id:id, character:ch, hp:ch.hp, maxHp:ch.hp, energy:0, maxEnergy:getMaxEnergyFor(ch), shields:[], pendingBuff:0, dead:false, equipment:[], paintEquipped:null, states:{}, marks:{}, cardNextAttackBonus:0, cardNextAttackPiercing:false, cardNextAttackDouble:false, cardNextAbilityDiscount:0, cardNextAbilityFree:false, cardMarkBonus:0, manuelStacks:0, exActive:false };
+              return { id:id, character:ch, hp:ch.hp, maxHp:ch.hp, energy:0, maxEnergy:getMaxEnergyFor(ch), shields:[], pendingBuff:0, dead:false, equipment:[], paintEquipped:null, states:{}, marks:{}, cardNextAttackBonus:0, cardNextAttackPiercing:false, cardNextAttackDouble:false, cardNextAbilityDiscount:0, cardNextAbilityFree:false, cardMarkBonus:0, manuelStacks:0, exActive: false };
     }),
     activeIndex:0, dice:[], rerolled:false, selected:{}, isRollingAnim:false, rollingIds:{},
     consonance:null, firstChangeUsed:false, firstAttackUsed:false,
@@ -1003,9 +1054,22 @@ function sortCharCards() {
   var cards = Array.prototype.slice.call(grid.querySelectorAll('.char-card'));
   if (!cards.length) return;
 
+  // ✅ Prioridad 1: personajes en el equipo, en el orden en que están en `team`.
+  // Prioridad 2: el criterio actual (alpha / element / category).
+  // Los que no están en el equipo van después, ordenados por el criterio actual.
+  function teamRank(id) {
+    var i = (typeof team !== 'undefined' && team) ? team.indexOf(id) : -1;
+    return i === -1 ? 999 : i;
+  }
+
   cards.sort(function(a, b) {
-    var chA = CHARACTERS[a.dataset.character];
-    var chB = CHARACTERS[b.dataset.character];
+    var idA = a.dataset.character, idB = b.dataset.character;
+    var rA = teamRank(idA), rB = teamRank(idB);
+    // 1) Los del equipo siempre arriba, en su orden de selección.
+    if (rA !== rB) return rA - rB;
+
+    var chA = CHARACTERS[idA];
+    var chB = CHARACTERS[idB];
     if (!chA || !chB) return 0;
     var nameA = normalize(chA.name);
     var nameB = normalize(chB.name);
@@ -1019,7 +1083,7 @@ function sortCharCards() {
       if (idxA === -1) idxA = 99;
       if (idxB === -1) idxB = 99;
       if (idxA !== idxB) return idxA - idxB;
-      return nameA.localeCompare(nameB); // desempate alfabético
+      return nameA.localeCompare(nameB);
     }
     if (charSortMode === 'category') {
       var catA = CHAR_CATEGORY_ORDER.indexOf(chA.category || '');
@@ -1027,12 +1091,11 @@ function sortCharCards() {
       if (catA === -1) catA = 99;
       if (catB === -1) catB = 99;
       if (catA !== catB) return catA - catB;
-      return nameA.localeCompare(nameB); // desempate alfabético
+      return nameA.localeCompare(nameB);
     }
     return 0;
   });
 
-  // Reordenar el DOM (mover nodos existentes — conserva listeners)
   cards.forEach(function(card) { grid.appendChild(card); });
 }
 
@@ -1240,6 +1303,8 @@ function renderTeamPanel() {
   var tt = document.getElementById('teamToggleText'); if (tt) tt.textContent = 'Equipo (' + team.length + '/3)';
   var cards = document.querySelectorAll('.char-card');
   for (var ci = 0; ci < cards.length; ci++) cards[ci].classList.toggle('in-team', team.indexOf(cards[ci].dataset.character) !== -1);
+  // ✅ Reordenar para que los del equipo suban arriba
+  try { sortCharCards(); } catch (e) {}
 }
 function openTeamPanel(){ var p = document.getElementById('teamPanel'), t = document.getElementById('teamPanelToggle'); if (p) p.classList.add('open'); if (t) t.classList.add('hidden'); document.body.classList.add('team-panel-open'); }
 function closeTeamPanel(){ var p = document.getElementById('teamPanel'), t = document.getElementById('teamPanelToggle'); if (p) p.classList.remove('open'); if (t) t.classList.remove('hidden'); document.body.classList.remove('team-panel-open'); }
@@ -1824,6 +1889,25 @@ function showCombatStartConfirm(slotNum) {
     sub.textContent = 'Ranura ' + (slotNum + 1) + ' · ' + modeTxt + ' · Tu equipo y mazo están listos';
   }
   ov.classList.add('show'); playSound('banner');
+  // ✅ Refrescar aviso de modo de juego
+  updateCombatStartConfirmState();
+  refreshGameModeBtn();
+}
+function updateCombatStartConfirmState() {
+  var content = document.querySelector('#combatStartConfirm .combat-start-confirm-content');
+  if (!content) return;
+  var oldWarn = content.querySelector('.game-mode-warning');
+  if (oldWarn) oldWarn.remove();
+  var confirmBtn = document.getElementById('combatStartConfirmBtn');
+  if (currentGameMode === 'normal') {
+    if (confirmBtn) confirmBtn.disabled = false;
+  } else {
+    if (confirmBtn) confirmBtn.disabled = false; // sigue pulsable, pero mostrará aviso al pulsar
+    var warn = document.createElement('div');
+    warn.className = 'game-mode-warning';
+    warn.textContent = '⚠️ El modo "' + GAME_MODE_LABELS[currentGameMode] + '" no está disponible todavía. Cambia a NORMAL para empezar.';
+    content.appendChild(warn);
+  }
 }
 function hideCombatStartConfirm(){ var ov = document.getElementById('combatStartConfirm'); if (ov) ov.classList.remove('show'); }
 function showSlotSelectionDialog(){ initAudio(); var ov = document.getElementById('slotSelectionDialog'); if (!ov) return; renderSlotSelectionDialog(); ov.classList.add('show'); playSound('banner'); }
@@ -1838,7 +1922,10 @@ function renderSlotSelectionDialog() {
       var hp = sv.player.characters.map(function(c){ return c.hp + '/' + c.maxHp; }).join(' · ');
       var hl = sv.player.hand ? sv.player.hand.length : 0;
       var modeIcon = sv.pvp ? '👥 ' : '⚔️ ';
-      html += '<div class="slot-item"><div class="slot-item-header"><span class="slot-item-title">Ranura ' + (i + 1) + '</span><span class="slot-item-round">' + modeIcon + 'Ronda ' + sv.round + ' · ' + (sv.turn === 'player' ? (sv.pvp ? 'J1' : 'Tu turno') : (sv.pvp ? 'J2' : 'Rival')) + '</span></div><div class="slot-item-preview">' + chh + '</div><div class="slot-hp-text">❤️ ' + hp + ' · 🎴 ' + hl + ' cartas en mano</div><div class="slot-item-actions"><button class="slot-action slot-resume" data-slot="' + i + '">▶️ Reanudar</button><button class="slot-action slot-delete" data-slot="' + i + '">🗑️ Borrar</button></div></div>';
+      // ✅ Badge EX: refleja el estado congelado al empezar la partida
+      var svEx = (typeof sv.exEnabled === 'boolean') ? sv.exEnabled : false;
+      var exBadge = '<span class="slot-ex-badge ' + (svEx ? 'on' : 'off') + '" title="' + (svEx ? 'Partida con EX activas' : 'Partida sin EX') + '">' + (svEx ? '🌟 EX ON' : '🚫 EX OFF') + '</span>';
+      html += '<div class="slot-item">' + exBadge + '<div class="slot-item-header"><span class="slot-item-title">Ranura ' + (i + 1) + '</span><span class="slot-item-round">' + modeIcon + 'Ronda ' + sv.round + ' · ' + (sv.turn === 'player' ? (sv.pvp ? 'J1' : 'Tu turno') : (sv.pvp ? 'J2' : 'Rival')) + '</span></div><div class="slot-item-preview">' + chh + '</div><div class="slot-hp-text">❤️ ' + hp + ' · 🎴 ' + hl + ' cartas en mano</div><div class="slot-item-actions"><button class="slot-action slot-resume" data-slot="' + i + '">▶️ Reanudar</button><button class="slot-action slot-delete" data-slot="' + i + '">🗑️ Borrar</button></div></div>';
     } else html += '<div class="slot-item empty"><div class="slot-item-header"><span class="slot-item-title">Ranura ' + (i + 1) + '</span></div><div class="slot-empty-text">— Vacía —</div></div>';
   }
   list.innerHTML = html;
@@ -1852,7 +1939,13 @@ function renderOverwriteDialog() {
   var html = '';
   for (var i = 0; i < COMBAT_SLOT_COUNT; i++) {
     var sv = getSavedCombat(i);
-    if (sv) { var ch = sv.player.characters.map(function(c){ return c.character.emoji; }).join(' '); var modeIcon = sv.pvp ? '👥 ' : '⚔️ '; html += '<div class="slot-item"><div class="slot-item-header"><span class="slot-item-title">Ranura ' + (i + 1) + '</span><span class="slot-item-round">' + modeIcon + 'Ronda ' + sv.round + '</span></div><div class="slot-item-preview" style="font-size:1.4rem;">' + ch + '</div><div class="slot-item-actions"><button class="slot-action slot-overwrite" data-slot="' + i + '">⚠️ Sobrescribir</button></div></div>'; }
+        if (sv) {
+      var ch = sv.player.characters.map(function(c){ return c.character.emoji; }).join(' ');
+      var modeIcon = sv.pvp ? '👥 ' : '⚔️ ';
+      var svEx2 = (typeof sv.exEnabled === 'boolean') ? sv.exEnabled : false;
+      var exBadge2 = '<span class="slot-ex-badge ' + (svEx2 ? 'on' : 'off') + '">' + (svEx2 ? '🌟 EX ON' : '🚫 EX OFF') + '</span>';
+      html += '<div class="slot-item">' + exBadge2 + '<div class="slot-item-header"><span class="slot-item-title">Ranura ' + (i + 1) + '</span><span class="slot-item-round">' + modeIcon + 'Ronda ' + sv.round + '</span></div><div class="slot-item-preview" style="font-size:1.4rem;">' + ch + '</div><div class="slot-item-actions"><button class="slot-action slot-overwrite" data-slot="' + i + '">⚠️ Sobrescribir</button></div></div>';
+    }
   }
   list.innerHTML = html;
   list.querySelectorAll('.slot-overwrite').forEach(function(btn){ btn.addEventListener('click', function(){ var s = parseInt(btn.dataset.slot, 10); if (!confirm('¿Sobrescribir la ranura ' + (s + 1) + '?')) return; hideOverwriteDialog(); prepareNewCombat(s); }); });
@@ -1869,6 +1962,20 @@ function prepareNewCombat(preferredSlot) {
 
 function openCombat(mode){
   pendingPvpMode = (mode === 'pvp');
+  // ✅ Primero: si hay partidas guardadas, mostrar el diálogo de ranuras.
+  // El botón "Nuevo Combate" dentro de ese diálogo es quien pide la plantilla.
+  if (hasAnySavedCombat()) {
+    showSlotSelectionDialog();
+    return;
+  }
+  // No hay partidas guardadas → pedir plantilla directamente
+  startCombatWithTemplatePicker();
+}
+
+// ✅ Nueva función: pide plantilla (P1 y, si es PvP, P2) y arranca el combate.
+// Se llama desde openCombat (si no hay partidas guardadas) y desde el botón
+// "Nuevo Combate" del diálogo de ranuras (slotNewCombatBtn).
+function startCombatWithTemplatePicker(){
   var p1Label = pendingPvpMode ? '⚔️ Jugador 1' : '⚔️ Combate';
   showTemplatePickerForCombat(p1Label, function(p1Template){
     var validTeam = p1Template.team.filter(function(id){ return CHARACTERS[id]; }).slice(0, 3);
@@ -1896,7 +2003,6 @@ function openCombat(mode){
       return;
     }
 
-    if (hasAnySavedCombat()) { showSlotSelectionDialog(); return; }
     prepareNewCombat(null);
   });
 }
@@ -1927,7 +2033,8 @@ function startPvpLocalCombat(){
     log: [],
     player: buildSideState(pids),
     bot:    buildSideState(bids),
-    pvp: true
+    pvp: true,
+    exEnabled: !!exSystemEnabled
   };
   combatState.player.consonance = getConsonanceForIds(pids);
   combatState.bot.consonance    = getConsonanceForIds(bids);
@@ -1937,6 +2044,10 @@ function startPvpLocalCombat(){
   combatState.player.cardsUsedThisRound = {}; combatState.player.cardsUsedThisGame = {}; combatState.player.drawSelection = {};
   combatState.bot.hand = []; combatState.bot.discardPile = [];
   combatState.bot.cardsUsedThisRound = {}; combatState.bot.cardsUsedThisGame = {}; combatState.bot.drawSelection = {};
+    // ✅ Congelar el estado EX para esta partida (a partir de aquí, el toggle del menú no afecta)
+  ['player','bot'].forEach(function(wk){
+    combatState[wk].characters.forEach(function(c){ c.exActive = !!combatState.exEnabled; });
+  });
 
   var ov = document.getElementById('combatEndOverlay'); if (ov) ov.classList.remove('open');
   hideBanner();
@@ -2023,8 +2134,13 @@ function resumeCombatFromSlot(s) {
   if (!combatState.bot.discardPile) combatState.bot.discardPile = [];
   if (typeof combatState.player.obraMaestraTurns === 'undefined') combatState.player.obraMaestraTurns = 0;
   if (typeof combatState.bot.obraMaestraTurns === 'undefined') combatState.bot.obraMaestraTurns = 0;
-  combatState.player.characters.forEach(function(c){ if (COMBAT_CHARS[c.id]) c.character = COMBAT_CHARS[c.id]; if (!c.equipment) c.equipment = []; if (!c.states) c.states = {}; if (!c.marks) c.marks = {}; if (typeof c.exActive === 'undefined') c.exActive = false; });
-  combatState.bot.characters.forEach(function(c){ if (COMBAT_CHARS[c.id]) c.character = COMBAT_CHARS[c.id]; if (!c.equipment) c.equipment = []; if (!c.states) c.states = {}; if (!c.marks) c.marks = {}; if (typeof c.exActive === 'undefined') c.exActive = false; });
+  // ✅ Al reanudar, se respeta el estado EX congelado al empezar la partida
+  // (combatState.exEnabled). El toggle del menú se ignora.
+  // Si la partida se guardó antes de este cambio (sin exEnabled), se asume false.
+  var resumedEx = (typeof combatState.exEnabled === 'boolean') ? combatState.exEnabled : false;
+  combatState.exEnabled = resumedEx;
+  combatState.player.characters.forEach(function(c){ if (COMBAT_CHARS[c.id]) c.character = COMBAT_CHARS[c.id]; if (!c.equipment) c.equipment = []; if (!c.states) c.states = {}; if (!c.marks) c.marks = {}; c.exActive = resumedEx; });
+  combatState.bot.characters.forEach(function(c){ if (COMBAT_CHARS[c.id]) c.character = COMBAT_CHARS[c.id]; if (!c.equipment) c.equipment = []; if (!c.states) c.states = {}; if (!c.marks) c.marks = {}; c.exActive = resumedEx; });
   if (typeof combatState.player.mulliganUsed === 'undefined') combatState.player.mulliganUsed = false;
   pendingPvpMode = !!combatState.pvp;
   hideSlotSelectionDialog();
@@ -2050,7 +2166,13 @@ function resumeCombatFromSlot(s) {
     return;
   }
 
-  if (combatState.phase === 'rolling') { renderCombat(); showRollOverlay(); }
+  if (combatState.phase === 'rolling') {
+    // ✅ Asegurarse de que no quedan restos de animación de una sesión anterior
+    ['player','bot'].forEach(function(wk){
+      if (combatState[wk]) { combatState[wk].isRollingAnim = false; combatState[wk].rollingIds = {}; }
+    });
+    renderCombat(); showRollOverlay();
+  }
   else if (combatState.phase === 'drawing') { drawInitialShown = true; renderCombat(); renderDrawOverlay(); document.getElementById('drawOverlay').classList.add('show'); }
   else {
     renderCombat();
@@ -2072,13 +2194,17 @@ function startCombat() {
   if (!pids) { closeCombat(); return; }
   if (currentCombatSlot !== null) clearCombatSlot(currentCombatSlot);
   pvpSetupPhase = null;
-  combatState = { round:1, turn:'player', phase:'rolling', playerDone:false, botDone:false, winner:null, starterChosen:false, log:[], player:buildSideState(pids), bot:buildSideState(bids), pvp:false };
+  combatState = { round:1, turn:'player', phase:'rolling', playerDone:false, botDone:false, winner:null, starterChosen:false, log:[], player:buildSideState(pids), bot:buildSideState(bids), pvp:false, exEnabled: !!exSystemEnabled };
   combatState.player.consonance = getConsonanceForIds(pids); combatState.bot.consonance = getConsonanceForIds(bids);
   combatState.player.deck = shuffleArray(deck.slice());
   combatState.player.hand = []; combatState.player.discardPile = [];
   combatState.player.cardsUsedThisRound = {}; combatState.player.cardsUsedThisGame = {}; combatState.player.drawSelection = {};
   combatState.bot.hand = []; combatState.bot.discardPile = [];
   combatState.bot.cardsUsedThisRound = {}; combatState.bot.cardsUsedThisGame = {}; combatState.bot.drawSelection = {};
+    // ✅ Congelar el estado EX para esta partida (a partir de aquí, el toggle del menú no afecta)
+  ['player','bot'].forEach(function(wk){
+    combatState[wk].characters.forEach(function(c){ c.exActive = !!combatState.exEnabled; });
+  });
   var ov = document.getElementById('combatEndOverlay'); if (ov) ov.classList.remove('open');
   hideBanner();
   logCombat('⚔️ Combate 3v3 iniciado');
@@ -2144,11 +2270,19 @@ function showRollOverlay() {
   var startBtn = document.getElementById('rollStartBtn');
   if (startBtn) startBtn.textContent = combatState.pvp ? '✓ Continuar' : '⚔️ Comenzar combate';
   ov.classList.add('show'); playSound('roll');
-  side.isRollingAnim = true; renderRollOverlay();
+  side.isRollingAnim = true;
+  // Forzamos ambos botones deshabilitados ANTES del primer render.
+  if (startBtn) startBtn.disabled = true;
+  var rrB = document.getElementById('rollRerollBtn');
+  if (rrB) rrB.disabled = true;
+  renderRollOverlay();
   setTimeout(function(){
     if (!combatState) return;
     combatState[sideKey].isRollingAnim = false;
-    renderRollOverlay(); playSound('diceReveal');
+    // ✅ renderRollOverlay se encarga de habilitar/deshabilitar cada botón
+    // según el estado real (isRollingAnim, rollingIds, selección, rerolled).
+    renderRollOverlay();
+    playSound('diceReveal');
   }, 900);
 }
 function hideRollOverlay(){ var ov = document.getElementById('rollOverlay'); if (ov) ov.classList.remove('show'); }
@@ -2166,10 +2300,13 @@ function renderRollOverlay() {
   }
   if (main) { main.innerHTML = sortDiceForDisplay(player.dice, player).map(renderDie).join(''); main.querySelectorAll('.roll-die').forEach(function(el){ el.addEventListener('click', function(){ if (combatState[combatState.turn].isRollingAnim) return; toggleDieSelection(el.dataset.id); renderRollOverlay(); }); }); }
   var isRolling = player.isRollingAnim;
-  if (rerollBtn) { var sc = Object.keys(player.selected).length; rerollBtn.disabled = player.rerolled || sc === 0 || isRolling; rerollBtn.textContent = player.rerolled ? '🎲 Ya relanzado' : (sc > 0 ? '🎲 Relanzar ' + sc : '🎲 Relanzar seleccionados'); }
-  if (startBtn) startBtn.disabled = isRolling;
+  var hasRolling = !!(player.rollingIds && Object.keys(player.rollingIds).length > 0);
+  if (rerollBtn) { var sc = Object.keys(player.selected).length; rerollBtn.disabled = player.rerolled || sc === 0 || isRolling || hasRolling; rerollBtn.textContent = player.rerolled ? '🎲 Ya relanzado' : (sc > 0 ? '🎲 Relanzar ' + sc : '🎲 Relanzar seleccionados'); }
+  // ✅ "Comenzar" solo se habilita cuando la tirada inicial ha terminado
+  // Y no hay un relanzamiento en curso. Así el jugador ve los dados antes.
+  if (startBtn) startBtn.disabled = isRolling || hasRolling;
   var selAllBtn = document.getElementById('selectNonOmniBtn');
-  if (selAllBtn) { selAllBtn.disabled = player.rerolled || isRolling; }
+  if (selAllBtn) { selAllBtn.disabled = player.rerolled || isRolling || hasRolling; }
 }
 function toggleDieSelection(id){
   if (!combatState || combatState.phase === 'ended') return;
@@ -2185,6 +2322,8 @@ function rerollSelected() {
   if (!combatState) return;
   var side = combatState[combatState.turn];
   if (side.rerolled || side.isRollingAnim) return;
+  // ✅ Guard extra: no permitir relanzar mientras los dados estén en animación
+  if (side.rollingIds && Object.keys(side.rollingIds).length > 0) return;
   var selected = Object.keys(side.selected);
   selected = selected.filter(function(id){
     var die = side.dice.find(function(d){ return d.id === id; });
@@ -2811,7 +2950,23 @@ function executeAction(who, actionType, preSpentDice) {
         logCombat('💢 ' + enemyActive.character.name + ' acumula Rencor (' + enemyActive.states.rencor + ')');
       }
       logCombat('🩸 Deuda de Sangre: ' + baseDeuda + ' daño');
-      if (dealt > 0) { healChar(active, dealt); logCombat('🩸 Deuda de Sangre: +' + dealt + ' HP'); }
+      if (dealt > 0) {
+        // ✅ El daño verdadero puede superar 3 por bonos, pero la curación
+        // por la habilidad misma tiene tope de 3 HP (daño base de la habilidad).
+        // Los bonos de curación se aplican después del tope.
+        var healFromAbility = Math.min(dealt, 3);
+        // Bonos de curación (equipo, apoyos, etc.)
+        var healBonus = 0;
+        if (active && active.equipment) active.equipment.forEach(function(eqId){
+          var eq = CARD_DB[eqId]; if (eq && eq.effect && eq.effect.healBonus) healBonus += eq.effect.healBonus;
+        });
+        // (Añadir aquí más fuentes de bonos de curación si las hubiera en el futuro)
+        var totalHeal = healFromAbility + healBonus;
+        if (totalHeal > 0) {
+          var healed = healChar(active, totalHeal);
+          logCombat('🩸 Deuda de Sangre: +' + healed + ' HP' + (healBonus > 0 ? ' (incluye +' + healBonus + ' de bonos)' : ''));
+        }
+      }
       break;
     }
     case 'retribucionFinal': {
@@ -2933,18 +3088,21 @@ function executeAction(who, actionType, preSpentDice) {
       break;
     }
     case 'diosTeAmpare': {
-      // Destruye TODAS las Cruces de Madera del campo (ambos lados)
-      var countP = destroyAllCruzMadera('player', { silent:true });
-      var countB = destroyAllCruzMadera('bot', { silent:true });
+      // Destruye TODAS las Cruces de Madera del campo (ambos lados).
+      // IMPORTANTE: NO usar { silent:true }, porque cada cruz debe infligir
+      // su propio daño (1 al enemigo activo del dueño de la cruz) al destruirse.
+      // Ese daño es de la ESTRUCTURA, no de la definitiva.
+      var countP = destroyAllCruzMadera('player');
+      var countB = destroyAllCruzMadera('bot');
       var total = countP + countB;
       logCombat('💥 Dios te ampare: ' + total + ' Cruz(es) de Madera destruida(s)');
-      // Daño a enemigos en reserva por cada cruz
+      // Daño ADICIONAL de la definitiva: 1 a cada enemigo en reserva por cada cruz
       var reserva = enemySide.characters.filter(function(c, i){ return !c.dead && i !== enemySide.activeIndex; });
       reserva.forEach(function(c){
         var i = enemySide.characters.indexOf(c);
         applyDamageWithMods(c, total, false, enemyKey, i, active);
       });
-      if (reserva.length) logCombat('💥 ' + total + ' daño a ' + reserva.length + ' enemigo(s) en reserva');
+      if (reserva.length) logCombat('💥 ' + total + ' daño adicional a ' + reserva.length + ' enemigo(s) en reserva');
       break;
     }
     case 'ex': {
@@ -3584,9 +3742,16 @@ function previewPlayerAction(actionType) {
   if (ability.kind === 'deudaSangre') {
     preview.notes.push('💢 Aplica 1 Rencor al enemigo');
     if (preview.trueDmg > 0) {
-      var healD = Math.min(preview.trueDmg, active.maxHp - active.hp);
+      // ✅ Tope de 3 HP de curación por la habilidad misma (daño base).
+      // Los bonos de curación se suman después.
+      var healBonusPrev = 0;
+      if (active && active.equipment) active.equipment.forEach(function(eqId){
+        var eq = CARD_DB[eqId]; if (eq && eq.effect && eq.effect.healBonus) healBonusPrev += eq.effect.healBonus;
+      });
+      var healD = Math.min(preview.trueDmg, 3) + healBonusPrev;
+      healD = Math.min(healD, active.maxHp - active.hp);
       preview.healApplied = healD;
-      preview.notes.push('🩸 Cura ' + healD + ' HP por el daño verdadero infligido');
+      preview.notes.push('🩸 Cura ' + healD + ' HP (máx. 3 por daño + bonos)');
     } else {
       preview.notes.push('🩸 No cura (no hubo daño verdadero)');
     }
@@ -4119,9 +4284,20 @@ var rollStartBtn = document.getElementById('rollStartBtn'); if (rollStartBtn) ro
 var drawMulliganBtn = document.getElementById('drawMulliganBtn'); if (drawMulliganBtn) drawMulliganBtn.addEventListener('click', doMulligan);
 var drawContinueBtn = document.getElementById('drawContinueBtn'); if (drawContinueBtn) drawContinueBtn.addEventListener('click', onDrawContinue);
 var combatStartCancelBtn = document.getElementById('combatStartCancelBtn'); if (combatStartCancelBtn) combatStartCancelBtn.addEventListener('click', function(){ hideCombatStartConfirm(); playSound('deselect'); });
-var combatStartConfirmBtn = document.getElementById('combatStartConfirmBtn'); if (combatStartConfirmBtn) combatStartConfirmBtn.addEventListener('click', function(){ hideCombatStartConfirm(); playSound('confirm'); actuallyStartCombat(); });
+var combatStartConfirmBtn = document.getElementById('combatStartConfirmBtn'); if (combatStartConfirmBtn) combatStartConfirmBtn.addEventListener('click', function(){
+  // ✅ Solo NORMAL permite empezar
+  if (currentGameMode !== 'normal') {
+    playSound('error');
+    // Feedback: sacudir el botón
+    this.classList.add('shake');
+    var self = this;
+    setTimeout(function(){ self.classList.remove('shake'); }, 400);
+    return;
+  }
+  hideCombatStartConfirm(); playSound('confirm'); actuallyStartCombat();
+});
 var slotCancelBtn = document.getElementById('slotCancelBtn'); if (slotCancelBtn) slotCancelBtn.addEventListener('click', function(){ hideSlotSelectionDialog(); playSound('deselect'); });
-var slotNewCombatBtn = document.getElementById('slotNewCombatBtn'); if (slotNewCombatBtn) slotNewCombatBtn.addEventListener('click', function(){ hideSlotSelectionDialog(); prepareNewCombat(null); });
+var slotNewCombatBtn = document.getElementById('slotNewCombatBtn'); if (slotNewCombatBtn) slotNewCombatBtn.addEventListener('click', function(){ hideSlotSelectionDialog(); startCombatWithTemplatePicker(); });
 var overwriteCancelBtn = document.getElementById('overwriteCancelBtn'); if (overwriteCancelBtn) overwriteCancelBtn.addEventListener('click', function(){ hideOverwriteDialog(); playSound('deselect'); });
 
 document.addEventListener('keydown', function(e){
@@ -4224,7 +4400,8 @@ var initFns = [
   ['setupDamageCalculator', setupDamageCalculator],
   ['renderTemplateSlots', renderTemplateSlots],
   ['initExToggle', initExToggle],
-  ['initPatches', initPatches]
+  ['initPatches', initPatches],
+  ['initGameMode', initGameMode]
 ];
 initFns.forEach(function(p){ try { p[1](); } catch (e) { console.error('Init error in ' + p[0] + ':', e); } });
 // Delegación permanente para el botón 👁️ de las plantillas
