@@ -181,7 +181,10 @@ var CHARACTERS = {
   esmeralda:  { name:'Esmeralda', element:'aceptacion',     set:'Erik', category:'Eriks', hp:11, emoji:'💎', img:'img/esmeralda.png',  concept:'', comingSoon:true, abilities:[] },
   iris:       { name:'Iris',      element:'proteccion',     set:'Erik', category:'Eriks', hp:11, emoji:'🌈', img:'img/iris.png',       concept:'', comingSoon:true, abilities:[] },
   amaya:      { name:'Amaya',     element:'comprension',    set:'Erik', category:'Eriks', hp:11, emoji:'🦉', img:'img/amaya.png',      concept:'', comingSoon:true, abilities:[] },
-  adela:      { name:'Adela',     element:'transformacion', set:'Erik', category:'Eriks', hp:11, emoji:'🕊️', img:'img/adela.png',      concept:'', comingSoon:true, abilities:[] }
+  adela:      { name:'Adela',     element:'transformacion', set:'Erik', category:'Eriks', hp:11, emoji:'🕊️', img:'img/adela.png',      concept:'', comingSoon:true, abilities:[] },
+  alter:      { name:'Alter',     element:'ilusion',        set:'Erik', category:'Eriks', hp:11, emoji:'🎭', img:'img/alter.png',      concept:'', comingSoon:true, abilities:[] },
+  eve:        { name:'Eve',       element:'comprension',    set:'Erik', category:'Eriks', hp:11, emoji:'🍎', img:'img/eve.png',        concept:'', comingSoon:true, abilities:[] },
+  opal:       { name:'Opal',      element:'expresion',      set:'Erik', category:'Eriks', hp:11, emoji:'💠', img:'img/opal.png',       concept:'', comingSoon:true, abilities:[] }
 };
 
 var CARD_DB = {
