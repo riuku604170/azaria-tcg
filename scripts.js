@@ -240,7 +240,7 @@ var PHILOSOPHIES = {
   transformacion: { emoji:'🔥', name:'Transformación', tagline:'Adaptarse al cambio', desc:'Afrontan el sufrimiento adaptándose al cambio. Prefieren moverse y aprovechar el impulso de la situación.', quote:'La Transformación no consiste en cambiar por cambiar, sino en entender que avanzar muchas veces implica dejar atrás lo que ya no funciona.', consonance2:'El primer cambio de personaje de cada ronda no cuesta dados.', consonance3:'El primer cambio de personaje de cada ronda es gratuito y se considera una acción rápida.' },
   aceptacion: { emoji:'🌿', name:'Aceptación', tagline:'Asimilarlo', desc:'Afrontan el sufrimiento asimilándolo. Entienden que no todo puede cambiarse y buscan convivir con lo ocurrido.', quote:'La Aceptación no consiste en rendirse ante el sufrimiento, sino en impedir que este siga teniendo poder sobre uno mismo.', consonance2:'Al comienzo de cada ronda, el personaje activo recupera 1 punto de vida.', consonance3:'Al comienzo de cada ronda, todos los aliados recuperan 1 punto de vida.' },
   redencion: { emoji:'🩸', name:'Redención', tagline:'Actuar', desc:'Afrontan el sufrimiento actuando. Asumen las consecuencias y transforman el dolor en fuerza.', quote:'La Redención no consiste en buscar el sufrimiento, sino en decidir que, si este llega, servirá para avanzar en lugar de detenerse.', consonance2:'El primer ataque que realice el personaje activo en cada ronda inflige 2 puntos de daño adicionales.', consonance3:'El primer ataque que realice cualquier aliado en cada ronda inflige 3 puntos de daño adicionales.' },
-  ilusion: { emoji:'🎭', name:'Ilusión', tagline:'Cuestionar la realidad', desc:'Afrontan el sufrimiento cuestionando la realidad. Buscan nuevas perspectivas y alteran las condiciones del problema.', quote:'La Ilusión no consiste en engañar a los demás, sino en comprender que la realidad siempre ofrece más posibilidades de las que parecen existir a primera vista.', consonance2:'Al finalizar la fase de lanzamiento, al menos uno de los dados será del tipo de tu personaje activo o un omnidado.', consonance3:'Al finalizar la fase de lanzamiento, al menos dos dados serán del tipo de tu personaje activo.' }
+  ilusion: { emoji:'🎭', name:'Ilusión', tagline:'Cuestionar la realidad', desc:'Afrontan el sufrimiento cuestionando la realidad. Buscan nuevas perspectivas y alteran las condiciones del problema.', quote:'La Ilusión no consiste en engañar a los demás, sino en comprender que la realidad siempre ofrece más posibilidades de las que parecen existir a primera vista.', consonance2:'Al finalizar la fase de lanzamiento, al menos 2 de los dados serán del tipo de tu personaje activo u omnidados.', consonance3:'Al finalizar la fase de lanzamiento, al menos 4 de los dados serán del tipo de tu personaje activo u omnidados.' }
 };
 var CONSONANCE_ORDER = ['proteccion','comprension','expresion','transformacion','aceptacion','redencion','ilusion'];
 
@@ -2752,7 +2752,7 @@ function runPvpSetupStep(){
     combatState.turn = 'player';
     combatState.phase = 'rolling';
     combatState.player.dice = rollCombatDice(8);
-    if (!isRound1) applyIlusion(combatState.player, 'player');
+    applyIlusion(combatState.player, 'player');   // ✅ siempre, también ronda 1
     showBanner(isRound1 ? 'JUGADOR 1 — TIRADA INICIAL' : 'JUGADOR 1 — TIRADA', 1200);
     setTimeout(function(){ if (pvpSetupPhase === 'p1-roll') showRollOverlay(); }, 1200);
   } else if (phase === 'p1-draw') {
@@ -2765,7 +2765,7 @@ function runPvpSetupStep(){
     combatState.turn = 'bot';
     combatState.phase = 'rolling';
     combatState.bot.dice = rollCombatDice(8);
-    if (!isRound1) applyIlusion(combatState.bot, 'bot');
+    applyIlusion(combatState.bot, 'bot');         // ✅ siempre, también ronda 1
     showBanner(isRound1 ? 'JUGADOR 2 — TIRADA INICIAL' : 'JUGADOR 2 — TIRADA', 1200);
     setTimeout(function(){ if (pvpSetupPhase === 'p2-roll') showRollOverlay(); }, 1200);
   } else if (phase === 'p2-draw') {
@@ -3072,14 +3072,26 @@ function rollDiceForSide(who, first){
   applyIlusion(s, who);
 }
 function applyIlusion(side, who) {
-  var c = side.consonance; if (!c || c.type !== 'single' || c.element !== 'ilusion') return;
-  var active = side.characters[side.activeIndex]; if (!active || active.dead) return;
-  var el = active.character.element, m = 0;
-  side.dice.forEach(function(d){ if (d.type === el) m++; else if (c.level === 2 && d.type === 'omni') m++; });
-  var need = c.level === 3 ? 2 : 1, miss = need - m; if (miss <= 0) return;
+  var c = side.consonance;
+  if (!c || c.type !== 'single' || c.element !== 'ilusion') return;
+  var active = side.characters[side.activeIndex];
+  if (!active || active.dead) return;
+  var el = active.character.element;
+  // ✅ 2 personajes → 2 dados garantizados. 3 personajes → 4 dados garantizados.
+  var need = (c.level === 3) ? 4 : 2;
+  // Contar dados válidos actuales: del tipo del activo u omnidados
+  var valid = 0;
+  side.dice.forEach(function(d){ if (d.type === el || d.type === 'omni') valid++; });
+  var miss = need - valid;
+  if (miss <= 0) return;
+  // Convertir dados "inservibles" (ni del tipo del activo ni omni) al tipo del activo
   var conv = 0;
-  for (var i = 0; i < side.dice.length && conv < miss; i++) if (side.dice[i].type !== el && side.dice[i].type !== 'omni') { side.dice[i] = { type:el, id:side.dice[i].id }; conv++; }
-  if (c.level === 3) for (var j = 0; j < side.dice.length && conv < miss; j++) if (side.dice[j].type === 'omni') { side.dice[j] = { type:el, id:side.dice[j].id }; conv++; }
+  for (var i = 0; i < side.dice.length && conv < miss; i++) {
+    if (side.dice[i].type !== el && side.dice[i].type !== 'omni') {
+      side.dice[i] = { type: el, id: side.dice[i].id };
+      conv++;
+    }
+  }
   if (conv > 0) logCombat('🎭 Ilusión: ' + conv + ' dado(s) → ' + ELEMENT_EMOJI[el]);
 }
 
