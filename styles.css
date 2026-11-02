@@ -6304,8 +6304,23 @@ footer span {
   text-transform: uppercase;
   cursor: pointer;
   transition: all 0.25s;
-  flex-shrink: 0;
   z-index: 5;
+}
+.ex-toggle-btn:hover { background: rgba(240,200,96,0.15); border-color: rgba(240,200,96,0.6); color: var(--accent); }
+.ex-toggle-btn[aria-pressed="true"] {
+  background: linear-gradient(135deg, rgba(240,200,96,0.28), rgba(165,131,255,0.18));
+  border-color: var(--accent); color: var(--accent);
+  box-shadow: 0 0 15px rgba(240,200,96,0.4);
+}
+.ex-toggle-btn[disabled] { cursor: not-allowed; opacity: 0.6; }
+.ex-toggle-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: rgba(240,200,96,0.35);
+  box-shadow: 0 0 6px rgba(240,200,96,0.3);
+  transition: all 0.25s;
+}
+.ex-toggle-btn[aria-pressed="true"] .ex-toggle-dot {
+  background: #7aff9a; box-shadow: 0 0 10px #7aff9a, 0 0 18px rgba(122,255,154,0.5);
 }
 .game-mode-btn {
   position: absolute;
@@ -6357,29 +6372,6 @@ footer span {
   text-align: center;
   margin-top: 0.6rem;
   line-height: 1.4;
-}
-.ex-toggle-btn:hover {
-  background: rgba(240, 200, 96, 0.15);
-  border-color: rgba(240, 200, 96, 0.6);
-  color: var(--accent);
-}
-.ex-toggle-btn[aria-pressed="true"] {
-  background: linear-gradient(135deg, rgba(240, 200, 96, 0.28), rgba(165, 131, 255, 0.18));
-  border-color: var(--accent);
-  color: var(--accent);
-  box-shadow: 0 0 15px rgba(240, 200, 96, 0.4);
-}
-.ex-toggle-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: rgba(240, 200, 96, 0.35);
-  box-shadow: 0 0 6px rgba(240, 200, 96, 0.3);
-  transition: all 0.25s;
-}
-.ex-toggle-btn[aria-pressed="true"] .ex-toggle-dot {
-  background: #7aff9a;
-  box-shadow: 0 0 10px #7aff9a, 0 0 18px rgba(122, 255, 154, 0.5);
 }
 
 /* === Botón EX en el sidebar de combate === */
@@ -6505,6 +6497,38 @@ footer span {
 .patches-body::-webkit-scrollbar-thumb {
   background: rgba(240, 200, 96, 0.4);
   border-radius: 3px;
+}
+/* === Indicador de parche nuevo en el nav === */
+.patches-new-badge {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  margin-left: 0.35rem;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f0c860, #f5dc8a);
+  color: #1a0f2e;
+  font-size: 0.65rem;
+  font-weight: 900;
+  line-height: 1;
+  vertical-align: middle;
+  box-shadow: 0 0 10px rgba(240, 200, 96, 0.7), 0 0 4px rgba(240, 200, 96, 0.9);
+  animation: patchesBadgePulse 1.8s ease-in-out infinite;
+  transform: translateY(-1px);
+  pointer-events: none;
+}
+.patches-new-badge[hidden] {
+  display: none !important;
+}
+@keyframes patchesBadgePulse {
+  0%, 100% {
+    transform: translateY(-1px) scale(1);
+    box-shadow: 0 0 10px rgba(240, 200, 96, 0.6), 0 0 4px rgba(240, 200, 96, 0.8);
+  }
+  50% {
+    transform: translateY(-1px) scale(1.15);
+    box-shadow: 0 0 16px rgba(240, 200, 96, 0.95), 0 0 6px rgba(240, 200, 96, 1);
+  }
 }
 .patch-entry {
   --pc: 240, 200, 96;
@@ -6680,4 +6704,42 @@ footer span {
     padding: 0.4rem 0.85rem;
     margin-top: 0.8rem;
   }
+}
+
+.start-preview-card { position: relative; }
+.start-preview-ex-btn {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.7);
+  border: 1.5px solid rgba(240,200,96,0.5);
+  color: rgba(240,200,96,0.6);
+  font-size: 0.85rem;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  z-index: 5;
+  transition: all 0.2s;
+  font-family: inherit;
+  padding: 0;
+  line-height: 1;
+}
+.start-preview-ex-btn:hover {
+  background: rgba(240,200,96,0.25);
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: scale(1.1);
+}
+.start-preview-card.ex-on .start-preview-ex-btn {
+  background: linear-gradient(135deg, var(--accent), #f5dc8a);
+  color: #1a0f2e;
+  border-color: var(--accent);
+  box-shadow: 0 0 15px rgba(240,200,96,0.7);
+}
+.start-preview-card.ex-on {
+  border-color: var(--accent);
+  box-shadow: 0 0 25px rgba(240,200,96,0.4);
 }
