@@ -244,6 +244,79 @@ var PHILOSOPHIES = {
 };
 var CONSONANCE_ORDER = ['proteccion','comprension','expresion','transformacion','aceptacion','redencion','ilusion'];
 
+/* ═══ ENTORNOS ═══ */
+var ENVIRONMENTS = {
+  sobrecarga_epileptica: {
+    id: 'sobrecarga_epileptica',
+    name: 'Sobrecarga Epiléptica',
+    emoji: '⚡',
+    duration: 2,
+    effectText: 'Al final de la ronda, el aliado activo del equipo que estableció el entorno pasa al siguiente.'
+  }
+};
+
+// Color del canvas de estrellas según entorno (null = dorado por defecto)
+var combatEnvColor = null;
+
+function setCombatCanvasColor(element) {
+  if (!element) { combatEnvColor = null; return; }
+  var rgb = ELEMENT_COLORS[element];
+  if (!rgb) { combatEnvColor = null; return; }
+  var parts = rgb.split(',').map(function(x){ return parseInt(x.trim(), 10); });
+  combatEnvColor = { r: parts[0], g: parts[1], b: parts[2] };
+}
+
+function setEnvironment(envId, casterCs, ownerSideKey) {
+  if (!combatState) return;
+  var def = ENVIRONMENTS[envId];
+  if (!def) return;
+  var element = casterCs ? casterCs.character.element : 'ilusion';
+  var previous = combatState.environment ? combatState.environment.name : null;
+  combatState.environment = {
+    id: envId,
+    name: def.name,
+    element: element,
+    roundsLeft: def.duration,
+    ownerSide: ownerSideKey,
+    def: def
+  };
+  if (previous) logCombat('🌍 El entorno "' + previous + '" es reemplazado por "' + def.name + '"');
+  else logCombat('🌍 Entorno establecido: ' + def.name + ' (' + def.duration + ' rondas)');
+  playSound('banner');
+  updateEnvironmentVisuals();
+}
+
+function clearEnvironment() {
+  if (!combatState || !combatState.environment) return;
+  logCombat('🌍 El entorno ' + combatState.environment.name + ' desaparece');
+  combatState.environment = null;
+  updateEnvironmentVisuals();
+}
+
+function updateEnvironmentVisuals() {
+  var display = document.getElementById('combatEnvironmentDisplay');
+  if (!display) return;
+  if (!combatState || !combatState.environment) {
+    display.hidden = true;
+    setCombatCanvasColor(null);
+    return;
+  }
+  var env = combatState.environment;
+  var col = ELEMENT_COLORS[env.element] || '240, 200, 96';
+  display.hidden = false;
+  display.style.setProperty('--env-color', col);
+
+  var icon   = document.getElementById('envIcon');
+  var name   = document.getElementById('envName');
+  var rounds = document.getElementById('envRounds');
+
+  if (icon)   icon.textContent   = env.def.emoji || '🌍';
+  if (name)   name.textContent   = env.name;
+  if (rounds) rounds.textContent = env.roundsLeft + (env.roundsLeft === 1 ? ' ronda' : ' rondas');
+
+  setCombatCanvasColor(env.element);
+}
+
 var RESONANCES = [
   { a:'proteccion', b:'proteccion', name:'Fortaleza', lore:'Dos defensas unidas se convierten en un muro infranqueable.', effect:'El personaje activo obtiene un escudo de 2 puntos de vida.' },
   { a:'proteccion', b:'comprension', name:'Preparación', lore:'Quien protege también sabe cuándo actuar.', effect:'Todos los aliados con escudo obtienen 1 punto de energía.' },
@@ -367,7 +440,13 @@ var CHARACTERS = {
     { type:'passive', icon:'🛡️', name:'Vuelo', effect:'Bajo el efecto "Vuelo" recibe una reducción de daño de 2. Si recibe daño verdadero, recibe 3 de daño adicional, gana 1 de energía y pierde el efecto. No puede ser resucitada. Cartas que "resucitan" pueden ser consumidas por ella si está viva para recibir alternativamente salud equivalente a la de la resurrección. No puede usar cartas que aumenten su energía.' },
     { type:'ex', icon:'🌟', name:'EX', effect:'Su definitiva cuesta 2 dados más y aumenta en 2 su poder base.' }
   ]},
-  neon:       { name:'Neón',      element:'ilusion',        set:'Erik', category:'Eriks', hp:11, emoji:'🎆', img:'img/neon.png',       concept:'', comingSoon:true, abilities:[] },
+  neon: { name:'Neón', element:'ilusion', set:'Erik', category:'Eriks', hp:6, emoji:'🎆', img:'img/neon.png', concept:'Un set que distorsiona la realidad sonora, transformando el campo de batalla en un escenario donde la ilusión y el ritmo dictan el compás.', abilities: [
+    { type:'normal', icon:'⚔️', name:'Scratch', cost:'x3 dados de ilusión', effect:'Inflige 1 punto de daño al enemigo activo. Si el entorno activo es "Sobrecarga Epiléptica", el daño aumenta en 1 punto. Si la estructura "Mesa de DJ" está activa en tu campo, el daño aumenta en 1 punto adicional y el coste de esta habilidad aumenta en 1 dado de ilusión.' },
+    { type:'elemental', icon:'🔮', name:'Remix', cost:'x4 dados de ilusión', effect:'Coloca la estructura "Mesa de DJ" (2 rondas) si no estaba en tu campo. Si "Mesa de DJ" ya estaba activa, marca al enemigo activo con Ilusión.' },
+    { type:'ultimate', icon:'💥', name:'Killer Tunes', cost:'x4 dados de ilusión, x3 puntos de energía', effect:'Cambia el entorno a "Sobrecarga Epiléptica" durante 2 rondas. Además, durante el resto de la ronda, los cambios de personaje de tu equipo causan 1 punto de daño al enemigo activo.' },
+    { type:'passive', icon:'🛡️', name:'Frecuencia Constante', effect:'Si comienza la ronda como personaje activo, se cura 4 puntos de vida. Al declarar el fin de la ronda estando activa, cambia al siguiente aliado vivo y recibe 2 puntos de escudo.' },
+    { type:'ex', icon:'🌟', name:'EX · Sobrecarga', effect:'Su vida máxima aumenta a 8 puntos de vida durante el resto de la partida.' }
+  ]},
   vittoria:   { name:'Vittoria',  element:'aceptacion',     set:'Erik', category:'Eriks', hp:11, emoji:'👑', img:'img/vittoria.png',   concept:'', comingSoon:true, abilities:[] },
   sage:       { name:'Sage',      element:'transformacion', set:'Erik', category:'Eriks', hp:11, emoji:'🧙', img:'img/sage.png',       concept:'', comingSoon:true, abilities:[] },
   david:      { name:'David',     element:'redencion',      set:'Erik', category:'Eriks', hp:11, emoji:'🏹', img:'img/david.png',      concept:'', comingSoon:true, abilities:[] },
@@ -587,6 +666,12 @@ var COMBAT_CHARS = {
     elemental: { name:'Daga de Ola', cost:{proteccion:3}, target:'enemy', kind:'dagaDeOla', damage:3, energy:1 },
     ultimate: { name:'Fase de Limpieza', cost:{proteccion:3}, energyCost:3, target:'enemy', kind:'faseDeLimpieza' },
     ex: { name:'EX · Último Recurso', kind:'ex', target:'self' }
+  }},
+  neon: { name:'Neón', element:'ilusion', emoji:'🎆', hp:6, abilities: {
+    normal: { name:'Scratch', cost:{ilusion:3}, target:'enemy', kind:'scratch', damage:1, energy:1 },
+    elemental: { name:'Remix', cost:{ilusion:4}, target:'self', kind:'remix', energy:1 },
+    ultimate: { name:'Killer Tunes', cost:{ilusion:4}, energyCost:3, target:'self', kind:'killerTunes' },
+    ex: { name:'EX · Sobrecarga', kind:'ex', target:'self' }
   }},
 };
 
@@ -830,6 +915,28 @@ function csAddMark(cs, el){ if (!cs.marks) cs.marks = {}; if (cs.marks[el]) retu
 function csRemoveMark(cs, el){ if (cs && cs.marks) delete cs.marks[el]; }
 function csHasMark(cs, el){ return !!(cs && cs.marks && cs.marks[el]); }
 function csAllMarks(cs){ return cs && cs.marks ? Object.keys(cs.marks) : []; }
+// ✅ Killer Tunes: dispara 1 daño al enemigo activo cuando el equipo de Neón
+// hace un cambio de personaje durante el resto de la ronda.
+function triggerKillerTunesDamage(sideKey) {
+  if (!combatState) return;
+  var side = combatState[sideKey];
+  var side = combatState[sideKey];
+  console.log('[KillerTunes] sideKey=', sideKey,
+              '| neonUltChangeDamage=', side && side.neonUltChangeDamage,
+              '| activeIndex=', side && side.activeIndex);
+  if (!side || !side.neonUltChangeDamage) return;
+  var ek = sideKey === 'player' ? 'bot' : 'player';
+  var es = combatState[ek];
+  var ea = es.characters[es.activeIndex];
+  if (ea && !ea.dead) {
+    dealDamageToChar(ea, 1, {
+      targetSide: es,
+      targetSideKey: ek,
+      targetIdx: es.activeIndex
+    });
+    logCombat('🎵 Killer Tunes: cambio de personaje → 1 daño a ' + ea.character.name);
+  }
+}
 
 function triggerMarkOrResonance(targetCs, newEl, who, targetSideKey, targetIdx) {
   var existing = csAllMarks(targetCs);
@@ -1145,20 +1252,67 @@ function buildSideState(ids, exCharId) {
   return {
     characters: ids.map(function(id) {
       var ch = COMBAT_CHARS[id];
-      return { id:id, character:ch, hp:ch.hp, maxHp:ch.hp, energy:0, maxEnergy:getMaxEnergyFor(ch), shields:[], pendingBuff:0, dead:false, equipment:[], paintEquipped:null, states:{ internetEnergyGranted:false }, marks:{}, cardNextAttackBonus:0, cardNextAttackPiercing:false, cardNextAttackDouble:false, cardNextAbilityDiscount:0, cardNextAbilityFree:false, cardMarkBonus:0, manuelStacks:0, exActive: (id === exCharId), noResurrectLimit: (id === 'hunger') };
+      // ✅ EX Neón: vida máxima 8 en vez de 6
+      var baseHp = ch.hp;
+      var isNeonEx = (id === 'neon' && id === exCharId);
+      if (isNeonEx) {
+        baseHp = 8;
+        console.log('[buildSideState] ✅ Neón con EX → HP máx =', baseHp);
+      }
+      return {
+        id: id,
+        character: ch,
+        hp: baseHp,
+        maxHp: baseHp,
+        energy: 0,
+        maxEnergy: getMaxEnergyFor(ch),
+        shields: [],
+        pendingBuff: 0,
+        dead: false,
+        equipment: [],
+        paintEquipped: null,
+        states: { internetEnergyGranted: false },
+        marks: {},
+        cardNextAttackBonus: 0,
+        cardNextAttackPiercing: false,
+        cardNextAttackDouble: false,
+        cardNextAbilityDiscount: 0,
+        cardNextAbilityFree: false,
+        cardMarkBonus: 0,
+        manuelStacks: 0,
+        exActive: (id === exCharId),
+        noResurrectLimit: (id === 'hunger'),
+        neonUltChangeDamage: false
+      };
     }),
-    activeIndex:0, dice:[], rerolled:false, selected:{}, isRollingAnim:false, rollingIds:{},
-    consonance:null, firstChangeUsed:false, firstAttackUsed:false,
-    deck:[], hand:[], discardPile:[], supports:[null,null,null,null], structures:[],
-    initialDrawThisRound:[], mulliganUsed:false, drawSelection:{},
-    cardsUsedThisRound:{}, cardsUsedThisGame:{},
-    enemyAttackDebuff:0, contraataque:0, obraMaestraTurns:0,
-    cruzMaderaByAlly: {},        // id de personaje → true si ya tiene cruz viva (pasiva)
-    cruzMaderaFromShield: false, // para la Cruz generada por el escudo de Orath
-    cruzSangreActive: false,     // Cruz de Sangre de Orath viva
-    lastDeadAlly: null,          // último aliado caído (para resurrección de Cruz de Sangre)
-    alterUltBuff: { amount: 0, roundsLeft: 0 }, // ✅ Alter: bono a elementales del equipo (amount, rondas restantes)
-    exCharId: exCharId || null,
+    activeIndex: 0,
+    dice: [],
+    rerolled: false,
+    selected: {},
+    isRollingAnim: false,
+    rollingIds: {},
+    consonance: null,
+    firstChangeUsed: false,
+    firstAttackUsed: false,
+    deck: [],
+    hand: [],
+    discardPile: [],
+    supports: [null, null, null, null],
+    structures: [],
+    initialDrawThisRound: [],
+    mulliganUsed: false,
+    drawSelection: {},
+    cardsUsedThisRound: {},
+    cardsUsedThisGame: {},
+    enemyAttackDebuff: 0,
+    contraataque: 0,
+    obraMaestraTurns: 0,
+    cruzMaderaByAlly: {},
+    cruzMaderaFromShield: false,
+    cruzSangreActive: false,
+    lastDeadAlly: null,
+    alterUltBuff: { amount: 0, roundsLeft: 0 },
+    exCharId: exCharId || null
   };
 }
 function preloadCombatImages(){ Object.keys(COMBAT_CHARS).forEach(function(id){ var img = new Image(); img.src = 'img/' + id + '.png'; }); }
@@ -1971,11 +2125,56 @@ function initCombatStars() {
   function resizeC() { cW = cvs.width = window.innerWidth; cH = cvs.height = window.innerHeight; cs = []; for (var i = 0; i < 140; i++) cs.push({ x:Math.random()*cW, y:Math.random()*cH, r:Math.random()*1.4+0.3, vx:(Math.random()-0.5)*0.12, vy:(Math.random()-0.5)*0.12, a:Math.random()*0.5+0.2 }); }
   function drawC() {
     cctx.clearRect(0, 0, cW, cH);
-    for (var i = 0; i < cs.length; i++) { var s = cs[i]; s.x += s.vx; s.y += s.vy; if (s.x < 0) s.x = cW; if (s.x > cW) s.x = 0; if (s.y < 0) s.y = cH; if (s.y > cH) s.y = 0; cctx.beginPath(); cctx.arc(s.x, s.y, s.r, 0, Math.PI*2); cctx.fillStyle = 'rgba(240, 220, 180, ' + s.a + ')'; cctx.fill(); }
-    for (var p = 0; p < cs.length; p++) for (var q = p + 1; q < cs.length; q++) { var dx = cs[p].x - cs[q].x, dy = cs[p].y - cs[q].y, d = Math.sqrt(dx*dx + dy*dy); if (d < 120) { cctx.beginPath(); cctx.moveTo(cs[p].x, cs[p].y); cctx.lineTo(cs[q].x, cs[q].y); cctx.strokeStyle = 'rgba(240, 200, 96, ' + ((1 - d/120) * 0.12) + ')'; cctx.lineWidth = 0.5; cctx.stroke(); } }
+
+    // ✅ Color de las estrellas según entorno activo (o dorado por defecto)
+    var starFillColor = combatEnvColor
+      ? 'rgba(' + combatEnvColor.r + ', ' + combatEnvColor.g + ', ' + combatEnvColor.b + ', '
+      : 'rgba(240, 220, 180, ';
+    var starLineBase = combatEnvColor
+      ? 'rgba(' + combatEnvColor.r + ', ' + combatEnvColor.g + ', ' + combatEnvColor.b + ', '
+      : 'rgba(240, 200, 96, ';
+
+    for (var i = 0; i < cs.length; i++) {
+      var s = cs[i];
+      s.x += s.vx; s.y += s.vy;
+      if (s.x < 0) s.x = cW; if (s.x > cW) s.x = 0;
+      if (s.y < 0) s.y = cH; if (s.y > cH) s.y = 0;
+      cctx.beginPath();
+      cctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+      cctx.fillStyle = starFillColor + s.a + ')';
+      cctx.fill();
+    }
+    for (var p = 0; p < cs.length; p++) for (var q = p + 1; q < cs.length; q++) {
+      var dx = cs[p].x - cs[q].x, dy = cs[p].y - cs[q].y, d = Math.sqrt(dx*dx + dy*dy);
+      if (d < 120) {
+        cctx.beginPath();
+        cctx.moveTo(cs[p].x, cs[p].y);
+        cctx.lineTo(cs[q].x, cs[q].y);
+        cctx.strokeStyle = starLineBase + ((1 - d/120) * 0.12) + ')';
+        cctx.lineWidth = 0.5;
+        cctx.stroke();
+      }
+    }
     requestAnimationFrame(drawC);
   }
   window.addEventListener('resize', resizeC); resizeC(); drawC();
+
+  var envDisplay = document.getElementById('combatEnvironmentDisplay');
+  if (envDisplay && !envDisplay.dataset.bound) {
+    envDisplay.dataset.bound = '1';
+    envDisplay.addEventListener('mouseenter', function() {
+      if (!combatState || !combatState.environment) return;
+      var env = combatState.environment;
+      hoverTooltip.innerHTML =
+        '<div class="ht-header">🌍 Entorno activo</div>' +
+        '<div class="ht-name">' + (env.def.emoji || '🌍') + ' ' + env.name + '</div>' +
+        '<div class="ht-sub">' + ELEMENT_EMOJI[env.element] + ' ' + ELEMENT_NAMES[env.element] + ' · ' + env.roundsLeft + ' ronda(s) restantes</div>' +
+        '<div class="ht-effect">' + env.def.effectText + '</div>';
+      hoverTooltip.classList.add('show');
+      positionTooltip(hoverTooltip, envDisplay.getBoundingClientRect(), 'above');
+    });
+    envDisplay.addEventListener('mouseleave', hideTooltip);
+  }
 }
 
 var hoverTooltip = document.getElementById('hoverTooltip');
@@ -2054,6 +2253,8 @@ function showStructureTooltip(anchor, st) {
     html += '<div class="ht-name">✝️ Cruz de Madera</div><div class="ht-sub">Estructura de Orath</div><div class="ht-effect">Causa 1 punto de daño al enemigo activo al ser destruida. Al final de la ronda, si Orath está activa, marca al enemigo activo con redención y se destruye.</div>';
   } else if (st.kind === 'cruzSangre') {
     html += '<div class="ht-name">✝️ Cruz de Sangre</div><div class="ht-sub">Estructura de Orath</div><div class="ht-effect">Se destruye si un aliado muere. Al destruirse, revive al último aliado caído con 1 HP y 2 de escudo.</div>';
+  } else if (st.kind === 'mesaDJ') {
+  html += '<div class="ht-name">🎧 Mesa de DJ</div><div class="ht-sub">' + st.duration + ' ronda(s) · Estructura de Neón</div><div class="ht-effect">Al final de la ronda, el aliado activo del equipo pasa al siguiente.</div>';
   }
   hoverTooltip.innerHTML = html;
   hoverTooltip.classList.add('show');
@@ -2628,6 +2829,21 @@ function resumeCombatFromSlot(s) {
   if (!resumedExEnabled) combatState.exCharId = { player: null, bot: null };
   combatState.player.characters.forEach(function(c){ if (COMBAT_CHARS[c.id]) c.character = COMBAT_CHARS[c.id]; if (!c.equipment) c.equipment = []; if (!c.states) c.states = {}; if (!c.marks) c.marks = {}; c.exActive = (c.id === combatState.exCharId.player); });
   combatState.bot.characters.forEach(function(c){ if (COMBAT_CHARS[c.id]) c.character = COMBAT_CHARS[c.id]; if (!c.equipment) c.equipment = []; if (!c.states) c.states = {}; if (!c.marks) c.marks = {}; c.exActive = (c.id === combatState.exCharId.bot); });
+  // ✅ Neón: su HP máximo depende de si tiene EX activa (6 sin EX, 8 con EX).
+  // Al reanudar una partida guardada, ajustamos el techo y la HP actual.
+  ['player','bot'].forEach(function(wk){
+    combatState[wk].characters.forEach(function(c){
+      if (c.id === 'neon') {
+        var targetMaxN = c.exActive ? 8 : 6;
+        if (c.maxHp !== targetMaxN) {
+          var diffN = targetMaxN - c.maxHp;
+          c.maxHp = targetMaxN;
+          if (diffN > 0) c.hp = Math.min(c.maxHp, c.hp + diffN);
+          else c.hp = Math.min(c.hp, c.maxHp);
+        }
+      }
+    });
+  });
   if (typeof combatState.player.mulliganUsed === 'undefined') combatState.player.mulliganUsed = false;
   pendingPvpMode = !!combatState.pvp;
   hideSlotSelectionDialog();
@@ -2684,7 +2900,7 @@ function closeCombat() {
   saveCombatState();
   var m = document.getElementById('combatModal'); if (!m) return;
   m.classList.remove('open'); document.body.style.overflow = '';
-  combatState = null; currentCombatSlot = null;
+  combatState = null; combatEnvColor = null; currentCombatSlot = null;
   pvpSetupPhase = null;
   combatStartConfirmForP2 = false;
   exCombatEnabled = false;
@@ -3205,20 +3421,61 @@ function applySupportEndOfRoundEffects(who) {
   }
 }
 function applyStructureEndOfRoundEffects(who) {
-  var side = combatState[who]; if (!side.structures || !side.structures.length) return;
+  var side = combatState[who];
+  if (!side || !side.structures || !side.structures.length) return;
+
   var enemySide = combatState[who === 'player' ? 'bot' : 'player'];
+  var enemyKey  = who === 'player' ? 'bot' : 'player';
+
   for (var i = side.structures.length - 1; i >= 0; i--) {
     var st = side.structures[i];
+    if (!st) continue;
+
     if (st.kind === 'optimizacion') {
       var ea = enemySide.characters[enemySide.activeIndex];
       if (ea && !ea.dead) {
-        dealDamageToChar(ea, 1, { targetSide:enemySide, targetSideKey:who === 'player' ? 'bot' : 'player', targetIdx:enemySide.activeIndex });
-        if (!ea.dead) triggerMarkOrResonance(ea, 'comprension', who, who === 'player' ? 'bot' : 'player', enemySide.activeIndex);
+        dealDamageToChar(ea, 1, {
+          targetSide: enemySide,
+          targetSideKey: enemyKey,
+          targetIdx: enemySide.activeIndex
+        });
+        if (!ea.dead) triggerMarkOrResonance(ea, 'comprension', who, enemyKey, enemySide.activeIndex);
         logCombat('🏛️ Optimización: 1 daño y marca comprensión');
       }
-      st.duration--; if (st.duration <= 0) { logCombat('🏛️ Optimización se desvanece'); side.structures.splice(i, 1); }
+      st.duration--;
+      if (st.duration <= 0) {
+        logCombat('🏛️ Optimización se desvanece');
+        side.structures.splice(i, 1);
+      }
     }
-    if (st.kind === 'cruzSangre') { /* persistente */ continue; }
+
+    if (st.kind === 'cruzSangre') {
+      // estructura persistente, no consume ronda
+      continue;
+    }
+
+    if (st.kind === 'mesaDJ') {
+      try {
+        // 1) Pasa el activo del dueño al siguiente vivo
+        var nxMesa = getNextAliveIndex(side, side.activeIndex);
+        if (nxMesa >= 0 && nxMesa !== side.activeIndex) {
+          side.activeIndex = nxMesa;
+          logCombat('🎧 Mesa de DJ: ' + side.characters[nxMesa].character.name + ' pasa a activo');
+          // 2) Si Killer Tunes está activo, el cambio pega 1 al rival
+          if (typeof triggerKillerTunesDamage === 'function') triggerKillerTunesDamage(who);
+          // ✅ Forzar repintado para que la UI muestre al nuevo activo YA
+          if (typeof renderCombat === 'function') renderCombat();      
+        }
+        // 3) Duración
+        st.duration--;
+        if (st.duration <= 0) {
+          logCombat('🎧 Mesa de DJ se desvanece');
+          side.structures.splice(i, 1);
+        }
+      } catch (err) {
+        console.error('[Mesa de DJ] Error al resolver el fin de ronda:', err);
+      }
+    }
   }
 }
 function beginRoundPlay() {
@@ -3237,7 +3494,17 @@ function beginRoundPlay() {
     if (!combatState || combatState.phase === 'ended') return;
     // ── EX hooks de inicio de ronda ──
     ['player','bot'].forEach(function(wk){
-      combatState[wk].characters.forEach(function(c){ if (!c.dead) exHookRoundStart(c, wk); });
+      combatState[wk].characters.forEach(function(c){
+        if (!c.dead) exHookRoundStart(c, wk);
+        // ✅ Neón: pasiva de curación al inicio de ronda si está activo
+        if (c.id === 'neon' && !c.dead) {
+          var sdN = combatState[wk];
+          if (sdN.activeIndex === sdN.characters.indexOf(c)) {
+            var healedN = healChar(c, 4);
+            if (healedN > 0) logCombat('🎆 Neón (pasiva): +' + healedN + ' HP');
+          }
+        }
+      });
     });
     var pm = applyRoundStartEffects('player'), bm = applyRoundStartEffects('bot');
     if (combatState.round === 1) { var cm = applyComprensionStart('player'); if (cm) pm.push(cm); var cmb = applyComprensionStart('bot'); if (cmb) bm.push(cmb); }
@@ -3248,6 +3515,8 @@ function beginRoundPlay() {
     logCombat('⚔️ ¡Comienza el combate!'); pm.forEach(function(m){ logCombat(m); });
     renderCombat();
   };
+  // ✅ Repintado extra por si el activeIndex cambió entre endRound y aquí
+  renderCombat();
   if (toast) setTimeout(function(){ if (!combatState || combatState.phase === 'ended') return; showDiversoToast(toast); playSound('omni'); setTimeout(applyEff, 250); }, 1600);
   else setTimeout(applyEff, 1600);
 }
@@ -3279,6 +3548,13 @@ function computeBaseDamageForAbility(attackerCs, ability, actionType) {
     case 'retribucionFinal': { var a = enemySide.characters[enemySide.activeIndex]; var ren = (a.states && a.states.rencor) || 0; return ren > 0 ? 3 + Math.max(0, ren - 1) : 0; }
     case 'degradacion': return 4 + (attackerCs.manuelStacks || 0);
     case 'suficiente': { var amz = enemySide.characters.filter(function(c){ return !c.dead && csHasState(c, 'amenaza'); }); return amz.length > 0 ? 3 : 0; }
+    case 'scratch': {
+      var sDmg = ability.damage || 1;
+      if (combatState.environment && combatState.environment.id === 'sobrecarga_epileptica') sDmg += 1;
+      var sSide = (combatState.player.characters.indexOf(attackerCs) >= 0) ? combatState.player : combatState.bot;
+      if (sSide.structures && sSide.structures.some(function(s){ return s.kind === 'mesaDJ'; })) sDmg += 1;
+      return sDmg;
+    }
     default: return 0;
   }
 }
@@ -3357,6 +3633,17 @@ function getEffectiveCostFull(active, ability) {
       }
     });
     return intCost;
+  }
+  // ✅ Neón: Scratch +1 dado de ilusión si Mesa de DJ está activa
+  if (active.id === 'neon' && ability.kind === 'scratch') {
+    var sdNeon = (combatState.player.characters.indexOf(active) >= 0) ? combatState.player : combatState.bot;
+    var hasMesaN = sdNeon.structures && sdNeon.structures.some(function(s){ return s.kind === 'mesaDJ'; });
+    if (hasMesaN) {
+      var cNeon = {};
+      Object.keys(base).forEach(function(k){ cNeon[k] = base[k]; });
+      cNeon.ilusion = (cNeon.ilusion || 0) + 1;
+      return cNeon;
+    }
   }
   return base;
 }
@@ -3674,7 +3961,7 @@ function executeAction(who, actionType, preSpentDice) {
       var nx = getNextAliveIndex(enemySide, enemySide.activeIndex);
       if (nx >= 0) { enemySide.activeIndex = nx; logCombat('🔄 Enemigo forzado a ' + enemySide.characters[nx].character.name); triggerMarkOrResonance(enemySide.characters[nx], 'ilusion', who, enemyKey, nx); }
       var rsv = getNextAliveIndex(side, side.activeIndex);
-      if (rsv >= 0) { logCombat('👻 Paso Fantasma: Ren a reserva'); side.activeIndex = rsv; }
+      if (rsv >= 0) { logCombat('👻 Paso Fantasma: Ren a reserva'); side.activeIndex = rsv; triggerKillerTunesDamage(who); }
       break;
     }
     case 'destruccionLogica': {
@@ -3683,7 +3970,7 @@ function executeAction(who, actionType, preSpentDice) {
       var nx2 = getNextAliveIndex(enemySide, enemySide.activeIndex);
       if (nx2 >= 0) { enemySide.activeIndex = nx2; logCombat('🔄 Enemigo forzado'); }
       var rsv2 = getNextAliveIndex(side, side.activeIndex);
-      if (rsv2 >= 0) { logCombat('👻 Paso Fantasma: Ren a reserva'); side.activeIndex = rsv2; }
+      if (rsv2 >= 0) { logCombat('👻 Paso Fantasma: Ren a reserva'); side.activeIndex = rsv2; triggerKillerTunesDamage(who); }
       break;
     }
     case 'ecoVital': { side.characters.forEach(function(cs){ if (cs === active || cs.dead) return; healChar(cs, 2); csSetState(cs, 'sintonia', true); }); logCombat('🎵 Aliados +2 HP y en Sintonía'); break; }
@@ -3768,7 +4055,7 @@ function executeAction(who, actionType, preSpentDice) {
       active.pendingBuff = (active.pendingBuff || 0) + 2;
       logCombat('💪 Impulso: +2 al siguiente ataque normal (persiste hasta consumirse)');
       var jr = getNextAliveIndex(side, side.activeIndex);
-      if (jr >= 0) { logCombat('🦋 Jose a reserva'); side.activeIndex = jr; shouldEndTurn = false; }
+      if (jr >= 0) { logCombat('🦋 Jose a reserva'); side.activeIndex = jr; triggerKillerTunesDamage(who); shouldEndTurn = false; }
       break;
     }
     case 'instinto': {
@@ -4005,6 +4292,43 @@ function executeAction(who, actionType, preSpentDice) {
       }
       break;
     }
+    case 'scratch': {
+      var scratchDmg = 1;
+      if (combatState.environment && combatState.environment.id === 'sobrecarga_epileptica') {
+        scratchDmg += 1;
+        logCombat('⚡ Scratch: +1 daño (Sobrecarga Epiléptica)');
+      }
+      var hasMesaScratch = side.structures && side.structures.some(function(s){ return s.kind === 'mesaDJ'; });
+      if (hasMesaScratch) {
+        scratchDmg += 1;
+        logCombat('🎧 Scratch: +1 daño (Mesa de DJ)');
+      }
+      scratchDmg = applyGenericDamageMods(active, scratchDmg);
+      if (active.pendingBuff) pendingBuffConsumed = true;
+      if (actionType === 'normal') { var obScr = getOptimizationBonus(side); if (obScr > 0) { scratchDmg += obScr; logCombat('🏛️ Optimización: +' + obScr); } }
+      applyDamageWithMods(enemyActive, scratchDmg, predictPiercing(active, ability), enemyKey, enemySide.activeIndex, active);
+      break;
+    }
+    case 'remix': {
+      if (!side.structures) side.structures = [];
+      var mesaRemix = side.structures.find(function(s){ return s.kind === 'mesaDJ'; });
+      if (mesaRemix) {
+        if (!enemyActive.dead) {
+          triggerMarkOrResonance(enemyActive, 'ilusion', who, enemyKey, enemySide.activeIndex);
+          logCombat('🎭 Remix: enemigo marcado con Ilusión');
+        }
+      } else {
+        side.structures.push({ kind:'mesaDJ', duration:2 });
+        logCombat('🎧 Remix: Mesa de DJ colocada (2 rondas)');
+      }
+      break;
+    }
+    case 'killerTunes': {
+      setEnvironment('sobrecarga_epileptica', active, who);
+      side.neonUltChangeDamage = true;
+      logCombat('🎵 Killer Tunes: durante el resto de la ronda, los cambios de personaje de tu equipo causan 1 daño al enemigo');
+      break;
+    }
     default: logCombat('⚠️ Habilidad sin implementar: ' + ability.name);
   }
 
@@ -4071,6 +4395,8 @@ function tryChangeCharacter(who, targetIndex) {
   if (side.characters[targetIndex].id === 'jose') csSetState(side.characters[targetIndex], 'acelerado', true);
   var sfx = rules.quick ? ' (acción rápida)' : (rules.discounted ? ' (gratis)' : '');
   logCombat('🔄 ' + (who === 'player' ? (combatState.pvp ? 'J1' : 'Tú') : (combatState.pvp ? 'J2' : 'El rival')) + ': ' + oldN + ' → ' + newN + sfx);
+  // ✅ Killer Tunes: cambio de personaje → 1 daño al enemigo activo
+  if (typeof triggerKillerTunesDamage === 'function') triggerKillerTunesDamage(who);
   playSound('change');
   return rules.quick ? 'quick' : true;
 }
@@ -4127,6 +4453,20 @@ function nextTurn() {
 function declareEnd(who) {
   if (!combatState || combatState.phase === 'ended' || combatState[who + 'Done']) return;
   combatState[who + 'Done'] = true;
+  // ✅ Neón (pasiva): +2 escudo + cambio al siguiente aliado si está activa
+  var sdDecl = combatState[who];
+  var activeDecl = sdDecl.characters[sdDecl.activeIndex];
+  if (activeDecl && !activeDecl.dead && activeDecl.id === 'neon') {
+    addOrRefreshShield(activeDecl, 'neon_passive', 2);
+    var nxDecl = getNextAliveIndex(sdDecl, sdDecl.activeIndex);
+    if (nxDecl >= 0 && nxDecl !== sdDecl.activeIndex) {
+      sdDecl.activeIndex = nxDecl;
+      logCombat('🎆 Neón (pasiva): +2 escudo y cambia a ' + sdDecl.characters[nxDecl].character.name);
+      triggerKillerTunesDamage(who);
+    } else {
+      logCombat('🎆 Neón (pasiva): +2 escudo (no hay más aliados vivos)');
+    }
+  }
   // ✅ Sandbox player-only: declarar fin de ronda termina la ronda directamente
   if (currentGameMode === 'sandbox' && sandboxTurnMode === 'player-only' && who === 'player') {
     combatState.botDone = true;
@@ -4171,6 +4511,26 @@ function endRound() {
     });
   });
   applyStructureEndOfRoundEffects('player'); applyStructureEndOfRoundEffects('bot');
+  // ── Entorno: efecto de fin de ronda ──
+  if (combatState.environment) {
+    var envCur = combatState.environment;
+    if (envCur.id === 'sobrecarga_epileptica') {
+      var ownerEnvSide = combatState[envCur.ownerSide];
+      var nxEnv = getNextAliveIndex(ownerEnvSide, ownerEnvSide.activeIndex);
+      if (nxEnv >= 0 && nxEnv !== ownerEnvSide.activeIndex) {
+        ownerEnvSide.activeIndex = nxEnv;
+        logCombat('⚡ Sobrecarga Epiléptica: ' + ownerEnvSide.characters[nxEnv].character.name + ' pasa a activo');
+        triggerKillerTunesDamage(envCur.ownerSide);
+        if (typeof renderCombat === 'function') renderCombat();   // ✅
+      }
+    }
+    envCur.roundsLeft--;
+    if (envCur.roundsLeft <= 0) {
+      logCombat('🌍 El entorno ' + envCur.name + ' desaparece');
+      combatState.environment = null;
+    }
+    updateEnvironmentVisuals();
+  }
   ['player','bot'].forEach(function(wk){ var sd = combatState[wk]; if (sd.hand) sd.hand = sd.hand.filter(function(cid){ return !PAINT_CARDS[cid]; }); });
   var pdead = processDeathsAtRoundEnd('player'), bdead = processDeathsAtRoundEnd('bot');
   renderCombat();
@@ -4214,6 +4574,8 @@ function endRound() {
       }
     }
   }); });
+  combatState.player.neonUltChangeDamage = false;
+  combatState.bot.neonUltChangeDamage = false;
   combatState.player.rerolled = false; combatState.player.selected = {}; combatState.player.rollingIds = {};
   combatState.player.cardsUsedThisRound = {};
   if (combatState.pvp) {
@@ -4902,6 +5264,21 @@ function previewPlayerAction(actionType) {
     preview.notes.push('💥 +3 daño a elementales del equipo durante 2 rondas (total: +' + (ultNow + 3) + ')');
   }
 
+  if (ability.kind === 'scratch') {
+    if (combatState.environment && combatState.environment.id === 'sobrecarga_epileptica') preview.notes.push('⚡ +1 daño por Sobrecarga Epiléptica');
+    var hasMesaPrev = side.structures && side.structures.some(function(s){ return s.kind === 'mesaDJ'; });
+    if (hasMesaPrev) preview.notes.push('🎧 +1 daño por Mesa de DJ (coste +1 ilusión)');
+  }
+  if (ability.kind === 'remix') {
+    var hasMesaPrev2 = side.structures && side.structures.some(function(s){ return s.kind === 'mesaDJ'; });
+    if (hasMesaPrev2) preview.notes.push('🎭 Mesa de DJ ya activa → marca al enemigo con Ilusión');
+    else preview.notes.push('🎧 Coloca Mesa de DJ (2 rondas)');
+  }
+  if (ability.kind === 'killerTunes') {
+    preview.notes.push('🌍 Establece entorno: Sobrecarga Epiléptica (2 rondas)');
+    preview.notes.push('🎵 Cambios de personaje del equipo → 1 daño al enemigo (resto de ronda)');
+  }
+
   return preview;
 }
 function buildPreviewBodyHTML(preview) {
@@ -5058,7 +5435,11 @@ function playerChangeCharacterRequest(targetIndex) {
   if (isTurnDone()) return;
   var turnKey = getTurnKey();
   var side = combatState[turnKey];
-  if (side.activeIndex === targetIndex) return;
+  if (side.activeIndex === targetIndex) {
+    // ✅ Si el clic cae sobre el que ya es activo, forzar render y salir
+    if (typeof renderCombat === 'function') renderCombat();
+    return;
+  }
   if (side.characters[targetIndex].dead) return;
   var rules = getChangeRulesForTarget(turnKey, targetIndex);
   if (rules.diceCost > 0 && !trySpendDice(side.dice, { any:rules.diceCost }).ok) { playSound('error'); return; }
@@ -5075,6 +5456,8 @@ function playerChangeCharacterRequest(targetIndex) {
     var sfx = rules.quick ? ' (acción rápida)' : (rules.discounted ? ' (gratis)' : '');
     var label = combatState.pvp ? (turnKey === 'player' ? 'J1' : 'J2') : 'Tú';
     logCombat('🔄 ' + label + ': ' + oldN + ' → ' + newN + sfx);
+    // ✅ Killer Tunes: cambio de personaje → 1 daño al enemigo activo
+    if (typeof triggerKillerTunesDamage === 'function') triggerKillerTunesDamage(turnKey);
     playSound('change'); renderCombat();
     if (!rules.quick) setTimeout(nextTurn, 400);
   });
@@ -5220,7 +5603,10 @@ function renderSupports(uiWho) {
       // ✅ Sin duración si es 999 (estructuras permanentes tipo Cruz de Madera/Sangre)
       var durHtml = (st.duration && st.duration < 999) ? '<span class="side-slot-duration">' + st.duration + '</span>' : '';
       // ✅ Emoji según tipo de estructura
-      var stEmoji = st.kind === 'cruzMadera' ? '✝️' : (st.kind === 'cruzSangre' ? '🩸' : '🧠');
+      var stEmoji = st.kind === 'cruzMadera' ? '✝️'
+            : st.kind === 'cruzSangre' ? '🩸'
+            : st.kind === 'mesaDJ' ? '🎧'
+            : '🧠';
       sHtml += '<div class="side-slot-filled" data-struct-slot="' + si + '" style="--dc: 130,220,140;">' + stEmoji + durHtml + '</div>';
     } else sHtml += '<div class="side-slot-empty">+</div>';
   }
@@ -5295,6 +5681,7 @@ function renderCombat() {
   } catch (err) {
     console.error('[renderCombat] ERROR:', err);
   }
+  if (typeof updateEnvironmentVisuals === 'function') updateEnvironmentVisuals();
 }
 
 [{ btnId:'normalBtn', type:'normal' }, { btnId:'elementalBtn', type:'elemental' }, { btnId:'ultimateBtn', type:'ultimate' }].forEach(function(item){ var b = document.getElementById(item.btnId); if (!b) return; b.addEventListener('mouseenter', function(){ showAbilityTooltip(b, item.type); }); b.addEventListener('mouseleave', hideTooltip); });
@@ -5857,7 +6244,19 @@ function sbBindEvents() {
   var boolMap = { sbCardPierce:'cardNextAttackPiercing', sbCardDouble:'cardNextAttackDouble', sbCardFree:'cardNextAbilityFree', sbExActive:'exActive' };
   Object.keys(boolMap).forEach(function(id){
     var el = document.getElementById(id);
-    if (el) el.addEventListener('change', function(){ getCs()[boolMap[id]] = el.checked; refresh(); });
+    if (el) el.addEventListener('change', function(){
+      var cs = getCs();
+      cs[boolMap[id]] = el.checked;
+      // ✅ Neón: la EX cambia su HP máximo entre 6 y 8
+      if (cs.id === 'neon' && id === 'sbExActive') {
+        var targetMax = el.checked ? 8 : 6;
+        var diff = targetMax - cs.maxHp;
+        cs.maxHp = targetMax;
+        if (diff > 0) cs.hp = Math.min(cs.maxHp, cs.hp + diff);
+        else cs.hp = Math.min(cs.hp, cs.maxHp);
+      }
+      refresh();
+    });
   });
 
   // ── Equipamiento ──
