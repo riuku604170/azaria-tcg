@@ -6,38 +6,18 @@ var pendingPvpMode = false;
 var pvpSetupPhase = null;
 var pvpP2Team = null;
 var pvpP2Deck = null;
+var pendingCombatTeam = null;
+var pendingCombatDeck = null;
+var pendingCombatP2Team = null;
+var pendingCombatP2Deck = null;
 
-// ── Sistema EX (toggle global) ──
-var exSystemEnabled = false;
-try {
-  var _storedEx = localStorage.getItem('azaria_ex_enabled');
-  if (_storedEx === 'true') exSystemEnabled = true;
-} catch (e) {}
-function saveExSystemEnabled() {
-  try { localStorage.setItem('azaria_ex_enabled', exSystemEnabled ? 'true' : 'false'); } catch (e) {}
-}
-function refreshExToggleBtn() {
-  var btn = document.getElementById('exToggleBtn');
-  if (!btn) return;
-  btn.setAttribute('aria-pressed', exSystemEnabled ? 'true' : 'false');
-  btn.title = exSystemEnabled ? 'Sistema EX ACTIVADO — clic para desactivar' : 'Sistema EX DESACTIVADO — clic para activar';
-}
-function initExToggle() {
-  var btn = document.getElementById('exToggleBtn');
-  if (!btn) return;
-  refreshExToggleBtn();
-  btn.addEventListener('click', function() {
-    exSystemEnabled = !exSystemEnabled;
-    saveExSystemEnabled();
-    refreshExToggleBtn();
-    // ✅ El toggle del menú SOLO afecta a partidas NUEVAS.
-    // Una partida en curso conserva su estado EX congelado (combatState.exEnabled),
-    // y por tanto su exActive. No tocamos los personajes de un combate abierto.
-    if (typeof combatState !== 'undefined' && combatState) {
-      try { renderCombat(); } catch (e) {}
-    }
-  });
-}
+// ── Sistema EX por personaje ──
+var pendingExChoice = null;
+var combatStartConfirmForP2 = false;
+var exCombatEnabled = false;      // ¿Esta partida usa EX?
+var pendingExChoice = null;       // personaje con EX elegido por el J1 (o no-PvP)
+var pendingExChoiceP2 = null;     // personaje con EX elegido por el J2 (PvP)
+var combatStartConfirmForP2 = false; // ya lo tenías del arreglo anterior
 
 /* ═══ MODO DE JUEGO (NORMAL / AUTO / SANDBOX) ═══ */
 var GAME_MODES = ['normal', 'auto', 'sandbox'];
@@ -71,21 +51,136 @@ function initGameMode() {
 
 /* ═══ SISTEMA DE PARCHES ═══ */
 var PATCHES = [
-  {
-    version: 'v46',
-    date: '2026-11-1',
-    type: 'minor',
-    title: 'Sistema de parches y arreglos varios',
-    changes: [
-      'Nuevo apartado "Parches" en el menú de navegación.',
-      'Infraestructura del sistema EX preparada (toggle en el menú, botón en combate y hooks no-op).',
-      'Añadido Orath al roster con sus habilidades y estructuras Cruz de Madera / Cruz de Sangre.',
-      'La duración de las estructuras permanentes (999) ya no se muestra en el tablero.',
-      'Las estructuras Cruz de Madera y Cruz de Sangre usan emoji propio (✝️ / 🩸) en vez del genérico 🧠.',
-      'Corregido error de sintaxis en COMBAT_CHARS que impedía la carga del script.',
-      'Corregido showStructureTooltip para que muestre correctamente Cruz de Madera y Cruz de Sangre.'
-    ]
-  }
+{
+  version: 'v49',
+  date: '2026-11-02',
+  type: 'mayor',
+  title: 'Me pican los cocos otra vez gente',
+  changes: [
+    'Erik quédate quieto.',
+    'Tú  también.',
+    'Tú  también.',
+    'Tú  también.',
+    'Tú  también.',
+    'Tú  también.',
+    'Tú  también.',
+    'Tú  también.',
+    'Tú  también.',
+    'Tú  también.',
+    'Tú  también.',
+    'Tú  también.',
+    'Tú  también.',
+    'Tú  también.',
+    'Tú  también.',
+    'Tú  también.',
+    'Tú  también.',
+    'Tú  también.',
+    'Tú  también.',
+    'Tú  también.',
+    '¡OOOOH, ME VENGOOOO!'
+  ]
+},
+{
+  version: 'v48',
+  date: '2026-11-02',
+  type: 'minor',
+  title: 'Me pican los cocos gente',
+  changes: [
+    '¡Oh, mi lefa!',
+    'Así me gusta, Oliverín...'
+  ]
+},
+{
+  version: 'v47',
+  date: '2026-11-02',
+  type: 'major',
+  title: 'Sistema EX por personaje, Adela/Hunger, Alter, Internet y rework del flujo de inicio',
+  changes: [
+    // ── Sistema EX ──
+    'Eliminado el toggle global de EX del menú. Ahora la EX se elige por personaje en el diálogo de inicio de combate.',
+    'Añadido un toggle EX en la esquina superior derecha del diálogo de inicio que activa o desactiva el uso de EX en esa partida.',
+    'Con el toggle EX activado, aparecen botones EX sobre cada carta de personaje con EX disponible y es obligatorio elegir uno antes de empezar.',
+    'Con el toggle EX desactivado, los botones EX desaparecen y ningún personaje puede tener su EX activa en esa partida.',
+    'Desactivar el toggle EX limpia automáticamente cualquier EX que el jugador hubiera elegido.',
+    'Añadido un botón EX sobre cada carta de personaje en el diálogo de inicio. Solo 1 personaje por equipo puede tener su EX activa.',
+    'En PvP local, el Jugador 1 decide si la partida usa EX. El toggle del Jugador 2 queda fijo en el valor elegido por el Jugador 1 y no es interactivo.',
+    'En PvP local con EX activadas, el Jugador 2 también está obligado a elegir un personaje con EX antes de empezar.',
+    'Si el toggle EX está desactivado, el bot no tiene ningún personaje con EX. Si está activado, el bot elige una EX al azar entre sus personajes disponibles.',
+    'La ranura de guardado muestra el nombre del personaje con EX activa (o "EX OFF" si no hay ninguna).',
+    'El estado EX queda congelado al empezar la partida y se restaura al reanudar, ignorando cambios posteriores en el menú.',
+    'Implementada la EX de Artemis: su definitiva cuesta 2 dados de aceptación más y hace +2 de daño base.',
+    'Implementada la EX de Hunger: el "Café solo" le cuesta 0 y le hace 2 de daño al usarlo.',
+    'Implementada la EX de Adela: empieza con 2 "Café solo" en la mano (si están en el mazo) y roba 3 cartas menos en su mano inicial.',
+    'Implementada la EX de Internet: si su vida es ≤ 2, sus habilidades cuestan 1 dado menos y duplican su daño.',
+    'La EX de Orath (Cruz de Sangre) ahora se activa correctamente al elegirla en el diálogo de inicio.',
+
+    // ── Adela / Hunger ──
+    'Añadida Adela (Transformación, 10 HP) con su set completo: Gracia Pícara, Flechazo Tentador, Mis Modales en el Suelo y Alma Pícara.',
+    'Añadido Hunger Incarnate como transformación de Adela: si Adela es revivida estando marcada, se transforma en Hunger.',
+    'El ataque normal de Adela se considera daño de habilidad elemental a efectos de bonos (Alter), sin dejar de ser un ataque normal para el resto de reglas.',
+    'La habilidad elemental de Adela marca al enemigo con Transformación siempre que sobreviva, se cumpla o no la condición del daño penetrante.',
+    'Añadido el botón en el modal de Adela para alternar la vista entre Adela y Hunger Incarnate.',
+    'La definitiva de Adela permite marcarse a sí misma y fijar su vida a 5, o hacer 4 de daño si ya está marcada con Transformación, o suicidarse si está marcada con otro elemento.',
+    'Hunger Incarnate: inmune al límite de resurrecciones, se cura al máximo al revivir y pierde 2 HP al final de la ronda si sigue marcada.',
+    'Cambiar a Hunger hace 1 de daño al aliado saliente y cura 1 a Hunger.',
+
+    // ── Alter ──
+    'Añadido Alter (Ilusión, 12 HP) con su set completo: Amenaza a la Ontología, Conversión Psicológica, Omnes Deam Salutate y Dualismo Ontológico.',
+    'La invulnerabilidad de Alter no se consume al absorber daño: solo reduce, y pierde 1 punto al final de cada ronda (máx 3).',
+    'La habilidad elemental de Alter roba la energía de los aliados, la suma a la suya hasta su máximo y convierte el sobrante en dados de ilusión.',
+    'La definitiva de Alter dura 2 rondas (antes 1) y se muestra con un badge en los aliados potenciados y en el propio Alter.',
+    'El bono de Alter a las elementales del equipo se aplica correctamente a la elemental de Abla, la de Ren y la de Manuel.',
+    'El preview de daño refleja el bono de Alter en todas las elementales afectadas.',
+
+    // ── Internet (BTC) ──
+    'Añadida la categoría "BTC" a los filtros de la colección.',
+    'Añadido Internet (Protección, BTC, 5 HP) con su set completo: Orden, Daga de Ola, Fase de Limpieza y Orgullo de la Creadora.',
+    'Internet gana 1 de energía automáticamente la primera vez que baja a 2 HP o menos.',
+
+    // ── Cartas ──
+    'Añadida la carta "Café solo" (Energía, coste 3 dados del mismo tipo, otorga 2 de energía al activo).',
+    'Añadida la carta "Resurrección" (Curación, coste 3 dados del mismo tipo, revive a un aliado caído con 2 HP y 1 escudo; una vez por partida).',
+    'La carta "Resurrección" respeta la restricción de Artemis de no poder ser resucitada.',
+
+    // ── Consonancias y Resonancias ──
+    'La consonancia de Ilusión ahora se aplica correctamente en la tirada inicial del jugador (se elige personaje antes de tirar).',
+    'Reordenado el setup: primero se elige el personaje inicial, luego se tiran los dados, luego se roba.',
+
+    // ── Flujo de inicio y guardado ──
+    'Al pulsar "Combate", primero se muestran las partidas guardadas. Solo si se elige "Nuevo Combate" se pide la plantilla.',
+    'Elegir una plantilla en el diálogo de inicio de combate ya no modifica el equipo ni el mazo del menú. La plantilla elegida solo se usa para esa partida.',
+    'Añadido botón de modo de juego (NORMAL / AUTO / SANDBOX) en el diálogo de inicio. Solo NORMAL permite empezar por ahora.',
+    'El botón de modo se encuentra en la esquina superior izquierda del diálogo de inicio, y el de EX en la esquina superior derecha.',
+    'Hunger Incarnate ya no puede ser elegido como personaje inicial por el bot ni por el auto-equipo.',
+    'Corregido el flujo de inicio que impedía abrir el combate al elegir plantilla (referencia errónea en la selección de plantilla y en la vista previa).',
+    'Corregido el flujo del diálogo del Jugador 2 en PvP local que rompía el botón "Empezar Combate" en partidas posteriores.',
+
+    // ── Combate: bloqueo y turnos ──
+    'Bloqueadas todas las acciones del jugador durante el turno del rival: botones de acción, cambio de personaje, cartas y fin de ronda.',
+    'El botón de fin de ronda solo se puede pulsar en tu propio turno.',
+    'Las cartas de la mano se muestran deshabilitadas cuando no es tu turno.',
+    'La fase de lanzamiento muestra los dados y espera a que el jugador pulse "Continuar" antes de avanzar (no se puede saltar la animación).',
+
+    // ── Autoselección de dados ──
+    'Corregida la autoselección de dados al descartar una carta: nunca selecciona un omnidado, y prioriza dados de tipos que no tienes en el equipo.',
+
+    // ── Correcciones varias ──
+    'Corregido error de sintaxis en COMBAT_CHARS que impedía la carga del script.',
+    'Corregido showStructureTooltip para que muestre correctamente Cruz de Madera y Cruz de Sangre.',
+    'La duración de las estructuras permanentes (999) ya no se muestra en el tablero.',
+    'Las estructuras Cruz de Madera y Cruz de Sangre usan emoji propio (✝️ / 🩸) en vez del genérico 🧠.',
+    'La definitiva de Orath ya no destruye las Cruces de Madera en silencio: cada cruz inflige su daño al enemigo activo antes de contabilizar el daño en reserva.',
+    'Abla: la curación de su habilidad elemental tiene tope de 3 HP por la habilidad misma, con los bonos de curación aplicados después del tope.',
+    'Corregido el cálculo de daño de la definitiva de Alter y su visualización en el preview.',
+    'Corregido el bug por el que las partidas a veces empezaban contra Hunger Incarnate.',
+    'Añadidas las predicciones de daño que faltaban en el preview de combate para las habilidades de Adela, Hunger e Internet (Gracia Pícara, Flechazo Tentador, Mis Modales en el Suelo, Muere, MUERE, Mi cordura, Daga de Ola y Fase de Limpieza).',
+    'Corregido el botón EX del diálogo de inicio para que responda siempre al clic mediante delegación de eventos.',
+
+    // ── Interfaz ──
+    'Añadido el apartado "Parches" en el menú de navegación, con historial de cambios.',
+    'El badge EX de las ranuras de guardado muestra el nombre del personaje con EX activa en lugar de ON/OFF.'
+  ]
+}
   // Añade aquí nuevos parches al principio del array (el más reciente primero).
   // Estructura: { version, date, type, title, changes: [] }
   // type: 'major' | 'minor' | 'fix' | 'balance'  (solo afecta al color del borde)
@@ -97,7 +192,32 @@ var PATCH_TYPE_LABEL = {
   fix: 'Fix',
   balance: 'Balance'
 };
+/* ═══ INDICADOR DE PARCHE NUEVO ═══ */
+var PATCHES_SEEN_KEY = 'azaria_patches_seen_version';
 
+function getLatestPatchVersion() {
+  if (!Array.isArray(PATCHES) || !PATCHES.length) return null;
+  return PATCHES[0].version || null;
+}
+function getSeenPatchVersion() {
+  try { return localStorage.getItem(PATCHES_SEEN_KEY); } catch (e) { return null; }
+}
+function setSeenPatchVersion(v) {
+  try { localStorage.setItem(PATCHES_SEEN_KEY, v); } catch (e) {}
+}
+function refreshPatchesBadge() {
+  var badge = document.getElementById('patchesNewBadge');
+  if (!badge) return;
+  var latest = getLatestPatchVersion();
+  var seen = getSeenPatchVersion();
+  if (!latest) { badge.hidden = true; return; }
+  badge.hidden = (latest === seen);
+}
+function markPatchesAsSeen() {
+  var latest = getLatestPatchVersion();
+  if (latest) setSeenPatchVersion(latest);
+  refreshPatchesBadge();
+}
 function renderPatches() {
   var body = document.getElementById('patchesBody');
   if (!body) return;
@@ -142,6 +262,8 @@ function initPatches() {
     link.addEventListener('click', function(e) {
       e.preventDefault();
       openPatchesModal();
+      // ✅ Al abrir el modal, el usuario ya ha "visto" la última versión
+      markPatchesAsSeen();
     });
   }
   var m = document.getElementById('patchesModal');
@@ -157,6 +279,8 @@ function initPatches() {
       if (modal && modal.classList.contains('open')) closePatchesModal();
     }
   });
+  // ✅ Refrescar el badge al cargar la página
+  refreshPatchesBadge();
 }
 
 /* ═══ CONSTANTES ═══ */
@@ -406,6 +530,7 @@ var CARD_DB = {
   c_claridad:{ id:'c_claridad', name:'Momento de Claridad', tag:'Potente', emoji:'☀️', color:'255,215,100', cost:{any:3}, effectText:'Tu próximo ataque hace +3 de daño e ignora escudos. Una vez por ronda.', effectType:'nextAttackCritical', value:3, oncePerRound:true },
   c_bendicion_destino:{ id:'c_bendicion_destino', name:'Bendición del Destino', tag:'Potente', emoji:'🔮', color:'255,215,100', cost:{same:2}, effectText:'Añade 1 dado de cada tipo de tu equipo (máx. 3). Una vez por ronda.', effectType:'drawTeamDice', oncePerRound:true },
   c_cafe_solo:{ id:'c_cafe_solo', name:'Café solo', tag:'Energía', emoji:'☕', color:'240,200,96', cost:{same:3}, effectText:'Otorga 2 puntos de energía al aliado activo.', effectType:'energy', value:2 },
+  c_resurreccion:{ id:'c_resurreccion', name:'Resurrección', tag:'Curación', emoji:'✝️', color:'78,194,107', cost:{same:3}, effectText:'Revive a un aliado caído con 2 HP y 1 de escudo. Una vez por partida.', effectType:'revive', value:2, oncePerGame:true },
 };
 
 var EQUIPMENT_CARDS = {
@@ -817,7 +942,7 @@ function handleDeath(who, index) {
   //   - El sistema EX global está ON.
   //   - Orath existe en ese equipo.
   //   - Orath activó su EX (exActive === true) ANTES de morir.
-  var cruzSangreAllowed = !!(exSystemEnabled && orathCs && orathCs.exActive);
+  var cruzSangreAllowed = !!(orathCs && orathCs.exActive);
 
   // 1) Si muere Orath → generar Cruz de Sangre (solo si su EX estaba activa)
   if (t.id === 'orath') {
@@ -1036,28 +1161,28 @@ function transformAdelaToHunger(cs){
  */
 
 function exHookModifyIncomingDamage(targetCs, damage, attackerCs) {
-  if (!exSystemEnabled || !targetCs || !targetCs.exActive) return damage;
+  if (!targetCs || !targetCs.exActive) return damage;
   // Ejemplo futuro (Alaya EX): if (targetCs.id === 'alaya') { ... }
   return damage;
 }
 
 function exHookModifyHealing(targetCs, amount) {
-  if (!exSystemEnabled || !targetCs || !targetCs.exActive) return amount;
+  if (!targetCs || !targetCs.exActive) return amount;
   return amount;
 }
 
 function exHookPreventDeath(cs, sideKey, idx) {
-  if (!exSystemEnabled || !cs || !cs.exActive) return false;
+  if (!cs || !cs.exActive) return false;
   return false;
 }
 
 function exHookRoundStart(cs, sideKey) {
-  if (!exSystemEnabled || !cs || !cs.exActive) return;
+  if (!cs || !cs.exActive) return;
   // switch (cs.id) { case 'alaya': ... }
 }
 
 function exHookModifyOutgoingDamage(attackerCs, damage, targetCs) {
-  if (!exSystemEnabled || !attackerCs || !attackerCs.exActive) return damage;
+  if (!attackerCs || !attackerCs.exActive) return damage;
   return damage;
 }
 function getConsonanceForIds(ids) {
@@ -1070,23 +1195,25 @@ function getConsonanceForIds(ids) {
   return { type:'diverse', level:3 };
 }
 function getPlayerTeamIds() {
-  if (Array.isArray(team) && team.length === 3) {
-    var valid = team.filter(function(id){ return COMBAT_CHARS[id]; });
+  var source = (pendingCombatTeam && pendingCombatTeam.length === 3) ? pendingCombatTeam : team;
+  if (Array.isArray(source) && source.length === 3) {
+    var valid = source.filter(function(id){ return COMBAT_CHARS[id] && id !== 'hunger'; });
     if (valid.length === 3) return valid.slice();
   }
   return null;
 }
 function getRandomBotTeam() {
-  var pool = Object.keys(COMBAT_CHARS);
+  // ✅ Excluir a Hunger (solo aparece por transformación de Adela)
+  var pool = Object.keys(COMBAT_CHARS).filter(function(id){ return id !== 'hunger'; });
   for (var i = pool.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = pool[i]; pool[i] = pool[j]; pool[j] = t; }
   return pool.slice(0, 3);
 }
 function getMaxEnergyFor(char){ if (char.abilities.ultimate && char.abilities.ultimate.energyCost) return char.abilities.ultimate.energyCost; return 3; }
-function buildSideState(ids) {
+function buildSideState(ids, exCharId) {
   return {
     characters: ids.map(function(id) {
       var ch = COMBAT_CHARS[id];
-      return { id:id, character:ch, hp:ch.hp, maxHp:ch.hp, energy:0, maxEnergy:getMaxEnergyFor(ch), shields:[], pendingBuff:0, dead:false, equipment:[], paintEquipped:null, states:{ internetEnergyGranted:false }, marks:{}, cardNextAttackBonus:0, cardNextAttackPiercing:false, cardNextAttackDouble:false, cardNextAbilityDiscount:0, cardNextAbilityFree:false, cardMarkBonus:0, manuelStacks:0, exActive: false, noResurrectLimit: (id === 'hunger') };
+      return { id:id, character:ch, hp:ch.hp, maxHp:ch.hp, energy:0, maxEnergy:getMaxEnergyFor(ch), shields:[], pendingBuff:0, dead:false, equipment:[], paintEquipped:null, states:{ internetEnergyGranted:false }, marks:{}, cardNextAttackBonus:0, cardNextAttackPiercing:false, cardNextAttackDouble:false, cardNextAbilityDiscount:0, cardNextAbilityFree:false, cardMarkBonus:0, manuelStacks:0, exActive: (id === exCharId), noResurrectLimit: (id === 'hunger') };
     }),
     activeIndex:0, dice:[], rerolled:false, selected:{}, isRollingAnim:false, rollingIds:{},
     consonance:null, firstChangeUsed:false, firstAttackUsed:false,
@@ -1099,6 +1226,7 @@ function buildSideState(ids) {
     cruzSangreActive: false,     // Cruz de Sangre de Orath viva
     lastDeadAlly: null,          // último aliado caído (para resurrección de Cruz de Sangre)
     alterUltBuff: { amount: 0, roundsLeft: 0 }, // ✅ Alter: bono a elementales del equipo (amount, rondas restantes)
+    exCharId: exCharId || null,
   };
 }
 function preloadCombatImages(){ Object.keys(COMBAT_CHARS).forEach(function(id){ var img = new Image(); img.src = 'img/' + id + '.png'; }); }
@@ -1401,6 +1529,7 @@ try { var stored = localStorage.getItem('azaria_team'); if (stored) { var parsed
 function saveTeam(){ try { localStorage.setItem('azaria_team', JSON.stringify(team)); } catch (err) {} }
 function toggleTeam(id) {
   if (!CHARACTERS[id]) return;
+  if (id === 'hunger') return; // ✅ Hunger solo aparece por transformación
   initAudio();
   var idx = team.indexOf(id);
   if (idx >= 0) { team.splice(idx, 1); playSound('deselect'); }
@@ -1409,7 +1538,7 @@ function toggleTeam(id) {
 }
 function autoBuildTeam(){
   initAudio();
-  var pool = shuffleArray(Object.keys(CHARACTERS).slice());
+  var pool = shuffleArray(Object.keys(CHARACTERS).filter(function(id){ return id !== 'hunger'; }));
   team = pool.slice(0, 3);
   saveTeam(); renderTeamPanel(); playSound('confirm');
 }
@@ -1558,7 +1687,7 @@ function renderTemplateSlots() {
   for (var i = 0; i < TEMPLATE_SLOT_COUNT; i++) {
     var t = getTemplate(i);
     if (t) {
-      var validTeam = t.team.filter(function(id){ return CHARACTERS[id]; });
+      var validTeam = t.template.team.filter(function(id){ return CHARACTERS[id] && id !== 'hunger'; }).slice(0, 3);
       var tp = validTeam.map(function(id){ var ch = CHARACTERS[id]; return '<span class="template-char" style="--el: ' + ELEMENT_COLORS[ch.element] + ';" title="' + ch.name + '">' + ch.emoji + '</span>'; }).join('');
       if (!validTeam.length) tp = '<span style="color: var(--muted); font-size: 0.8rem;">Equipo vacío</span>';
       var tname = t.name || ('Ranura ' + (i + 1));
@@ -1622,7 +1751,7 @@ function showCardInfo(cardId) {
   ov.addEventListener('click', function(e){ if (e.target === ov) ov.classList.remove('show'); });
 }
 function showTemplatePreview(template, slot, onConfirm) {
-  var validTeam = template.team.filter(function(id){ return CHARACTERS[id]; }).slice(0, 3);
+  var validTeam = template.team.filter(function(id){ return CHARACTERS[id] && id !== 'hunger'; }).slice(0, 3);
   var validDeck = template.deck.filter(function(id){ return CARD_DB[id]; });
   var ov = document.getElementById('templatePreviewDialog');
   if (!ov) {
@@ -1739,7 +1868,7 @@ function showTemplatePickerForCombat(playerLabel, onSelect) {
   } else {
     html += '<div class="template-picker-grid">';
     templates.forEach(function(t) {
-      var validTeam = t.template.team.filter(function(id){ return CHARACTERS[id]; }).slice(0, 3);
+      var validTeam = t.template.team.filter(function(id){ return CHARACTERS[id] && id !== 'hunger'; }).slice(0, 3);
       var teamHtml = validTeam.map(function(id){
         var ch = CHARACTERS[id];
         return '<div class="template-picker-char" style="--el: ' + ELEMENT_COLORS[ch.element] + ';">' +
@@ -2032,18 +2161,97 @@ function drawFromDeck(who) {
   if (side.deck.length === 0) { if (side.discardPile.length > 0) { side.deck = shuffleArray(side.discardPile.slice()); side.discardPile = []; logCombat('♻️ Descarte barajado (' + side.deck.length + ')'); } else return null; }
   var cid = side.deck.shift(); side.hand.push(cid); return cid;
 }
+function renderCombatStartTeamPreview(who) {
+  // who: 'player' (J1 / no-PvP) o 'p2' (J2 en PvP)
+  var prev = document.getElementById('combatStartTeamPreview'); if (!prev) return;
+  var teamIds, chosen;
+  if (who === 'p2') {
+    teamIds = (pvpP2Team && pvpP2Team.length === 3) ? pvpP2Team : getRandomBotTeam();
+    chosen = pendingExChoiceP2;
+  } else {
+    teamIds = (pendingCombatTeam && pendingCombatTeam.length === 3) ? pendingCombatTeam : team;
+    chosen = pendingExChoice;
+  }
+  prev.innerHTML = teamIds.map(function(id){
+    var c = CHARACTERS[id]; if (!c) return '';
+    var col = ELEMENT_COLORS[c.element];
+    var hasEx = !!(COMBAT_CHARS[id] && COMBAT_CHARS[id].abilities && COMBAT_CHARS[id].abilities.ex);
+    var showExBtn = exCombatEnabled && hasEx;
+    var isOn = (chosen === id);
+    var exBtnHtml = showExBtn
+      ? '<button class="start-preview-ex-btn' + (isOn ? ' selected' : '') + '" data-ex-char="' + id + '" title="Activar EX de ' + c.name + '">🌟</button>'
+      : '';
+    return '<div class="start-preview-card' + (isOn ? ' ex-on' : '') + '" data-char="' + id + '" style="--el: ' + col + ';">' + exBtnHtml + '<div class="start-preview-img" data-fallback="' + c.emoji + '"><img src="' + c.img + '" alt="' + c.name + '" onerror="this.style.display=\'none\';" style="width:100%;height:100%;object-fit:cover;border-radius:8px;"></div><div class="start-preview-name">' + c.name + '</div><div class="start-preview-element">' + ELEMENT_EMOJI[c.element] + ' ' + ELEMENT_NAMES[c.element] + '</div></div>';
+  }).join('');
+  if (exCombatEnabled) {
+    prev.querySelectorAll('.start-preview-ex-btn').forEach(function(btn){
+      btn.addEventListener('click', function(e){
+        e.stopPropagation();
+        var cid = btn.dataset.exChar;
+        if (who === 'p2') {
+          pendingExChoiceP2 = (pendingExChoiceP2 === cid) ? null : cid;
+          renderCombatStartTeamPreview('p2');
+        } else {
+          pendingExChoice = (pendingExChoice === cid) ? null : cid;
+          renderCombatStartTeamPreview('player');
+        }
+        updateCombatStartConfirmState();
+      });
+    });
+  }
+}
 
+function refreshExToggleBtnForConfirm() {
+  var btn = document.getElementById('exToggleBtn'); if (!btn) return;
+  btn.setAttribute('aria-pressed', exCombatEnabled ? 'true' : 'false');
+  btn.disabled = combatStartConfirmForP2;
+  if (combatStartConfirmForP2) {
+    btn.title = exCombatEnabled ? 'El Jugador 1 activó las EX en esta partida' : 'El Jugador 1 desactivó las EX en esta partida';
+  } else {
+    btn.title = exCombatEnabled ? 'EX ACTIVADAS — clic para desactivar' : 'EX DESACTIVADAS — clic para activar';
+  }
+}
+
+// ✅ Enganchar el listener UNA VEZ al cargar (no en cada apertura del confirm)
+document.addEventListener('click', function(e){
+  var btn = e.target.closest('#exToggleBtn');
+  if (!btn) return;
+  if (combatStartConfirmForP2) return;
+  e.preventDefault();
+  exCombatEnabled = !exCombatEnabled;
+  if (!exCombatEnabled) pendingExChoice = null;
+  renderCombatStartTeamPreview('player');
+  refreshExToggleBtnForConfirm();
+  updateCombatStartConfirmState();
+  playSound('select');
+});
 function showCombatStartConfirm(slotNum) {
   initAudio();
   var ov = document.getElementById('combatStartConfirm'), prev = document.getElementById('combatStartTeamPreview'); if (!ov || !prev) return;
-  prev.innerHTML = team.map(function(id){ var c = CHARACTERS[id]; if (!c) return ''; var col = ELEMENT_COLORS[c.element]; return '<div class="start-preview-card" style="--el: ' + col + ';"><div class="start-preview-img" data-fallback="' + c.emoji + '"><img src="' + c.img + '" alt="' + c.name + '" onerror="this.style.display=\'none\';" style="width:100%;height:100%;object-fit:cover;border-radius:8px;"></div><div class="start-preview-name">' + c.name + '</div><div class="start-preview-element">' + ELEMENT_EMOJI[c.element] + ' ' + ELEMENT_NAMES[c.element] + '</div></div>'; }).join('');
+  combatStartConfirmForP2 = false;
+  exCombatEnabled = false;
+  pendingExChoice = null;
+  renderCombatStartTeamPreview('player');
+  refreshExToggleBtnForConfirm();
   var sub = document.getElementById('combatStartConfirmSub');
   if (sub) {
     var modeTxt = pendingPvpMode ? 'PvP Local' : 'vs Rival';
     sub.textContent = 'Ranura ' + (slotNum + 1) + ' · ' + modeTxt + ' · Tu equipo y mazo están listos';
   }
   ov.classList.add('show'); playSound('banner');
-  // ✅ Refrescar aviso de modo de juego
+  updateCombatStartConfirmState();
+  refreshGameModeBtn();
+}
+function showCombatStartConfirmForP2(slotNum) {
+  initAudio();
+  var ov = document.getElementById('combatStartConfirm'), prev = document.getElementById('combatStartTeamPreview'); if (!ov || !prev) return;
+  combatStartConfirmForP2 = true;
+  pendingExChoiceP2 = null;
+  renderCombatStartTeamPreview('p2');
+  refreshExToggleBtnForConfirm();
+  var sub = document.getElementById('combatStartConfirmSub');
+  if (sub) sub.textContent = 'Ranura ' + (slotNum + 1) + ' · PvP Local · Jugador 2';
+  ov.classList.add('show'); playSound('banner');
   updateCombatStartConfirmState();
   refreshGameModeBtn();
 }
@@ -2052,15 +2260,32 @@ function updateCombatStartConfirmState() {
   if (!content) return;
   var oldWarn = content.querySelector('.game-mode-warning');
   if (oldWarn) oldWarn.remove();
+  var oldExWarn = content.querySelector('.ex-selection-warning');
+  if (oldExWarn) oldExWarn.remove();
   var confirmBtn = document.getElementById('combatStartConfirmBtn');
-  if (currentGameMode === 'normal') {
-    if (confirmBtn) confirmBtn.disabled = false;
-  } else {
-    if (confirmBtn) confirmBtn.disabled = false; // sigue pulsable, pero mostrará aviso al pulsar
+  var modeOk = (currentGameMode === 'normal');
+  var exOk = true;
+  if (exCombatEnabled) {
+    if (combatStartConfirmForP2) {
+      exOk = !!pendingExChoiceP2;
+    } else {
+      exOk = !!pendingExChoice;
+    }
+  }
+  if (confirmBtn) confirmBtn.disabled = !(modeOk && exOk);
+
+  if (!modeOk) {
     var warn = document.createElement('div');
     warn.className = 'game-mode-warning';
     warn.textContent = '⚠️ El modo "' + GAME_MODE_LABELS[currentGameMode] + '" no está disponible todavía. Cambia a NORMAL para empezar.';
     content.appendChild(warn);
+  }
+  if (exCombatEnabled && !exOk) {
+    var exWarn = document.createElement('div');
+    exWarn.className = 'ex-selection-warning';
+    exWarn.style.cssText = 'padding: 0.5rem 0.7rem; border-radius: 8px; background: rgba(240,200,96,0.15); border: 1px solid rgba(240,200,96,0.5); color: var(--accent); font-size: 0.78rem; font-weight: 700; text-align: center; margin-top: 0.6rem; line-height: 1.4;';
+    exWarn.textContent = '🌟 Elige un personaje con EX activa para empezar (o desactiva las EX).';
+    content.appendChild(exWarn);
   }
 }
 function hideCombatStartConfirm(){ var ov = document.getElementById('combatStartConfirm'); if (ov) ov.classList.remove('show'); }
@@ -2077,8 +2302,15 @@ function renderSlotSelectionDialog() {
       var hl = sv.player.hand ? sv.player.hand.length : 0;
       var modeIcon = sv.pvp ? '👥 ' : '⚔️ ';
       // ✅ Badge EX: refleja el estado congelado al empezar la partida
-      var svEx = (typeof sv.exEnabled === 'boolean') ? sv.exEnabled : false;
-      var exBadge = '<span class="slot-ex-badge ' + (svEx ? 'on' : 'off') + '" title="' + (svEx ? 'Partida con EX activas' : 'Partida sin EX') + '">' + (svEx ? '🌟 EX ON' : '🚫 EX OFF') + '</span>';
+      // ✅ Determinar qué personaje tiene EX activa en la partida guardada
+      // ✅ Determinar qué personaje tiene EX activa en la partida guardada
+      var svExName = null;
+      if (sv.exCharId && sv.exCharId.player) {
+        var exCs = sv.player.characters.find(function(c){ return c.id === sv.exCharId.player; });
+        if (exCs) svExName = exCs.character.name;
+      }
+      var svEx = !!svExName;
+      var exBadge = '<span class="slot-ex-badge ' + (svEx ? 'on' : 'off') + '" title="' + (svEx ? 'EX activa: ' + svExName : 'Partida sin EX') + '">' + (svEx ? '🌟 EX: ' + svExName : '🚫 EX OFF') + '</span>';
       html += '<div class="slot-item">' + exBadge + '<div class="slot-item-header"><span class="slot-item-title">Ranura ' + (i + 1) + '</span><span class="slot-item-round">' + modeIcon + 'Ronda ' + sv.round + ' · ' + (sv.turn === 'player' ? (sv.pvp ? 'J1' : 'Tu turno') : (sv.pvp ? 'J2' : 'Rival')) + '</span></div><div class="slot-item-preview">' + chh + '</div><div class="slot-hp-text">❤️ ' + hp + ' · 🎴 ' + hl + ' cartas en mano</div><div class="slot-item-actions"><button class="slot-action slot-resume" data-slot="' + i + '">▶️ Reanudar</button><button class="slot-action slot-delete" data-slot="' + i + '">🗑️ Borrar</button></div></div>';
     } else html += '<div class="slot-item empty"><div class="slot-item-header"><span class="slot-item-title">Ranura ' + (i + 1) + '</span></div><div class="slot-empty-text">— Vacía —</div></div>';
   }
@@ -2096,8 +2328,13 @@ function renderOverwriteDialog() {
         if (sv) {
       var ch = sv.player.characters.map(function(c){ return c.character.emoji; }).join(' ');
       var modeIcon = sv.pvp ? '👥 ' : '⚔️ ';
-      var svEx2 = (typeof sv.exEnabled === 'boolean') ? sv.exEnabled : false;
-      var exBadge2 = '<span class="slot-ex-badge ' + (svEx2 ? 'on' : 'off') + '">' + (svEx2 ? '🌟 EX ON' : '🚫 EX OFF') + '</span>';
+      var svExName2 = null;
+      if (sv.exCharId && sv.exCharId.player) {
+        var exCs2 = sv.player.characters.find(function(c){ return c.id === sv.exCharId.player; });
+        if (exCs2) svExName2 = exCs2.character.name;
+      }
+      var svEx2 = !!svExName2;
+      var exBadge2 = '<span class="slot-ex-badge ' + (svEx2 ? 'on' : 'off') + '" title="' + (svEx2 ? 'EX activa: ' + svExName2 : 'Partida sin EX') + '">' + (svEx2 ? '🌟 EX: ' + svExName2 : '🚫 EX OFF') + '</span>';
       html += '<div class="slot-item">' + exBadge2 + '<div class="slot-item-header"><span class="slot-item-title">Ranura ' + (i + 1) + '</span><span class="slot-item-round">' + modeIcon + 'Ronda ' + sv.round + '</span></div><div class="slot-item-preview" style="font-size:1.4rem;">' + ch + '</div><div class="slot-item-actions"><button class="slot-action slot-overwrite" data-slot="' + i + '">⚠️ Sobrescribir</button></div></div>';
     }
   }
@@ -2105,10 +2342,15 @@ function renderOverwriteDialog() {
   list.querySelectorAll('.slot-overwrite').forEach(function(btn){ btn.addEventListener('click', function(){ var s = parseInt(btn.dataset.slot, 10); if (!confirm('¿Sobrescribir la ranura ' + (s + 1) + '?')) return; hideOverwriteDialog(); prepareNewCombat(s); }); });
 }
 function prepareNewCombat(preferredSlot) {
-  if (!Array.isArray(team) || team.length < 3) { showTeamMissingToast('Necesitas <strong>' + (3 - (team ? team.length : 0)) + '</strong> personaje(s) más.'); openTeamPanel(); scrollToCollection(); return; }
-  var valid = team.filter(function(id){ return COMBAT_CHARS[id]; });
+  // ✅ Usamos la plantilla elegida para este combate si existe;
+  // si no, caemos al team/deck del menú.
+  var useTeam = (pendingCombatTeam && pendingCombatTeam.length === 3) ? pendingCombatTeam : team;
+  var useDeck = (pendingCombatDeck && pendingCombatDeck.length === 30) ? pendingCombatDeck : deck;
+
+  if (!Array.isArray(useTeam) || useTeam.length < 3) { showTeamMissingToast('Necesitas <strong>' + (3 - (useTeam ? useTeam.length : 0)) + '</strong> personaje(s) más.'); openTeamPanel(); scrollToCollection(); return; }
+  var valid = useTeam.filter(function(id){ return COMBAT_CHARS[id]; });
   if (valid.length < 3) { showTeamMissingToast('Necesitas <strong>' + (3 - valid.length) + '</strong> personaje(s) válido(s) más.'); openTeamPanel(); scrollToCollection(); return; }
-  if (!Array.isArray(deck) || deck.length !== 30) { var dm = 30 - (deck ? deck.length : 0); if (dm > 0) showTeamMissingToast('Necesitas <strong>' + dm + '</strong> carta(s) más en tu mazo.'); else showTeamMissingToast('Tu mazo tiene <strong>' + deck.length + '</strong> cartas. Debe tener <strong>30</strong>.'); closeTeamPanel(); scrollToDeck(); return; }
+  if (!Array.isArray(useDeck) || useDeck.length !== 30) { var dm = 30 - (useDeck ? useDeck.length : 0); if (dm > 0) showTeamMissingToast('Necesitas <strong>' + dm + '</strong> carta(s) más en tu mazo.'); else showTeamMissingToast('Tu mazo tiene <strong>' + useDeck.length + '</strong> cartas. Debe tener <strong>30</strong>.'); closeTeamPanel(); scrollToDeck(); return; }
   var s = preferredSlot;
   if (s === null || s === undefined) { s = findEmptyCombatSlot(); if (s === -1) { showOverwriteDialog(); return; } }
   currentCombatSlot = s; showCombatStartConfirm(s);
@@ -2132,27 +2374,29 @@ function openCombat(mode){
 function startCombatWithTemplatePicker(){
   var p1Label = pendingPvpMode ? '⚔️ Jugador 1' : '⚔️ Combate';
   showTemplatePickerForCombat(p1Label, function(p1Template){
-    var validTeam = p1Template.team.filter(function(id){ return CHARACTERS[id]; }).slice(0, 3);
+    var validTeam = p1Template.team.filter(function(id){ return CHARACTERS[id] && id !== 'hunger'; }).slice(0, 3);
     var validDeck = p1Template.deck.filter(function(id){ return CARD_DB[id]; });
     var cnts = {};
     validDeck = validDeck.filter(function(id){ cnts[id] = (cnts[id]||0) + 1; return cnts[id] <= 2; }).slice(0, 30);
-    if (validTeam.length === 3) team = validTeam;
-    if (validDeck.length === 30) deck = validDeck;
-    saveTeam(); saveDeck(); renderTeamPanel(); renderDeckGrid();
+    // ✅ No tocamos team/deck globales: guardamos la plantilla para ESTE combate
+    pendingCombatTeam = validTeam;
+    pendingCombatDeck = validDeck;
 
     if (pendingPvpMode) {
-      if (team.length !== 3 || deck.length !== 30) {
+      if (validTeam.length !== 3 || validDeck.length !== 30) {
         showTeamMissingToast('Tu plantilla debe tener 3 personajes y 30 cartas');
         return;
       }
       showTemplatePickerForCombat('⚔️ Jugador 2', function(p2Template){
-        var p2Team = p2Template.team.filter(function(id){ return COMBAT_CHARS[id]; }).slice(0, 3);
+        var p2Team = p2Template.team.filter(function(id){ return CHARACTERS[id] && id !== 'hunger'; }).slice(0, 3);
         var p2Deck = p2Template.deck.filter(function(id){ return CARD_DB[id]; });
         var c2 = {};
         p2Deck = p2Deck.filter(function(id){ c2[id] = (c2[id]||0) + 1; return c2[id] <= 2; }).slice(0, 30);
         pvpP2Team = (p2Team.length === 3) ? p2Team : getRandomBotTeam();
         pvpP2Deck = (p2Deck.length > 0) ? p2Deck : generateRandomDeck();
-        actuallyStartPvpLocalCombat();
+        currentCombatSlot = findEmptyCombatSlot();
+        if (currentCombatSlot === -1) { showOverwriteDialog(); return; }
+        showCombatStartConfirmForP2(currentCombatSlot);
       });
       return;
     }
@@ -2181,27 +2425,35 @@ function startPvpLocalCombat(){
   if (!pids) { closeCombat(); return; }
   if (currentCombatSlot !== null) clearCombatSlot(currentCombatSlot);
 
+  var exEnabled = !!window._pendingPlayerExEnabled;
+  var p1ExId = exEnabled ? (window._pendingPlayerEx || null) : null;
+  if (p1ExId && (pids.indexOf(p1ExId) === -1 || !COMBAT_CHARS[p1ExId].abilities.ex)) p1ExId = null;
+  var p2ExId = exEnabled ? (window._pendingP2Ex || null) : null;
+  if (p2ExId && (bids.indexOf(p2ExId) === -1 || !COMBAT_CHARS[p2ExId].abilities.ex)) p2ExId = null;
+  window._pendingPlayerEx = null;
+  window._pendingP2Ex = null;
+  window._pendingPlayerExEnabled = null;
+  window._pendingP2ExEnabled = null;
+
   combatState = {
     round: 1, turn: 'player', phase: 'rolling',
     playerDone: false, botDone: false, winner: null, starterChosen: false,
     log: [],
-    player: buildSideState(pids),
-    bot:    buildSideState(bids),
+    player: buildSideState(pids, p1ExId),
+    bot:    buildSideState(bids, p2ExId),
     pvp: true,
-    exEnabled: !!exSystemEnabled
+    exCharId: { player: p1ExId, bot: p2ExId },
+    exCombatEnabled: exEnabled
   };
   combatState.player.consonance = getConsonanceForIds(pids);
   combatState.bot.consonance    = getConsonanceForIds(bids);
-  combatState.player.deck = shuffleArray(deck.slice());
+  var useDeckP1 = (pendingCombatDeck && pendingCombatDeck.length === 30) ? pendingCombatDeck : deck;
+  combatState.player.deck = shuffleArray(useDeckP1.slice());
   combatState.bot.deck    = shuffleArray((pvpP2Deck || generateRandomDeck()).slice());
   combatState.player.hand = []; combatState.player.discardPile = [];
   combatState.player.cardsUsedThisRound = {}; combatState.player.cardsUsedThisGame = {}; combatState.player.drawSelection = {};
   combatState.bot.hand = []; combatState.bot.discardPile = [];
   combatState.bot.cardsUsedThisRound = {}; combatState.bot.cardsUsedThisGame = {}; combatState.bot.drawSelection = {};
-    // ✅ Congelar el estado EX para esta partida (a partir de aquí, el toggle del menú no afecta)
-  ['player','bot'].forEach(function(wk){
-    combatState[wk].characters.forEach(function(c){ c.exActive = !!combatState.exEnabled; });
-  });
 
   var ov = document.getElementById('combatEndOverlay'); if (ov) ov.classList.remove('open');
   hideBanner();
@@ -2288,13 +2540,19 @@ function resumeCombatFromSlot(s) {
   if (!combatState.bot.discardPile) combatState.bot.discardPile = [];
   if (typeof combatState.player.obraMaestraTurns === 'undefined') combatState.player.obraMaestraTurns = 0;
   if (typeof combatState.bot.obraMaestraTurns === 'undefined') combatState.bot.obraMaestraTurns = 0;
-  // ✅ Al reanudar, se respeta el estado EX congelado al empezar la partida
-  // (combatState.exEnabled). El toggle del menú se ignora.
-  // Si la partida se guardó antes de este cambio (sin exEnabled), se asume false.
-  var resumedEx = (typeof combatState.exEnabled === 'boolean') ? combatState.exEnabled : false;
-  combatState.exEnabled = resumedEx;
-  combatState.player.characters.forEach(function(c){ if (COMBAT_CHARS[c.id]) c.character = COMBAT_CHARS[c.id]; if (!c.equipment) c.equipment = []; if (!c.states) c.states = {}; if (!c.marks) c.marks = {}; c.exActive = resumedEx; });
-  combatState.bot.characters.forEach(function(c){ if (COMBAT_CHARS[c.id]) c.character = COMBAT_CHARS[c.id]; if (!c.equipment) c.equipment = []; if (!c.states) c.states = {}; if (!c.marks) c.marks = {}; c.exActive = resumedEx; });
+  // ✅ Restaurar EX por personaje desde exCharId
+  if (!combatState.exCharId) combatState.exCharId = { player: null, bot: null };
+  // ✅ Respetar el flag EX congelado al empezar la partida
+  var resumedExEnabled = (typeof combatState.exCombatEnabled === 'boolean') ? combatState.exCombatEnabled : false;
+  combatState.exCombatEnabled = resumedExEnabled;
+  if (!resumedExEnabled) {
+    combatState.exCharId = { player: null, bot: null };
+  }
+  if (!combatState.exCharId) combatState.exCharId = { player: null, bot: null };
+  // Si el flag está OFF, forzamos exCharId null aunque lo guardado tuviera algo
+  if (!resumedExEnabled) combatState.exCharId = { player: null, bot: null };
+  combatState.player.characters.forEach(function(c){ if (COMBAT_CHARS[c.id]) c.character = COMBAT_CHARS[c.id]; if (!c.equipment) c.equipment = []; if (!c.states) c.states = {}; if (!c.marks) c.marks = {}; c.exActive = (c.id === combatState.exCharId.player); });
+  combatState.bot.characters.forEach(function(c){ if (COMBAT_CHARS[c.id]) c.character = COMBAT_CHARS[c.id]; if (!c.equipment) c.equipment = []; if (!c.states) c.states = {}; if (!c.marks) c.marks = {}; c.exActive = (c.id === combatState.exCharId.bot); });
   if (typeof combatState.player.mulliganUsed === 'undefined') combatState.player.mulliganUsed = false;
   pendingPvpMode = !!combatState.pvp;
   hideSlotSelectionDialog();
@@ -2333,7 +2591,29 @@ function resumeCombatFromSlot(s) {
     if (combatState.phase === 'playing' && combatState.turn === 'bot' && !combatState.botDone && !combatState.pvp) setTimeout(botTurn, 800);
   }
 }
-function actuallyStartCombat(){ var m = document.getElementById('combatModal'); if (!m) return; initAudio(); preloadCombatImages(); initCombatStars(); m.classList.add('open'); document.body.style.overflow = 'hidden'; startCombat(); }
+function actuallyStartCombat(){
+  if (pendingPvpMode) {
+    // ✅ PvP: si ya hay equipo del J2 elegido, pedirle su EX antes de arrancar.
+    // Abrimos el combatModal ANTES para que la transición visual sea correcta
+    // y no se vea un salto al menú.
+    var m = document.getElementById('combatModal');
+    if (m) { m.classList.add('open'); document.body.style.overflow = 'hidden'; }
+    initAudio(); preloadCombatImages(); initCombatStars();
+    if (pvpP2Team && pvpP2Team.length === 3) {
+      currentCombatSlot = findEmptyCombatSlot();
+      if (currentCombatSlot === -1) {
+        if (m) { m.classList.remove('open'); document.body.style.overflow = ''; }
+        showOverwriteDialog();
+        return;
+      }
+      showCombatStartConfirmForP2(currentCombatSlot);
+      return;
+    }
+    actuallyStartPvpLocalCombat();
+    return;
+  }
+  var m2 = document.getElementById('combatModal'); if (!m2) return; initAudio(); preloadCombatImages(); initCombatStars(); m2.classList.add('open'); document.body.style.overflow = 'hidden'; startCombat();
+}
 function closeCombat() {
   saveCombatState();
   var m = document.getElementById('combatModal'); if (!m) return;
@@ -2341,6 +2621,10 @@ function closeCombat() {
   combatState = null; currentCombatSlot = null;
   pvpSetupPhase = null;
   hideBanner(); hideSelectOverlay(); hideTooltip(); hideConfirmation(); hideRollOverlay(); hideDrawOverlay();
+  pendingCombatTeam = null;
+  pendingCombatDeck = null;
+  pendingCombatP2Team = null;
+  pendingCombatP2Deck = null;
 }
 function startCombat() {
   if (pendingPvpMode) { startPvpLocalCombat(); return; }
@@ -2348,17 +2632,27 @@ function startCombat() {
   if (!pids) { closeCombat(); return; }
   if (currentCombatSlot !== null) clearCombatSlot(currentCombatSlot);
   pvpSetupPhase = null;
-  combatState = { round:1, turn:'player', phase:'rolling', playerDone:false, botDone:false, winner:null, starterChosen:false, log:[], player:buildSideState(pids), bot:buildSideState(bids), pvp:false, exEnabled: !!exSystemEnabled };
+  // ✅ Elegir EX del jugador (viene del confirm) y del bot (aleatorio)
+  var exEnabled = !!window._pendingPlayerExEnabled;
+  var playerExId = exEnabled ? (window._pendingPlayerEx || null) : null;
+  if (playerExId && (pids.indexOf(playerExId) === -1 || !COMBAT_CHARS[playerExId].abilities.ex)) playerExId = null;
+  var botExId = null;
+  if (exEnabled) {
+    var botExCandidates = bids.filter(function(id){ return COMBAT_CHARS[id].abilities && COMBAT_CHARS[id].abilities.ex; });
+    botExId = botExCandidates.length ? botExCandidates[Math.floor(Math.random() * botExCandidates.length)] : null;
+  }
+  window._pendingPlayerEx = null;
+  window._pendingPlayerExEnabled = null;
+
+  combatState = { round:1, turn:'player', phase:'rolling', playerDone:false, botDone:false, winner:null, starterChosen:false, log:[], player:buildSideState(pids, playerExId), bot:buildSideState(bids, botExId), pvp:false, exCharId: { player: playerExId, bot: botExId }, exCombatEnabled: exEnabled };
   combatState.player.consonance = getConsonanceForIds(pids); combatState.bot.consonance = getConsonanceForIds(bids);
-  combatState.player.deck = shuffleArray(deck.slice());
+  var useDeck = (pendingCombatDeck && pendingCombatDeck.length === 30) ? pendingCombatDeck : deck;
+  combatState.player.deck = shuffleArray(useDeck.slice());
   combatState.player.hand = []; combatState.player.discardPile = [];
   combatState.player.cardsUsedThisRound = {}; combatState.player.cardsUsedThisGame = {}; combatState.player.drawSelection = {};
   combatState.bot.hand = []; combatState.bot.discardPile = [];
   combatState.bot.cardsUsedThisRound = {}; combatState.bot.cardsUsedThisGame = {}; combatState.bot.drawSelection = {};
-    // ✅ Congelar el estado EX para esta partida (a partir de aquí, el toggle del menú no afecta)
-  ['player','bot'].forEach(function(wk){
-    combatState[wk].characters.forEach(function(c){ c.exActive = !!combatState.exEnabled; });
-  });
+  // ✅ Ya no hay sincronización con exSystemEnabled: buildSideState ya ha puesto exActive
   var ov = document.getElementById('combatEndOverlay'); if (ov) ov.classList.remove('open');
   hideBanner();
   logCombat('⚔️ Combate 3v3 iniciado');
@@ -2779,7 +3073,7 @@ function computeBaseDamageForAbility(attackerCs, ability, actionType) {
     case 'estratosfera': {
       if (!csHasState(attackerCs, 'vuelo')) return 0;
       var carrB = csHasState(attackerCs, 'carrerilla') ? 2 : 0;
-      var exB = (attackerCs.exActive && exSystemEnabled) ? 2 : 0; // ✅ EX de Artemis: +2 daño base
+      var exB = (attackerCs.exActive) ? 2 : 0; // ✅ EX de Artemis: +2 daño base
       return 6 + carrB + exB;
     }
     case 'carrerilla': return 0;
@@ -2970,7 +3264,7 @@ function executeAction(who, actionType, preSpentDice) {
           logCombat('🏃 Carrerilla: +2 daño a cada enemigo');
         }
         var hitCount = 0;
-        var exEstratosfera = (active.exActive && exSystemEnabled) ? 2 : 0; // ✅ EX: +2 daño base
+        var exEstratosfera = (active.exActive) ? 2 : 0; // ✅ EX: +2 daño base
         var estratosferaDmg = 6 + carrerillaBonus + exEstratosfera;
         enemySide.characters.forEach(function(c, i){
           if (c.dead) return;
@@ -3396,8 +3690,10 @@ function executeAction(who, actionType, preSpentDice) {
       break;
     }
     case 'graciaPicara': {
-      // Adela: 1 daño al enemigo +1 si tiene marca (efecto). Se cura 1 (+1 si tiene marca) si hace daño verdadero.
+      // ✅ Ataque normal de Adela: se considera DAÑO DE HABILIDAD ELEMENTAL
+      // a efectos de bonos (Alter, etc.), aunque actionType sea 'normal'.
       var gpDmg = 1 + adelaEffectBonus(active);
+      gpDmg = applyGenericDamageMods(active, gpDmg, true); // isElemental = true
       var gpDealt = applyDamageWithMods(enemyActive, gpDmg, predictPiercing(active, ability), enemyKey, enemySide.activeIndex, active);
       if (gpDealt > 0) {
         var gpHeal = 1 + adelaEffectBonus(active);
@@ -3794,9 +4090,36 @@ function applyCardEffect(card) {
     case 'forceEnemyChange': { var niE = getNextAliveIndex(enemySide, enemySide.activeIndex); if (niE >= 0) { enemySide.activeIndex = niE; } break; }
     case 'enemyAttackDebuff': side.enemyAttackDebuff = (side.enemyAttackDebuff || 0) + card.value; break;
     case 'prepararContraataque': side.contraataque = (side.contraataque || 0) + (card.value || 2); break;
+    case 'revive': {
+      // Revive a un aliado caído (a elección). Solo si hay aliados caídos.
+      var deadAllies = side.characters.filter(function(c){ return c.dead; });
+      if (!deadAllies.length) { logCombat('❌ No hay aliados caídos para revivir'); playSound('error'); break; }
+      // Por simplicidad: revivir al último caído (lastDeadAlly si existe) o al primero.
+      var targetRev = null;
+      if (side.lastDeadAlly) {
+        targetRev = side.characters.find(function(c){ return c.id === side.lastDeadAlly && c.dead; });
+      }
+      if (!targetRev) targetRev = deadAllies[0];
+      // Respetar "no puede ser resucitada" (Artemis)
+      if (targetRev.id === 'artemis') { logCombat('❌ Artemis no puede ser revivida'); playSound('error'); break; }
+      targetRev.dead = false;
+      targetRev.hp = Math.min(card.value || 2, targetRev.maxHp);
+      if (!targetRev.shields) targetRev.shields = [];
+      targetRev.shields.push({ source:'resurreccion', hp:1, maxHp:1 });
+      // Si es Adela y tiene marca, se transforma en Hunger
+      if (targetRev.id === 'adela' && hasAnyMark(targetRev)) {
+        transformAdelaToHunger(targetRev);
+      }
+      // Si es Hunger, se cura al máximo (pasiva)
+      if (targetRev.id === 'hunger') {
+        targetRev.hp = targetRev.maxHp;
+      }
+      logCombat('✝️ Resurrección: ' + targetRev.character.name + ' vuelve con ' + targetRev.hp + ' HP');
+      break;
+    }
   }
   // ✅ Hunger EX: Café solo le hace 2 de daño al usarlo
-  if (card.id === 'c_cafe_solo' && active && active.id === 'hunger' && active.exActive && exSystemEnabled) {
+  if (card.id === 'c_cafe_solo' && active && active.id === 'hunger' && active.exActive) {
     var hSideKey = (combatState.player.characters.indexOf(active) >= 0) ? 'player' : 'bot';
     var hSide = combatState[hSideKey];
     var hIdx = hSide.characters.indexOf(active);
@@ -3843,7 +4166,7 @@ function playCardRequest(cardId) {
   var adjustedCost = adjustCardCostForPassives(card, side);
   // ✅ Hunger EX: Café solo gratis
   var hungerActive = side.characters[side.activeIndex];
-  if (card.id === 'c_cafe_solo' && hungerActive && hungerActive.id === 'hunger' && hungerActive.exActive && exSystemEnabled) {
+  if (card.id === 'c_cafe_solo' && hungerActive && hungerActive.id === 'hunger' && hungerActive.exActive) {
     adjustedCost = {};
   }
   showCardConfirmation(cardId, adjustedCost, function(selectedDice){
@@ -4115,7 +4438,7 @@ function previewPlayerAction(actionType) {
   preview.shieldSelf = predictShieldGain(ability);
   preview.reflectDmg = getReflectDamage(enemySide);
 
-  var applyGeneric = ['damage','trazoVivo','intervencion','aceleron','instinto','deudaSangre'].indexOf(ability.kind) !== -1;
+  var applyGeneric = ['damage','trazoVivo','intervencion','aceleron','instinto','deudaSangre','graciaPicara'].indexOf(ability.kind) !== -1;
   if (ability.target === 'enemy' && preview.baseDmg > 0 && target) {
     if (applyGeneric) {
       var gb = getGenericBonuses(active);
@@ -4130,7 +4453,9 @@ function previewPlayerAction(actionType) {
       if (consR && consR.type === 'single' && consR.element === 'redencion' && !side.firstAttackUsed) preview.redencionDmg = consR.level === 3 ? 3 : 2;
       if (target.cardMarkBonus) preview.markBonus = target.cardMarkBonus;
       // ✅ Alter: bono a elementales del equipo (si hay buff activo)
-      if (actionType === 'elemental' && side.alterUltBuff && side.alterUltBuff.amount > 0 && side.alterUltBuff.roundsLeft > 0 && active.id !== 'alter') {
+      // ✅ Adela graciaPicara y elementales reciben el buff de Alter
+      var isElementalLike = (actionType === 'elemental') || (ability.kind === 'graciaPicara');
+      if (isElementalLike && side.alterUltBuff && side.alterUltBuff.amount > 0 && side.alterUltBuff.roundsLeft > 0 && active.id !== 'alter') {
         preview.alterBuffDmg = side.alterUltBuff.amount;
         preview.notes.push('💥 Omnes Deam Salutate: +' + side.alterUltBuff.amount + ' daño');
       }
@@ -4440,15 +4765,8 @@ function playerActionRequest(actionType) {
   if (!combatState || combatState.phase !== 'playing') return;
   if (!isPlayerTurn()) return;   // ✅ solo en tu turno
   if (isTurnDone()) return;
-  // ── Guard EX (pasiva permanente: solo bloquea si ya está activa) ──
-  if (actionType === 'ex') {
-    if (!exSystemEnabled) { playSound('error'); return; }
-    var _tkEx = getTurnKey();
-    var _sideEx = combatState[_tkEx];
-    var _actEx = _sideEx.characters[_sideEx.activeIndex];
-    if (!_actEx || _actEx.dead || !_actEx.character.abilities.ex) { playSound('error'); return; }
-    if (_actEx.exActive) { playSound('error'); return; }
-  }
+  // (El botón EX del sidebar ya no se usa: la EX se elige en combatStartConfirm)
+  if (actionType === 'ex') { playSound('error'); return; }
   var turnKey = getTurnKey();
   var side = combatState[turnKey];
   var active = side.characters[side.activeIndex]; if (!active || active.dead) return;
@@ -4740,24 +5058,7 @@ function updateCombatActions() {
 
   // ── Botón EX (pasiva permanente) ──
   var exB = document.getElementById('exBtn');
-  if (exB) {
-    var hasEx = !!(char.abilities && char.abilities.ex);
-    if (!exSystemEnabled || !hasEx) {
-      exB.style.display = 'none';
-    } else {
-      exB.style.display = '';
-      // Se puede pulsar si: es tu turno, está vivo y aún no está activa.
-      // Una vez activa, el botón queda deshabilitado (ya no se puede "re-activar").
-      var canActivateEx = isTurn && !active.exActive && !active.dead;
-      exB.disabled = !canActivateEx;
-      exB.classList.toggle('ca-can-pay', canActivateEx);
-      var exCostEl = document.getElementById('exCost');
-      if (exCostEl) {
-        if (active.exActive) exCostEl.textContent = 'Pasiva activa';
-        else exCostEl.textContent = char.abilities.ex.name || 'Habilidad EX';
-      }
-    }
-  }
+  if (exB) exB.style.display = 'none';
 }
 
 function renderCombatLog(){ var el = document.getElementById('combatLog'); if (!el) return; el.innerHTML = combatState.log.map(function(l){ return '<div class="log-line">' + l + '</div>'; }).join(''); el.scrollTop = el.scrollHeight; }
@@ -4786,7 +5087,7 @@ var combatEndBtn = document.getElementById('combatEndBtn'); if (combatEndBtn) co
 var normalBtn = document.getElementById('normalBtn'); if (normalBtn) normalBtn.addEventListener('click', function(){ playerActionRequest('normal'); });
 var elementalBtn = document.getElementById('elementalBtn'); if (elementalBtn) elementalBtn.addEventListener('click', function(){ playerActionRequest('elemental'); });
 var ultimateBtn = document.getElementById('ultimateBtn'); if (ultimateBtn) ultimateBtn.addEventListener('click', function(){ playerActionRequest('ultimate'); });
-var exBtn = document.getElementById('exBtn'); if (exBtn) exBtn.addEventListener('click', function(){ playerActionRequest('ex'); });
+// (Botón EX del sidebar eliminado: la EX se elige en combatStartConfirm)
 var endRoundBtn = document.getElementById('endRoundBtn'); if (endRoundBtn) endRoundBtn.addEventListener('click', function(){
   // ✅ Solo se puede declarar fin de ronda en tu turno
   if (!isPlayerTurn()) { playSound('error'); return; }
@@ -4798,15 +5099,20 @@ var drawMulliganBtn = document.getElementById('drawMulliganBtn'); if (drawMullig
 var drawContinueBtn = document.getElementById('drawContinueBtn'); if (drawContinueBtn) drawContinueBtn.addEventListener('click', onDrawContinue);
 var combatStartCancelBtn = document.getElementById('combatStartCancelBtn'); if (combatStartCancelBtn) combatStartCancelBtn.addEventListener('click', function(){ hideCombatStartConfirm(); playSound('deselect'); });
 var combatStartConfirmBtn = document.getElementById('combatStartConfirmBtn'); if (combatStartConfirmBtn) combatStartConfirmBtn.addEventListener('click', function(){
-  // ✅ Solo NORMAL permite empezar
-  if (currentGameMode !== 'normal') {
-    playSound('error');
-    // Feedback: sacudir el botón
-    this.classList.add('shake');
-    var self = this;
-    setTimeout(function(){ self.classList.remove('shake'); }, 400);
+  if (currentGameMode !== 'normal') { playSound('error'); this.classList.add('shake'); var self = this; setTimeout(function(){ self.classList.remove('shake'); }, 400); return; }
+  if (exCombatEnabled) {
+    if (combatStartConfirmForP2 && !pendingExChoiceP2) { playSound('error'); return; }
+    if (!combatStartConfirmForP2 && !pendingExChoice) { playSound('error'); return; }
+  }
+  if (combatStartConfirmForP2) {
+    window._pendingP2Ex = exCombatEnabled ? pendingExChoiceP2 : null;
+    window._pendingP2ExEnabled = exCombatEnabled;
+    hideCombatStartConfirm(); playSound('confirm');
+    actuallyStartPvpLocalCombat();
     return;
   }
+  window._pendingPlayerEx = exCombatEnabled ? pendingExChoice : null;
+  window._pendingPlayerExEnabled = exCombatEnabled;
   hideCombatStartConfirm(); playSound('confirm'); actuallyStartCombat();
 });
 var slotCancelBtn = document.getElementById('slotCancelBtn'); if (slotCancelBtn) slotCancelBtn.addEventListener('click', function(){ hideSlotSelectionDialog(); playSound('deselect'); });
@@ -4912,7 +5218,6 @@ var initFns = [
   ['renderDeckGrid', renderDeckGrid],
   ['setupDamageCalculator', setupDamageCalculator],
   ['renderTemplateSlots', renderTemplateSlots],
-  ['initExToggle', initExToggle],
   ['initPatches', initPatches],
   ['initGameMode', initGameMode]
 ];
