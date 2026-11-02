@@ -32,8 +32,10 @@
   <h1>Siete Respuestas,<br>Un Solo Destino</h1>
   <p>Un juego de cartas coleccionables y combate táctico por equipos. Descubre tu filosofía, reúne a tus personajes, construye tu mazo y domina la arena.</p>
   <div class="hero-buttons">
-    <button class="btn" id="openCombatBtn">⚔️ Probar Combate 3v3</button>
-    <button class="btn btn-pvp" id="openPvpBtn">👥 Combate PvP Local</button>
+    <button class="btn" id="openCombatBtn">⚔️ Combate Solo</button>
+    <button class="btn btn-pvp" id="openPvpBtn">👥 Combate PvP</button>
+    <button class="btn btn-auto" id="openAutoBtn">🤖 Combate Auto</button>
+    <button class="btn btn-sandbox" id="openSandboxBtn">⚙️ Combate Sandbox</button>
     <a href="#respuestas" class="btn btn-outline">Descubre las Respuestas</a>
   </div>
   <div class="scroll-hint">⌄</div>
@@ -467,8 +469,10 @@
   <h2 class="section-title reveal">¿Listo para invocar?</h2>
   <p class="section-sub reveal">Crea tu cuenta gratis y recibe un mazo inicial con cartas de cada Respuesta.</p>
   <div class="reveal" style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
-    <button class="btn" id="jugarCombatBtn">⚔️ Probar Combate 3v3</button>
-    <button class="btn btn-pvp" id="jugarPvpBtn">👥 Combate PvP Local</button>
+    <button class="btn" id="jugarCombatBtn">⚔️ Combate Solo</button>
+    <button class="btn btn-pvp" id="jugarPvpBtn">👥 Combate PvP</button>
+    <button class="btn btn-auto" id="jugarAutoBtn">🤖 Combate Auto</button>
+    <button class="btn btn-sandbox" id="jugarSandboxBtn">⚙️ Combate Sandbox</button>
   </div>
 </section>
 
@@ -499,7 +503,6 @@
       <span class="ex-toggle-dot"></span>
       <span class="ex-toggle-label">EX</span>
     </button>
-    <button class="game-mode-btn" id="gameModeBtn" title="Cambiar modo de juego" aria-label="Cambiar modo de juego">NORMAL</button>
     <div class="combat-start-confirm-title">⚔️ ¿Iniciar Combate?</div>
     <p class="combat-start-confirm-sub" id="combatStartConfirmSub">Tu equipo y mazo están listos para la batalla</p>
     <div class="combat-start-confirm-team" id="combatStartTeamPreview"></div>
@@ -584,6 +587,7 @@
     </div>
 
     <button class="combat-close" id="combatCloseBtn" aria-label="Cerrar">✕</button>
+    <button class="sandbox-toggle" id="sandboxToggleBtn" title="Abrir panel Sandbox" style="display:none;">⚙️</button>
 
     <div class="combat-main">
       <div class="combat-board">
@@ -687,8 +691,25 @@
         <button class="btn" id="combatEndBtn">Volver</button>
       </div>
     </div>
-  </div>
-</div>
+
+    <!-- ✅ Panel del Sandbox DENTRO de combatContent (antes del cierre) -->
+    <div class="sandbox-panel" id="sandboxPanel" hidden>
+      <div class="sandbox-header">
+        <span class="sandbox-title">⚙️ Sandbox</span>
+        <div class="sandbox-header-actions">
+          <button class="sandbox-tab active" data-sb-tab="global">Global</button>
+          <button class="sandbox-tab" data-sb-tab="char">Personaje</button>
+          <button class="sandbox-tab" data-sb-tab="dice">Dados</button>
+          <button class="sandbox-tab" data-sb-tab="cards">Cartas</button>
+          <button class="sandbox-tab" data-sb-tab="fx">Efectos</button>
+          <button class="sandbox-close" id="sandboxCloseBtn" aria-label="Cerrar">✕</button>
+        </div>
+      </div>
+      <div class="sandbox-body" id="sandboxBody"></div>
+    </div>
+
+  </div>  <!-- cierra combatContent -->
+</div>    <!-- cierra combatModal -->
 
 <!-- ═══ Modal de Parches ═══ -->
 <div class="patches-modal" id="patchesModal" role="dialog" aria-modal="true" aria-labelledby="patchesTitle">
