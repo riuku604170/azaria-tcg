@@ -10,6 +10,8 @@ var pendingCombatTeam = null;
 var pendingCombatDeck = null;
 var pendingCombatP2Team = null;
 var pendingCombatP2Deck = null;
+var currentSlotMode = 'solo';  // 'solo' | 'pvp'
+var sandboxTurnMode = 'player-only'; // 'player-only' | 'bot' | 'two-users'
 
 // ── Sistema EX por personaje ──
 var pendingExChoice = null;
@@ -52,7 +54,7 @@ function initGameMode() {
 /* ═══ SISTEMA DE PARCHES ═══ */
 var PATCHES = [
 {
-  version: 'v49',
+  version: 'v92.46',
   date: '2026-11-02',
   type: 'mayor',
   title: 'Me pican los cocos otra vez gente',
@@ -81,7 +83,7 @@ var PATCHES = [
   ]
 },
 {
-  version: 'v48',
+  version: 'v46.92',
   date: '2026-11-02',
   type: 'minor',
   title: 'Me pican los cocos gente',
@@ -91,94 +93,13 @@ var PATCHES = [
   ]
 },
 {
-  version: 'v47',
+  version: 'v46',
   date: '2026-11-02',
   type: 'major',
-  title: 'Sistema EX por personaje, Adela/Hunger, Alter, Internet y rework del flujo de inicio',
+  title: 'lol',
   changes: [
-    // ── Sistema EX ──
-    'Eliminado el toggle global de EX del menú. Ahora la EX se elige por personaje en el diálogo de inicio de combate.',
-    'Añadido un toggle EX en la esquina superior derecha del diálogo de inicio que activa o desactiva el uso de EX en esa partida.',
-    'Con el toggle EX activado, aparecen botones EX sobre cada carta de personaje con EX disponible y es obligatorio elegir uno antes de empezar.',
-    'Con el toggle EX desactivado, los botones EX desaparecen y ningún personaje puede tener su EX activa en esa partida.',
-    'Desactivar el toggle EX limpia automáticamente cualquier EX que el jugador hubiera elegido.',
-    'Añadido un botón EX sobre cada carta de personaje en el diálogo de inicio. Solo 1 personaje por equipo puede tener su EX activa.',
-    'En PvP local, el Jugador 1 decide si la partida usa EX. El toggle del Jugador 2 queda fijo en el valor elegido por el Jugador 1 y no es interactivo.',
-    'En PvP local con EX activadas, el Jugador 2 también está obligado a elegir un personaje con EX antes de empezar.',
-    'Si el toggle EX está desactivado, el bot no tiene ningún personaje con EX. Si está activado, el bot elige una EX al azar entre sus personajes disponibles.',
-    'La ranura de guardado muestra el nombre del personaje con EX activa (o "EX OFF" si no hay ninguna).',
-    'El estado EX queda congelado al empezar la partida y se restaura al reanudar, ignorando cambios posteriores en el menú.',
-    'Implementada la EX de Artemis: su definitiva cuesta 2 dados de aceptación más y hace +2 de daño base.',
-    'Implementada la EX de Hunger: el "Café solo" le cuesta 0 y le hace 2 de daño al usarlo.',
-    'Implementada la EX de Adela: empieza con 2 "Café solo" en la mano (si están en el mazo) y roba 3 cartas menos en su mano inicial.',
-    'Implementada la EX de Internet: si su vida es ≤ 2, sus habilidades cuestan 1 dado menos y duplican su daño.',
-    'La EX de Orath (Cruz de Sangre) ahora se activa correctamente al elegirla en el diálogo de inicio.',
-
-    // ── Adela / Hunger ──
-    'Añadida Adela (Transformación, 10 HP) con su set completo: Gracia Pícara, Flechazo Tentador, Mis Modales en el Suelo y Alma Pícara.',
-    'Añadido Hunger Incarnate como transformación de Adela: si Adela es revivida estando marcada, se transforma en Hunger.',
-    'El ataque normal de Adela se considera daño de habilidad elemental a efectos de bonos (Alter), sin dejar de ser un ataque normal para el resto de reglas.',
-    'La habilidad elemental de Adela marca al enemigo con Transformación siempre que sobreviva, se cumpla o no la condición del daño penetrante.',
-    'Añadido el botón en el modal de Adela para alternar la vista entre Adela y Hunger Incarnate.',
-    'La definitiva de Adela permite marcarse a sí misma y fijar su vida a 5, o hacer 4 de daño si ya está marcada con Transformación, o suicidarse si está marcada con otro elemento.',
-    'Hunger Incarnate: inmune al límite de resurrecciones, se cura al máximo al revivir y pierde 2 HP al final de la ronda si sigue marcada.',
-    'Cambiar a Hunger hace 1 de daño al aliado saliente y cura 1 a Hunger.',
-
-    // ── Alter ──
-    'Añadido Alter (Ilusión, 12 HP) con su set completo: Amenaza a la Ontología, Conversión Psicológica, Omnes Deam Salutate y Dualismo Ontológico.',
-    'La invulnerabilidad de Alter no se consume al absorber daño: solo reduce, y pierde 1 punto al final de cada ronda (máx 3).',
-    'La habilidad elemental de Alter roba la energía de los aliados, la suma a la suya hasta su máximo y convierte el sobrante en dados de ilusión.',
-    'La definitiva de Alter dura 2 rondas (antes 1) y se muestra con un badge en los aliados potenciados y en el propio Alter.',
-    'El bono de Alter a las elementales del equipo se aplica correctamente a la elemental de Abla, la de Ren y la de Manuel.',
-    'El preview de daño refleja el bono de Alter en todas las elementales afectadas.',
-
-    // ── Internet (BTC) ──
-    'Añadida la categoría "BTC" a los filtros de la colección.',
-    'Añadido Internet (Protección, BTC, 5 HP) con su set completo: Orden, Daga de Ola, Fase de Limpieza y Orgullo de la Creadora.',
-    'Internet gana 1 de energía automáticamente la primera vez que baja a 2 HP o menos.',
-
-    // ── Cartas ──
-    'Añadida la carta "Café solo" (Energía, coste 3 dados del mismo tipo, otorga 2 de energía al activo).',
-    'Añadida la carta "Resurrección" (Curación, coste 3 dados del mismo tipo, revive a un aliado caído con 2 HP y 1 escudo; una vez por partida).',
-    'La carta "Resurrección" respeta la restricción de Artemis de no poder ser resucitada.',
-
-    // ── Consonancias y Resonancias ──
-    'La consonancia de Ilusión ahora se aplica correctamente en la tirada inicial del jugador (se elige personaje antes de tirar).',
-    'Reordenado el setup: primero se elige el personaje inicial, luego se tiran los dados, luego se roba.',
-
-    // ── Flujo de inicio y guardado ──
-    'Al pulsar "Combate", primero se muestran las partidas guardadas. Solo si se elige "Nuevo Combate" se pide la plantilla.',
-    'Elegir una plantilla en el diálogo de inicio de combate ya no modifica el equipo ni el mazo del menú. La plantilla elegida solo se usa para esa partida.',
-    'Añadido botón de modo de juego (NORMAL / AUTO / SANDBOX) en el diálogo de inicio. Solo NORMAL permite empezar por ahora.',
-    'El botón de modo se encuentra en la esquina superior izquierda del diálogo de inicio, y el de EX en la esquina superior derecha.',
-    'Hunger Incarnate ya no puede ser elegido como personaje inicial por el bot ni por el auto-equipo.',
-    'Corregido el flujo de inicio que impedía abrir el combate al elegir plantilla (referencia errónea en la selección de plantilla y en la vista previa).',
-    'Corregido el flujo del diálogo del Jugador 2 en PvP local que rompía el botón "Empezar Combate" en partidas posteriores.',
-
-    // ── Combate: bloqueo y turnos ──
-    'Bloqueadas todas las acciones del jugador durante el turno del rival: botones de acción, cambio de personaje, cartas y fin de ronda.',
-    'El botón de fin de ronda solo se puede pulsar en tu propio turno.',
-    'Las cartas de la mano se muestran deshabilitadas cuando no es tu turno.',
-    'La fase de lanzamiento muestra los dados y espera a que el jugador pulse "Continuar" antes de avanzar (no se puede saltar la animación).',
-
-    // ── Autoselección de dados ──
-    'Corregida la autoselección de dados al descartar una carta: nunca selecciona un omnidado, y prioriza dados de tipos que no tienes en el equipo.',
-
-    // ── Correcciones varias ──
-    'Corregido error de sintaxis en COMBAT_CHARS que impedía la carga del script.',
-    'Corregido showStructureTooltip para que muestre correctamente Cruz de Madera y Cruz de Sangre.',
-    'La duración de las estructuras permanentes (999) ya no se muestra en el tablero.',
-    'Las estructuras Cruz de Madera y Cruz de Sangre usan emoji propio (✝️ / 🩸) en vez del genérico 🧠.',
-    'La definitiva de Orath ya no destruye las Cruces de Madera en silencio: cada cruz inflige su daño al enemigo activo antes de contabilizar el daño en reserva.',
-    'Abla: la curación de su habilidad elemental tiene tope de 3 HP por la habilidad misma, con los bonos de curación aplicados después del tope.',
-    'Corregido el cálculo de daño de la definitiva de Alter y su visualización en el preview.',
-    'Corregido el bug por el que las partidas a veces empezaban contra Hunger Incarnate.',
-    'Añadidas las predicciones de daño que faltaban en el preview de combate para las habilidades de Adela, Hunger e Internet (Gracia Pícara, Flechazo Tentador, Mis Modales en el Suelo, Muere, MUERE, Mi cordura, Daga de Ola y Fase de Limpieza).',
-    'Corregido el botón EX del diálogo de inicio para que responda siempre al clic mediante delegación de eventos.',
-
-    // ── Interfaz ──
-    'Añadido el apartado "Parches" en el menú de navegación, con historial de cambios.',
-    'El badge EX de las ranuras de guardado muestra el nombre del personaje con EX activa en lugar de ON/OFF.'
+    'Ni de puta coña escribo yo aquí todo lo que he hecho, averígualo bro.',
+    'Me lefo. Para pensar.'
   ]
 }
   // Añade aquí nuevos parches al principio del array (el más reciente primero).
@@ -631,7 +552,8 @@ var COMBAT_CHARS = {
   artemis: { name:'Artemis', element:'aceptacion', emoji:'🦅', hp:11, abilities: { 
     normal: { name:'Disparo divino', cost:{aceptacion:2, any:2}, target:'enemy', kind:'damage', damage:3, energy:1 }, 
     elemental: { name:'Carrerilla', cost:{aceptacion:3}, target:'self', kind:'carrerilla', energy:0 }, 
-    ultimate: { name:'Mis dedos palpan el borde de la estratosfera', cost:{aceptacion:6}, energyCost:3, target:'enemy', kind:'estratosfera' } 
+    ultimate: { name:'Mis dedos palpan el borde de la estratosfera', cost:{aceptacion:6}, energyCost:3, target:'enemy', kind:'estratosfera' },
+    ex: { name:'EX · Estratosfera Mejorada', kind:'ex', target:'self' }
   }},
   orath: { name:'Orath', element:'redencion', emoji:'🗿', hp:9, abilities: {
     normal: { name:'Ojo por ojo', cost:{redencion:2, any:1}, target:'enemy', kind:'ojoPorOjo', damage:1, energy:1 },
@@ -697,6 +619,16 @@ function isTurnDone(){
 function isPlayerTurn(){
   if (!combatState) return false;
   if (combatState.phase !== 'playing') return false;
+  return combatState.turn === 'player';
+}
+function canHumanControlCurrentTurn() {
+  if (!combatState) return false;
+  if (combatState.mode === 'auto') return false;
+  if (combatState.phase !== 'playing') return false;
+  if (isTurnDone()) return false;
+  // PvP local y Sandbox dos-usuarios → el humano controla a quien tenga el turno
+  if (combatState.pvp) return true;
+  // Solo vs bot → el humano solo controla cuando es turno del "player"
   return combatState.turn === 'player';
 }
 function isOnline(){ return false; }
@@ -1529,7 +1461,8 @@ try { var stored = localStorage.getItem('azaria_team'); if (stored) { var parsed
 function saveTeam(){ try { localStorage.setItem('azaria_team', JSON.stringify(team)); } catch (err) {} }
 function toggleTeam(id) {
   if (!CHARACTERS[id]) return;
-  if (id === 'hunger') return; // ✅ Hunger solo aparece por transformación
+  if (!COMBAT_CHARS[id]) return;   // ✅ NUEVO: bloquea "Próximamente"
+  if (id === 'hunger') return;
   initAudio();
   var idx = team.indexOf(id);
   if (idx >= 0) { team.splice(idx, 1); playSound('deselect'); }
@@ -1687,7 +1620,7 @@ function renderTemplateSlots() {
   for (var i = 0; i < TEMPLATE_SLOT_COUNT; i++) {
     var t = getTemplate(i);
     if (t) {
-      var validTeam = t.template.team.filter(function(id){ return CHARACTERS[id] && id !== 'hunger'; }).slice(0, 3);
+      var validTeam = t.team.filter(function(id){ return CHARACTERS[id] && id !== 'hunger'; }).slice(0, 3);
       var tp = validTeam.map(function(id){ var ch = CHARACTERS[id]; return '<span class="template-char" style="--el: ' + ELEMENT_COLORS[ch.element] + ';" title="' + ch.name + '">' + ch.emoji + '</span>'; }).join('');
       if (!validTeam.length) tp = '<span style="color: var(--muted); font-size: 0.8rem;">Equipo vacío</span>';
       var tname = t.name || ('Ranura ' + (i + 1));
@@ -1867,21 +1800,22 @@ function showTemplatePickerForCombat(playerLabel, onSelect) {
     }
   } else {
     html += '<div class="template-picker-grid">';
-    templates.forEach(function(t) {
-      var validTeam = t.template.team.filter(function(id){ return CHARACTERS[id] && id !== 'hunger'; }).slice(0, 3);
-      var teamHtml = validTeam.map(function(id){
-        var ch = CHARACTERS[id];
-        return '<div class="template-picker-char" style="--el: ' + ELEMENT_COLORS[ch.element] + ';">' +
-          '<div class="template-picker-char-emoji">' + ch.emoji + '</div>' +
-          '<div class="template-picker-char-name">' + ch.name + '</div>' +
-        '</div>';
-      }).join('');
-      html += '<div class="template-picker-item" data-slot="' + t.slot + '">';
-      html += '<div class="template-picker-item-name">' + (t.template.name || 'Ranura ' + (t.slot + 1)) + '</div>';
-      html += '<div class="template-picker-team">' + teamHtml + '</div>';
-      html += '<div class="template-picker-deck-info">🎴 ' + t.template.deck.length + ' cartas</div>';
-      html += '</div>';
-    });
+  templates.forEach(function(t) {
+    if (!t.template || !Array.isArray(t.template.team) || !Array.isArray(t.template.deck)) return;
+    var validTeam = t.template.team.filter(function(id){ return CHARACTERS[id] && id !== 'hunger'; }).slice(0, 3);
+    var teamHtml = validTeam.map(function(id){
+      var ch = CHARACTERS[id];
+      return '<div class="template-picker-char" style="--el: ' + ELEMENT_COLORS[ch.element] + ';">' +
+        '<div class="template-picker-char-emoji">' + ch.emoji + '</div>' +
+        '<div class="template-picker-char-name">' + ch.name + '</div>' +
+      '</div>';
+    }).join('');
+    html += '<div class="template-picker-item" data-slot="' + t.slot + '">';
+    html += '<div class="template-picker-item-name">' + (t.template.name || 'Ranura ' + (t.slot + 1)) + '</div>';
+    html += '<div class="template-picker-team">' + teamHtml + '</div>';
+    html += '<div class="template-picker-deck-info">🎴 ' + t.template.deck.length + ' cartas</div>';
+    html += '</div>';
+  });
     html += '</div>';
   }
 
@@ -2134,10 +2068,12 @@ function showShieldTooltip(anchor, cs) {
 }
 function hideTooltip(){ if (hoverTooltip) hoverTooltip.classList.remove('show'); }
 
-var COMBAT_SLOT_COUNT = 3, currentCombatSlot = null;
-function getCombatSlotKey(s){ return 'azaria_saved_combat_' + s; }
+var COMBAT_SLOT_COUNT = 3;
+var currentCombatSlot = null;
+
+function getCombatSlotKey(s){ return 'azaria_saved_combat_' + currentSlotMode + '_' + s; }
 function getSavedCombat(s){ try { var st = localStorage.getItem(getCombatSlotKey(s)); if (!st) return null; var p = JSON.parse(st); if (p.phase === 'ended') return null; return p; } catch (e) { return null; } }
-function saveCombatToSlot(s){ if (!combatState || combatState.phase === 'ended') return; combatState.player.dice.forEach(function(d){ d.justAdded = false; }); try { localStorage.setItem(getCombatSlotKey(s), JSON.stringify(combatState)); } catch (e) {} }
+function saveCombatToSlot(s){ if (!combatState || combatState.phase === 'ended') return; if (!currentSlotMode) return; combatState.player.dice.forEach(function(d){ d.justAdded = false; }); try { localStorage.setItem(getCombatSlotKey(s), JSON.stringify(combatState)); } catch (e) {} }
 function clearCombatSlot(s){ try { localStorage.removeItem(getCombatSlotKey(s)); } catch (e) {} }
 function saveCombatState(){ if (!combatState || combatState.phase === 'ended') return; if (currentCombatSlot === null) return; saveCombatToSlot(currentCombatSlot); }
 function clearSavedCombat(){ if (currentCombatSlot === null) return; clearCombatSlot(currentCombatSlot); }
@@ -2258,28 +2194,26 @@ function showCombatStartConfirmForP2(slotNum) {
 function updateCombatStartConfirmState() {
   var content = document.querySelector('#combatStartConfirm .combat-start-confirm-content');
   if (!content) return;
+  // Limpiar avisos previos
   var oldWarn = content.querySelector('.game-mode-warning');
   if (oldWarn) oldWarn.remove();
   var oldExWarn = content.querySelector('.ex-selection-warning');
   if (oldExWarn) oldExWarn.remove();
+
   var confirmBtn = document.getElementById('combatStartConfirmBtn');
-  var modeOk = (currentGameMode === 'normal');
+
+  // ✅ Los 3 modos están permitidos: nada de bloquear por modo.
+  var modeOk = true;
+
+  // Solo bloquea por EX si el toggle está ON y no hay EX elegida.
   var exOk = true;
   if (exCombatEnabled) {
-    if (combatStartConfirmForP2) {
-      exOk = !!pendingExChoiceP2;
-    } else {
-      exOk = !!pendingExChoice;
-    }
+    if (combatStartConfirmForP2) exOk = !!pendingExChoiceP2;
+    else exOk = !!pendingExChoice;
   }
+
   if (confirmBtn) confirmBtn.disabled = !(modeOk && exOk);
 
-  if (!modeOk) {
-    var warn = document.createElement('div');
-    warn.className = 'game-mode-warning';
-    warn.textContent = '⚠️ El modo "' + GAME_MODE_LABELS[currentGameMode] + '" no está disponible todavía. Cambia a NORMAL para empezar.';
-    content.appendChild(warn);
-  }
   if (exCombatEnabled && !exOk) {
     var exWarn = document.createElement('div');
     exWarn.className = 'ex-selection-warning';
@@ -2293,6 +2227,11 @@ function showSlotSelectionDialog(){ initAudio(); var ov = document.getElementByI
 function hideSlotSelectionDialog(){ var ov = document.getElementById('slotSelectionDialog'); if (ov) ov.classList.remove('show'); }
 function renderSlotSelectionDialog() {
   var list = document.getElementById('slotList'); if (!list) return;
+  // ✅ Título dinámico según modo
+  var titleEl = document.querySelector('#slotSelectionDialog .resume-combat-title');
+  if (titleEl) {
+    titleEl.textContent = '⚔️ ' + (currentSlotMode === 'pvp' ? 'Combates PvP Guardados' : 'Combates Solo Guardados');
+  }
   var html = '';
   for (var i = 0; i < COMBAT_SLOT_COUNT; i++) {
     var sv = getSavedCombat(i);
@@ -2356,21 +2295,40 @@ function prepareNewCombat(preferredSlot) {
   currentCombatSlot = s; showCombatStartConfirm(s);
 }
 
-function openCombat(mode){
-  pendingPvpMode = (mode === 'pvp');
-  // ✅ Primero: si hay partidas guardadas, mostrar el diálogo de ranuras.
-  // El botón "Nuevo Combate" dentro de ese diálogo es quien pide la plantilla.
+function openCombat(mode) {
+  mode = mode || 'solo';
+  pendingPvpMode = (mode === 'pvp' || mode === 'sandbox');
+  currentSlotMode = (mode === 'solo' || mode === 'pvp') ? mode : null;
+
+  if (mode === 'auto' || mode === 'sandbox') {
+  currentCombatSlot = null;
+  }
+
+  pendingCombatTeam = null;
+  pendingCombatDeck = null;
+  pendingCombatP2Team = null;
+  pendingCombatP2Deck = null;
+
+  if (mode === 'auto') {
+    currentGameMode = 'auto';
+    startTwoTeamsFlow('auto');
+    return;
+  }
+  if (mode === 'sandbox') {
+    currentGameMode = 'sandbox';
+    startTwoTeamsFlow('sandbox');
+    return;
+  }
+
+  currentGameMode = 'normal';
+
   if (hasAnySavedCombat()) {
     showSlotSelectionDialog();
     return;
   }
-  // No hay partidas guardadas → pedir plantilla directamente
   startCombatWithTemplatePicker();
 }
 
-// ✅ Nueva función: pide plantilla (P1 y, si es PvP, P2) y arranca el combate.
-// Se llama desde openCombat (si no hay partidas guardadas) y desde el botón
-// "Nuevo Combate" del diálogo de ranuras (slotNewCombatBtn).
 function startCombatWithTemplatePicker(){
   var p1Label = pendingPvpMode ? '⚔️ Jugador 1' : '⚔️ Combate';
   showTemplatePickerForCombat(p1Label, function(p1Template){
@@ -2378,31 +2336,145 @@ function startCombatWithTemplatePicker(){
     var validDeck = p1Template.deck.filter(function(id){ return CARD_DB[id]; });
     var cnts = {};
     validDeck = validDeck.filter(function(id){ cnts[id] = (cnts[id]||0) + 1; return cnts[id] <= 2; }).slice(0, 30);
-    // ✅ No tocamos team/deck globales: guardamos la plantilla para ESTE combate
     pendingCombatTeam = validTeam;
     pendingCombatDeck = validDeck;
 
-    if (pendingPvpMode) {
-      if (validTeam.length !== 3 || validDeck.length !== 30) {
-        showTeamMissingToast('Tu plantilla debe tener 3 personajes y 30 cartas');
-        return;
-      }
-      showTemplatePickerForCombat('⚔️ Jugador 2', function(p2Template){
-        var p2Team = p2Template.team.filter(function(id){ return CHARACTERS[id] && id !== 'hunger'; }).slice(0, 3);
-        var p2Deck = p2Template.deck.filter(function(id){ return CARD_DB[id]; });
-        var c2 = {};
-        p2Deck = p2Deck.filter(function(id){ c2[id] = (c2[id]||0) + 1; return c2[id] <= 2; }).slice(0, 30);
-        pvpP2Team = (p2Team.length === 3) ? p2Team : getRandomBotTeam();
-        pvpP2Deck = (p2Deck.length > 0) ? p2Deck : generateRandomDeck();
-        currentCombatSlot = findEmptyCombatSlot();
-        if (currentCombatSlot === -1) { showOverwriteDialog(); return; }
-        showCombatStartConfirmForP2(currentCombatSlot);
-      });
+    if (validTeam.length !== 3 || validDeck.length !== 30) {
+      showTeamMissingToast('La plantilla debe tener 3 personajes y 30 cartas');
       return;
     }
 
-    prepareNewCombat(null);
+    var s = findEmptyCombatSlot();
+    if (s === -1) { showOverwriteDialog(); return; }
+    currentCombatSlot = s;
+
+    // ✅ Mostrar SIEMPRE la confirmación del J1 (Solo y PvP)
+    showCombatStartConfirm(s);
   });
+}
+
+// ✅ Nueva: tras confirmar el J1 en PvP, se pide plantilla del J2 y su confirmación
+function askP2TemplateAndConfirm() {
+  showTemplatePickerForCombat('⚔️ Jugador 2', function(p2Template){
+    var p2Team = p2Template.team.filter(function(id){ return CHARACTERS[id] && id !== 'hunger'; }).slice(0, 3);
+    var p2Deck = p2Template.deck.filter(function(id){ return CARD_DB[id]; });
+    var c2 = {};
+    p2Deck = p2Deck.filter(function(id){ c2[id] = (c2[id]||0) + 1; return c2[id] <= 2; }).slice(0, 30);
+    if (p2Team.length !== 3 || p2Deck.length !== 30) {
+      showTeamMissingToast('La plantilla del <strong>Jugador 2</strong> debe tener 3 personajes y 30 cartas');
+      return;
+    }
+    pvpP2Team = p2Team;
+    pvpP2Deck = p2Deck;
+
+    // ✅ Restaurar la decisión EX del J1 para que el diálogo del J2 la muestre
+    exCombatEnabled = !!window._pendingPlayerExEnabled;
+
+    // ✅ Mostrar confirmación del J2 (toggle EX bloqueado)
+    showCombatStartConfirmForP2(currentCombatSlot);
+  });
+}
+
+/* ─── NUEVO: flujo de dos equipos (Auto / Sandbox) ─── */
+function startTwoTeamsFlow(mode) {
+  var p1Label = '⚔️ Equipo 1';
+  showTemplatePickerForCombat(p1Label, function(t1){
+    var p1Team = t1.team.filter(function(id){ return CHARACTERS[id] && id !== 'hunger'; }).slice(0, 3);
+    var p1Deck = t1.deck.filter(function(id){ return CARD_DB[id]; });
+    var c1 = {};
+    p1Deck = p1Deck.filter(function(id){ c1[id] = (c1[id]||0) + 1; return c1[id] <= 2; }).slice(0, 30);
+    if (p1Team.length !== 3 || p1Deck.length !== 30) {
+      showTeamMissingToast('La plantilla del <strong>Equipo 1</strong> debe tener 3 personajes y 30 cartas');
+      return;
+    }
+    pendingCombatTeam = p1Team;
+    pendingCombatDeck = p1Deck;
+
+    showTemplatePickerForCombat('⚔️ Equipo 2', function(t2){
+      var p2Team = t2.team.filter(function(id){ return CHARACTERS[id] && id !== 'hunger'; }).slice(0, 3);
+      var p2Deck = t2.deck.filter(function(id){ return CARD_DB[id]; });
+      var c2 = {};
+      p2Deck = p2Deck.filter(function(id){ c2[id] = (c2[id]||0) + 1; return c2[id] <= 2; }).slice(0, 30);
+      if (p2Team.length !== 3 || p2Deck.length !== 30) {
+        showTeamMissingToast('La plantilla del <strong>Equipo 2</strong> debe tener 3 personajes y 30 cartas');
+        return;
+      }
+      pvpP2Team = p2Team;
+      pvpP2Deck = p2Deck;
+      currentCombatSlot = null;
+
+      if (mode === 'auto') actuallyStartAutoCombat();
+      else if (mode === 'sandbox') actuallyStartSandboxCombat();
+    });
+  });
+}
+
+function actuallyStartAutoCombat() {
+  initAudio(); preloadCombatImages(); initCombatStars();
+  var m = document.getElementById('combatModal');
+  if (!m) return;
+  m.classList.add('open'); document.body.style.overflow = 'hidden';
+  startAutoCombat();
+}
+
+function actuallyStartSandboxCombat() {
+  initAudio(); preloadCombatImages(); initCombatStars();
+  // ✅ Mostrar el botón de toggle para poder abrir el panel manualmente
+  var stBtn = document.getElementById('sandboxToggleBtn');
+  if (stBtn) stBtn.style.display = 'grid';
+  var m = document.getElementById('combatModal');
+  if (!m) return;
+  m.classList.add('open'); document.body.style.overflow = 'hidden';
+  startSandboxCombat();
+  // ❌ Eliminado: setTimeout(function(){ if (combatState) openSandboxPanel(); }, 400);
+}
+
+function startSandboxCombat() {
+  var pids = getPlayerTeamIds();
+  var bids = (pvpP2Team && pvpP2Team.length === 3) ? pvpP2Team.slice() : getRandomBotTeam();
+  if (!pids) { closeCombat(); return; }
+
+  var pDeck = (pendingCombatDeck && pendingCombatDeck.length === 30) ? pendingCombatDeck.slice() : generateRandomDeck();
+  var bDeck = (pvpP2Deck && pvpP2Deck.length === 30) ? pvpP2Deck.slice() : generateRandomDeck();
+
+  // ✅ Modo 'bot': pvp=false (el bot actúa solo)
+  //    Modo 'player-only' y 'two-users': pvp=true (el usuario controla ambos)
+  var pvpFlag = (sandboxTurnMode !== 'bot');
+
+  combatState = {
+    round: 1, turn: 'player', phase: 'playing',
+    playerDone: false, botDone: false, winner: null, starterChosen: true,
+    log: [],
+    player: buildSideState(pids, null),
+    bot: buildSideState(bids, null),
+    pvp: pvpFlag,
+    exCharId: { player: null, bot: null },
+    exCombatEnabled: false,
+    mode: 'sandbox'
+  };
+  combatState.player.consonance = getConsonanceForIds(pids);
+  combatState.bot.consonance = getConsonanceForIds(bids);
+  combatState.player.deck = shuffleArray(pDeck);
+  combatState.bot.deck = shuffleArray(bDeck);
+  combatState.player.hand = []; combatState.player.discardPile = [];
+  combatState.player.cardsUsedThisRound = {}; combatState.player.cardsUsedThisGame = {}; combatState.player.drawSelection = {};
+  combatState.bot.hand = []; combatState.bot.discardPile = [];
+  combatState.bot.cardsUsedThisRound = {}; combatState.bot.cardsUsedThisGame = {}; combatState.bot.drawSelection = {};
+
+  // Tirada inicial + robo para ambos sin overlays
+  combatState.player.dice = rollCombatDice(8);
+  combatState.bot.dice = rollCombatDice(8);
+  applyIlusion(combatState.player, 'player');
+  applyIlusion(combatState.bot, 'bot');
+  for (var i = 0; i < 5; i++) { drawFromDeck('player'); drawFromDeck('bot'); }
+
+  hideBanner();
+  logCombat('⚙️ Combate Sandbox — modo: ' + sandboxTurnMode);
+  logCombat('🦋 J1: ' + pids.map(function(id){ return COMBAT_CHARS[id].name; }).join(', '));
+  logCombat('🦋 J2: ' + bids.map(function(id){ return COMBAT_CHARS[id].name; }).join(', '));
+
+  renderCombat();
+  beginRoundPlay();
 }
 
 /* ═══ PvP SETUP ═══ */
@@ -2420,6 +2492,8 @@ function actuallyStartPvpLocalCombat(){
   startPvpLocalCombat();
 }
 function startPvpLocalCombat(){
+  var stBtn = document.getElementById('sandboxToggleBtn');
+  if (stBtn) stBtn.style.display = (currentGameMode === 'sandbox') ? '' : 'none';
   var pids = getPlayerTeamIds();
   var bids = (pvpP2Team && pvpP2Team.length === 3) ? pvpP2Team.slice() : getRandomBotTeam();
   if (!pids) { closeCombat(); return; }
@@ -2443,7 +2517,8 @@ function startPvpLocalCombat(){
     bot:    buildSideState(bids, p2ExId),
     pvp: true,
     exCharId: { player: p1ExId, bot: p2ExId },
-    exCombatEnabled: exEnabled
+    exCombatEnabled: exEnabled,
+    mode: currentGameMode
   };
   combatState.player.consonance = getConsonanceForIds(pids);
   combatState.bot.consonance    = getConsonanceForIds(bids);
@@ -2591,28 +2666,19 @@ function resumeCombatFromSlot(s) {
     if (combatState.phase === 'playing' && combatState.turn === 'bot' && !combatState.botDone && !combatState.pvp) setTimeout(botTurn, 800);
   }
 }
-function actuallyStartCombat(){
-  if (pendingPvpMode) {
-    // ✅ PvP: si ya hay equipo del J2 elegido, pedirle su EX antes de arrancar.
-    // Abrimos el combatModal ANTES para que la transición visual sea correcta
-    // y no se vea un salto al menú.
-    var m = document.getElementById('combatModal');
-    if (m) { m.classList.add('open'); document.body.style.overflow = 'hidden'; }
-    initAudio(); preloadCombatImages(); initCombatStars();
-    if (pvpP2Team && pvpP2Team.length === 3) {
-      currentCombatSlot = findEmptyCombatSlot();
-      if (currentCombatSlot === -1) {
-        if (m) { m.classList.remove('open'); document.body.style.overflow = ''; }
-        showOverwriteDialog();
-        return;
-      }
-      showCombatStartConfirmForP2(currentCombatSlot);
-      return;
-    }
-    actuallyStartPvpLocalCombat();
+function actuallyStartCombat() {
+  var stBtn = document.getElementById('sandboxToggleBtn');
+  if (stBtn) stBtn.style.display = (currentGameMode === 'sandbox') ? 'grid' : 'none';
+
+  var m = document.getElementById('combatModal'); if (!m) return;
+  initAudio(); preloadCombatImages(); initCombatStars();
+  m.classList.add('open'); document.body.style.overflow = 'hidden';
+
+  if (currentGameMode === 'auto') {
+    startAutoCombat();
     return;
   }
-  var m2 = document.getElementById('combatModal'); if (!m2) return; initAudio(); preloadCombatImages(); initCombatStars(); m2.classList.add('open'); document.body.style.overflow = 'hidden'; startCombat();
+  startCombat();
 }
 function closeCombat() {
   saveCombatState();
@@ -2620,16 +2686,30 @@ function closeCombat() {
   m.classList.remove('open'); document.body.style.overflow = '';
   combatState = null; currentCombatSlot = null;
   pvpSetupPhase = null;
-  hideBanner(); hideSelectOverlay(); hideTooltip(); hideConfirmation(); hideRollOverlay(); hideDrawOverlay();
-  pendingCombatTeam = null;
-  pendingCombatDeck = null;
-  pendingCombatP2Team = null;
-  pendingCombatP2Deck = null;
+  combatStartConfirmForP2 = false;
+  exCombatEnabled = false;
+  pendingExChoice = null;
+  pendingExChoiceP2 = null;
+  currentGameMode = 'normal';   // ✅ AÑADIR
+  // ✅ Ocultar el panel y el toggle del sandbox al cerrar el combate
+  var sp = document.getElementById('sandboxPanel'); if (sp) sp.hidden = true;
+  var st = document.getElementById('sandboxToggleBtn'); if (st) st.style.display = 'none';
+  sandboxOpen = false;
+  hideBanner(); hideSelectOverlay(); hideTooltip(); hideConfirmation(); hideRollOverlay(); hideDrawOverlay(); refreshGameModeBtn();          // ✅ AÑADIR (refresca el botón del diálogo de inicio)
 }
 function startCombat() {
   if (pendingPvpMode) { startPvpLocalCombat(); return; }
   var pids = getPlayerTeamIds(), bids = getRandomBotTeam();
-  if (!pids) { closeCombat(); return; }
+  if (!pids) {
+    if (currentCombatSlot !== null) clearCombatSlot(currentCombatSlot);  // ✅ NUEVO
+    if (currentGameMode === 'sandbox') {
+      // En Sandbox no cerramos: dejamos que el panel permita montar el combate a mano.
+      console.warn('[Sandbox] Sin equipo válido para arrancar el combate.');
+      return;
+    }
+    closeCombat();
+    return;
+  }
   if (currentCombatSlot !== null) clearCombatSlot(currentCombatSlot);
   pvpSetupPhase = null;
   // ✅ Elegir EX del jugador (viene del confirm) y del bot (aleatorio)
@@ -2644,7 +2724,7 @@ function startCombat() {
   window._pendingPlayerEx = null;
   window._pendingPlayerExEnabled = null;
 
-  combatState = { round:1, turn:'player', phase:'rolling', playerDone:false, botDone:false, winner:null, starterChosen:false, log:[], player:buildSideState(pids, playerExId), bot:buildSideState(bids, botExId), pvp:false, exCharId: { player: playerExId, bot: botExId }, exCombatEnabled: exEnabled };
+  combatState = { round:1, turn:'player', phase:'rolling', playerDone:false, botDone:false, winner:null, starterChosen:false, log:[], player:buildSideState(pids, playerExId), bot:buildSideState(bids, botExId), pvp:false, exCharId: { player: playerExId, bot: botExId }, exCombatEnabled: exEnabled, mode: currentGameMode };
   combatState.player.consonance = getConsonanceForIds(pids); combatState.bot.consonance = getConsonanceForIds(bids);
   var useDeck = (pendingCombatDeck && pendingCombatDeck.length === 30) ? pendingCombatDeck : deck;
   combatState.player.deck = shuffleArray(useDeck.slice());
@@ -2666,6 +2746,105 @@ function startCombat() {
   combatState.phase = 'rolling'; // el select overlay se muestra por encima; phase se mantiene coherente
   renderCombat();
   showSelectOverlay();
+}
+function startAutoCombat(){
+  var stBtn = document.getElementById('sandboxToggleBtn');
+  if (stBtn) stBtn.style.display = 'none';
+
+  var pids = getPlayerTeamIds();
+  if (!pids) { closeCombat(); return; }
+  var bids = (pvpP2Team && pvpP2Team.length === 3) ? pvpP2Team.slice() : getRandomBotTeam();
+  var pDeck = (pendingCombatDeck && pendingCombatDeck.length === 30) ? pendingCombatDeck.slice() : generateRandomDeck();
+  var bDeck = (pvpP2Deck && pvpP2Deck.length === 30) ? pvpP2Deck.slice() : generateRandomDeck();
+
+  var pExId = null, bExId = null;
+
+  combatState = {
+    round: 1, turn: 'player', phase: 'rolling',
+    playerDone: false, botDone: false, winner: null, starterChosen: false,
+    log: [],
+    player: buildSideState(pids, pExId),
+    bot: buildSideState(bids, bExId),
+    pvp: false,
+    exCharId: { player: pExId, bot: bExId },
+    exCombatEnabled: false,
+    mode: 'auto'
+  };
+  combatState.player.consonance = getConsonanceForIds(pids);
+  combatState.bot.consonance    = getConsonanceForIds(bids);
+  combatState.player.deck = shuffleArray(pDeck);
+  combatState.bot.deck    = shuffleArray(bDeck);
+  combatState.player.hand = []; combatState.player.discardPile = [];
+  combatState.player.cardsUsedThisRound = {}; combatState.player.cardsUsedThisGame = {}; combatState.player.drawSelection = {};
+  combatState.bot.hand = []; combatState.bot.discardPile = [];
+  combatState.bot.cardsUsedThisRound = {}; combatState.bot.cardsUsedThisGame = {}; combatState.bot.drawSelection = {};
+
+  var ov = document.getElementById('combatEndOverlay'); if (ov) ov.classList.remove('open');
+  hideBanner();
+  logCombat('🤖 AUTO — Bot vs Bot');
+  logCombat('🦋 J1: ' + pids.map(function(id){ return COMBAT_CHARS[id].name; }).join(', '));
+  logCombat('🦋 J2: ' + bids.map(function(id){ return COMBAT_CHARS[id].name; }).join(', '));
+
+  renderCombat();
+  runAutoSetup();
+}
+function runAutoSetup(){
+  if (!combatState || combatState.mode !== 'auto') return;
+  // Elegir personaje inicial aleatorio para ambos
+  combatState.player.activeIndex = Math.floor(Math.random() * 3);
+  combatState.bot.activeIndex = Math.floor(Math.random() * 3);
+  // Tirada
+  rollDiceForSide('player', true);
+  rollDiceForSide('bot', true);
+  // Robo inicial
+  var pDraw = combatState.round === 1 ? 5 : 2;
+  for (var i = 0; i < pDraw; i++) { drawFromDeck('player'); drawFromDeck('bot'); }
+  logCombat('🤖 Auto: ronda ' + combatState.round + ' lista');
+
+  // Arrancar la ronda
+  combatState.phase = 'playing';
+  combatState.playerDone = false; combatState.botDone = false;
+  beginRoundPlay();
+  // El primer turno será del jugador, pero como es auto, lo juega el bot
+  if (combatState.turn === 'player') {
+    setTimeout(autoPlayerTurn, 900);
+  }
+}
+function autoPlayerTurn(){
+  if (!combatState || combatState.mode !== 'auto' || combatState.phase === 'ended') return;
+  if (combatState.playerDone) { nextTurn(); return; }
+  var side = combatState.player;
+  var active = side.characters[side.activeIndex];
+  if (!active || active.dead) { declareEnd('player'); return; }
+
+  // Elegir acción: definitiva > cambio si HP bajo > normal > elemental
+  var action = null;
+  if (active.character.abilities.ultimate && trySpendDice(side.dice, getEffectiveCostFull(active, active.character.abilities.ultimate)).ok && (!active.character.abilities.ultimate.energyCost || active.energy >= active.character.abilities.ultimate.energyCost)) {
+    action = { type:'ultimate' };
+  } else if (active.hp < active.maxHp * 0.35) {
+    for (var i = 0; i < side.characters.length; i++) {
+      if (i === side.activeIndex || side.characters[i].dead) continue;
+      if (side.characters[i].hp > active.hp + 2) { action = { type:'change', index:i }; break; }
+    }
+  }
+  if (!action && trySpendDice(side.dice, getEffectiveCostFull(active, active.character.abilities.normal)).ok) action = { type:'normal' };
+  if (!action && trySpendDice(side.dice, getEffectiveCostFull(active, active.character.abilities.elemental)).ok) action = { type:'elemental' };
+
+  if (!action) { declareEnd('player'); return; }
+
+  setTimeout(function(){
+    if (!combatState || combatState.mode !== 'auto') return;
+    if (action.type === 'change') {
+      var rules = getChangeRulesForTarget('player', action.index);
+      if (rules.diceCost > 0) { var rr = trySpendDice(side.dice, { any: rules.diceCost }); if (rr.ok) side.dice = rr.remaining; }
+      side.activeIndex = action.index;
+      logCombat('🤖 J1 cambia a ' + side.characters[action.index].character.name);
+      renderCombat();
+      setTimeout(autoPlayerTurn, 600);
+    } else {
+      executeAction('player', action.type);
+    }
+  }, 500);
 }
 // ✅ Con el nuevo orden (select → roll), la consonancia de Ilusión debe
 // aplicarse también en la tirada inicial del jugador, porque ya se conoce
@@ -2798,6 +2977,15 @@ function startCombatPhase(){
   startDrawPhase();
 }
 function startDrawPhase() {
+  if (combatState.mode === 'auto') {
+    var sideKey = combatState.turn;
+    var side = combatState[sideKey];
+    combatState.phase = 'playing';
+    var base = combatState.round === 1 ? 5 : 2;
+    for (var i = 0; i < base; i++) drawFromDeck(sideKey);
+    beginRoundPlay();
+    return;
+  }
   if (!combatState) return;
   var sideKey = combatState.turn;
   var side = combatState[sideKey];
@@ -3910,6 +4098,12 @@ function botTurn() {
 function nextTurn() {
   if (!combatState || combatState.phase === 'ended') return;
   if (combatState.playerDone && combatState.botDone) { endRound(); return; }
+  // ✅ Sandbox modo player-only: siempre vuelve a ser el turno del jugador
+  if (currentGameMode === 'sandbox' && sandboxTurnMode === 'player-only') {
+    combatState.turn = 'player';
+    renderCombat();
+    return;
+  }
   var next = combatState.turn === 'player' ? 'bot' : 'player';
   if (next === 'player' && combatState.playerDone) next = 'bot';
   else if (next === 'bot' && combatState.botDone) next = 'player';
@@ -3925,13 +4119,18 @@ function nextTurn() {
     }
   }
   else {
-    showBanner(combatState.pvp ? 'TURNO JUGADOR 1' : 'TU TURNO', 1200);
+    showBanner(combatState.pvp ? 'TURNO JUGADOR 1' : (combatState.mode === 'auto' ? 'TURNO J1 (AUTO)' : 'TU TURNO'), 1200);
     renderCombat();
+    if (combatState.mode === 'auto' && !combatState.playerDone) setTimeout(autoPlayerTurn, 900);
   }
 }
 function declareEnd(who) {
   if (!combatState || combatState.phase === 'ended' || combatState[who + 'Done']) return;
   combatState[who + 'Done'] = true;
+  // ✅ Sandbox player-only: declarar fin de ronda termina la ronda directamente
+  if (currentGameMode === 'sandbox' && sandboxTurnMode === 'player-only' && who === 'player') {
+    combatState.botDone = true;
+  }
   if (combatState.pvp && !combatState.firstDeclarer) combatState.firstDeclarer = who;
   if (combatState.pvp) {
     if (who === 'player') { logCombat('🛑 Jugador 1 declara fin de ronda'); showBanner('J1: FIN DE RONDA', 1400); }
@@ -4022,6 +4221,19 @@ function endRound() {
     combatState.bot.cardsUsedThisRound = {};
   }
   setTimeout(function(){
+    // ✅ Sandbox: saltar setup PvP entre rondas
+    if (currentGameMode === 'sandbox') {
+      rollDiceForSide('player', false);
+      rollDiceForSide('bot', false);
+      for (var i = 0; i < 2; i++) { drawFromDeck('player'); drawFromDeck('bot'); }
+      combatState.phase = 'playing';
+      combatState.turn = 'player';
+      combatState.pvp = (sandboxTurnMode !== 'bot');
+      logCombat('═══ Ronda ' + combatState.round + ' ═══');
+      renderCombat();
+      beginRoundPlay();
+      return;
+    }
     if (!combatState) return;
     combatState.phase = 'rolling';
     if (combatState.pvp) {
@@ -4034,7 +4246,13 @@ function endRound() {
     combatState.turn = 'player';
     logCombat('═══ Ronda ' + combatState.round + ' ═══'); logCombat('🎲 Lanzas dados');
     rollDiceForSide('player', false); rollDiceForSide('bot', false);
-    renderCombat(); showRollOverlay();
+    renderCombat();
+    if (combatState.mode === 'auto') {
+      // Auto: no mostramos overlay, arrancamos la ronda directamente
+      startDrawPhase();
+      return;
+    }
+    showRollOverlay();
   }, 1700);
 }
 function endCombat(winner) {
@@ -4154,7 +4372,7 @@ function cardWouldGiveEnergyToArtemis(card, side) {
 }
 function playCardRequest(cardId) {
   if (!combatState || combatState.phase !== 'playing') return;
-  if (!isPlayerTurn()) return;   // ✅ solo en tu turno
+  if (!canHumanControlCurrentTurn()) return;
   if (isTurnDone()) return;
   var side = getTurnSide(); if (!side) return;
   var card = CARD_DB[cardId] || PAINT_CARDS[cardId]; if (!card) return;
@@ -4763,7 +4981,7 @@ function showActionConfirmation(actionType, ability, onConfirm) {
 }
 function playerActionRequest(actionType) {
   if (!combatState || combatState.phase !== 'playing') return;
-  if (!isPlayerTurn()) return;   // ✅ solo en tu turno
+  if (!canHumanControlCurrentTurn()) return;
   if (isTurnDone()) return;
   // (El botón EX del sidebar ya no se usa: la EX se elige en combatStartConfirm)
   if (actionType === 'ex') { playSound('error'); return; }
@@ -4836,7 +5054,7 @@ function showChangeConfirmation(targetIndex, onConfirm) {
 }
 function playerChangeCharacterRequest(targetIndex) {
   if (!combatState || combatState.phase !== 'playing') return;
-  if (!isPlayerTurn()) return;   // ✅ solo en tu turno
+  if (!canHumanControlCurrentTurn()) return;
   if (isTurnDone()) return;
   var turnKey = getTurnKey();
   var side = combatState[turnKey];
@@ -4875,12 +5093,13 @@ function renderDice() {
   var cnt = document.getElementById('diceCounter'); if (cnt) cnt.textContent = dice.length;
 }
 function renderHand() {
+  var canAct = canHumanControlCurrentTurn();
   var c = document.getElementById('combatHand'); if (!c || !combatState) return;
   var side = getActiveSide();
   if (!side) return;
   var hc = document.getElementById('handCount'); if (hc) hc.textContent = side.hand.length;
   if (!side.hand.length) { c.innerHTML = '<div class="combat-hand-empty">Sin cartas en mano</div>'; return; }
-  var canAct = !isTurnDone() && combatState.phase === 'playing' && isPlayerTurn();
+  var canAct = canHumanControlCurrentTurn();
   c.innerHTML = side.hand.map(function(cid){
     if (cid === 'hidden') return '<div class="combat-card disabled" style="--dc: 100,100,100; --cat: 100,100,100; min-height: 56px;"><div class="combat-card-header"><span class="combat-card-emoji">🂠</span><span class="combat-card-name">Carta oculta</span></div></div>';
     var card = CARD_DB[cid] || PAINT_CARDS[cid]; if (!card) return '';
@@ -4901,12 +5120,14 @@ function renderHand() {
 }
 function renderTeamCards(who) {
   var actualWho = who;
+  var isHumanSide = combatState.mode === 'auto' ? false : (combatState.pvp ? true : (actualWho === 'player'));
   if (actualWho === getTurnKey()) hideTooltip();
   var containerId = who === 'player' ? 'playerTeam' : 'botTeam';
   var c = document.getElementById(containerId); if (!c) return;
   var side = combatState[actualWho];
   var isPlayerSide = who === 'player';
-  var isHumanSide = combatState.pvp ? true : (actualWho === 'player');
+  // ✅ BORRAR la segunda línea duplicada:
+  // var isHumanSide = combatState.pvp ? true : (actualWho === 'player');
   var isThisSideTurn = combatState.turn === actualWho;
   var sideDone = actualWho === 'player' ? combatState.playerDone : combatState.botDone;
   var canInteract = isHumanSide && isThisSideTurn && !sideDone && combatState.phase === 'playing';
@@ -5028,7 +5249,8 @@ function updateTurnIndicator() {
 }
 function updateCombatActions() {
   if (!combatState) return;
-  var isTurn = !isTurnDone() && combatState.phase === 'playing' && isPlayerTurn();
+  // ✅ UNA SOLA declaración de isTurn, con la comprobación de 'auto' correcta
+  var isTurn = canHumanControlCurrentTurn();
   var side = getActiveSide();
   if (!side) return;
   var active = side.characters[side.activeIndex]; if (!active) return;
@@ -5064,11 +5286,15 @@ function updateCombatActions() {
 function renderCombatLog(){ var el = document.getElementById('combatLog'); if (!el) return; el.innerHTML = combatState.log.map(function(l){ return '<div class="log-line">' + l + '</div>'; }).join(''); el.scrollTop = el.scrollHeight; }
 function renderCombat() {
   if (!combatState) return;
-  var r = document.getElementById('combatRound'); if (r) r.textContent = combatState.round;
-  updateTurnIndicator(); renderConsonanceCombat();
-  renderTeamCards('player'); renderTeamCards('bot');
-  renderSupports('player'); renderSupports('bot');
-  renderDice(); renderHand(); updateCombatActions(); renderCombatLog();
+  try {
+    var r = document.getElementById('combatRound'); if (r) r.textContent = combatState.round;
+    updateTurnIndicator(); renderConsonanceCombat();
+    renderTeamCards('player'); renderTeamCards('bot');
+    renderSupports('player'); renderSupports('bot');
+    renderDice(); renderHand(); updateCombatActions(); renderCombatLog();
+  } catch (err) {
+    console.error('[renderCombat] ERROR:', err);
+  }
 }
 
 [{ btnId:'normalBtn', type:'normal' }, { btnId:'elementalBtn', type:'elemental' }, { btnId:'ultimateBtn', type:'ultimate' }].forEach(function(item){ var b = document.getElementById(item.btnId); if (!b) return; b.addEventListener('mouseenter', function(){ showAbilityTooltip(b, item.type); }); b.addEventListener('mouseleave', hideTooltip); });
@@ -5078,10 +5304,18 @@ function renderCombat() {
   el.addEventListener('mouseover', function(e){ var card = e.target.closest('.combat-char-card'); if (!card || card.classList.contains('dead')) return; if (e.relatedTarget && card.contains(e.relatedTarget)) return; if (!combatState || combatState.phase === 'ended') return; if (e.target.closest('.ccc-badge')) return; var sideKey = card.dataset.team; var idx = parseInt(card.dataset.index, 10); if (idx === combatState[sideKey].activeIndex) return; showCharTooltip(card, combatState[sideKey].characters[idx]); });
   el.addEventListener('mouseout', function(e){ var card = e.target.closest('.combat-char-card'); if (!card) return; if (e.relatedTarget && card.contains(e.relatedTarget)) return; if (e.target.closest('.ccc-badge')) return; hideTooltip(); });
 });
-var openCombatBtn = document.getElementById('openCombatBtn'); if (openCombatBtn) openCombatBtn.addEventListener('click', function(){ openCombat(); });
-var openPvpBtn = document.getElementById('openPvpBtn'); if (openPvpBtn) openPvpBtn.addEventListener('click', function(){ openCombat('pvp'); });
-var jugarCombatBtn = document.getElementById('jugarCombatBtn'); if (jugarCombatBtn) jugarCombatBtn.addEventListener('click', function(){ openCombat(); });
-var jugarPvpBtn = document.getElementById('jugarPvpBtn'); if (jugarPvpBtn) jugarPvpBtn.addEventListener('click', function(){ openCombat('pvp'); });
+function bindOpenCombat(id, mode) {
+  var b = document.getElementById(id);
+  if (b) b.addEventListener('click', function(){ openCombat(mode); });
+}
+bindOpenCombat('openCombatBtn', 'solo');
+bindOpenCombat('openPvpBtn', 'pvp');
+bindOpenCombat('openAutoBtn', 'auto');
+bindOpenCombat('openSandboxBtn', 'sandbox');
+bindOpenCombat('jugarCombatBtn', 'solo');
+bindOpenCombat('jugarPvpBtn', 'pvp');
+bindOpenCombat('jugarAutoBtn', 'auto');
+bindOpenCombat('jugarSandboxBtn', 'sandbox');
 var combatCloseBtn = document.getElementById('combatCloseBtn'); if (combatCloseBtn) combatCloseBtn.addEventListener('click', closeCombat);
 var combatEndBtn = document.getElementById('combatEndBtn'); if (combatEndBtn) combatEndBtn.addEventListener('click', function(){ clearSavedCombat(); closeCombat(); });
 var normalBtn = document.getElementById('normalBtn'); if (normalBtn) normalBtn.addEventListener('click', function(){ playerActionRequest('normal'); });
@@ -5090,7 +5324,7 @@ var ultimateBtn = document.getElementById('ultimateBtn'); if (ultimateBtn) ultim
 // (Botón EX del sidebar eliminado: la EX se elige en combatStartConfirm)
 var endRoundBtn = document.getElementById('endRoundBtn'); if (endRoundBtn) endRoundBtn.addEventListener('click', function(){
   // ✅ Solo se puede declarar fin de ronda en tu turno
-  if (!isPlayerTurn()) { playSound('error'); return; }
+  if (!canHumanControlCurrentTurn()) { playSound('error'); return; }
   declareEnd(getTurnKey());
 });
 var rollRerollBtn = document.getElementById('rollRerollBtn'); if (rollRerollBtn) rollRerollBtn.addEventListener('click', rerollSelected);
@@ -5099,7 +5333,7 @@ var drawMulliganBtn = document.getElementById('drawMulliganBtn'); if (drawMullig
 var drawContinueBtn = document.getElementById('drawContinueBtn'); if (drawContinueBtn) drawContinueBtn.addEventListener('click', onDrawContinue);
 var combatStartCancelBtn = document.getElementById('combatStartCancelBtn'); if (combatStartCancelBtn) combatStartCancelBtn.addEventListener('click', function(){ hideCombatStartConfirm(); playSound('deselect'); });
 var combatStartConfirmBtn = document.getElementById('combatStartConfirmBtn'); if (combatStartConfirmBtn) combatStartConfirmBtn.addEventListener('click', function(){
-  if (currentGameMode !== 'normal') { playSound('error'); this.classList.add('shake'); var self = this; setTimeout(function(){ self.classList.remove('shake'); }, 400); return; }
+  // (Sin bloqueo por modo: los 3 están permitidos)
   if (exCombatEnabled) {
     if (combatStartConfirmForP2 && !pendingExChoiceP2) { playSound('error'); return; }
     if (!combatStartConfirmForP2 && !pendingExChoice) { playSound('error'); return; }
@@ -5111,9 +5345,17 @@ var combatStartConfirmBtn = document.getElementById('combatStartConfirmBtn'); if
     actuallyStartPvpLocalCombat();
     return;
   }
+  // P1 path (Solo o PvP)
   window._pendingPlayerEx = exCombatEnabled ? pendingExChoice : null;
   window._pendingPlayerExEnabled = exCombatEnabled;
-  hideCombatStartConfirm(); playSound('confirm'); actuallyStartCombat();
+  hideCombatStartConfirm(); playSound('confirm');
+
+  if (pendingPvpMode) {
+    // ✅ PvP: el J1 confirmó → ahora toca plantilla y confirmación del J2
+    askP2TemplateAndConfirm();
+    return;
+  }
+  actuallyStartCombat();
 });
 var slotCancelBtn = document.getElementById('slotCancelBtn'); if (slotCancelBtn) slotCancelBtn.addEventListener('click', function(){ hideSlotSelectionDialog(); playSound('deselect'); });
 var slotNewCombatBtn = document.getElementById('slotNewCombatBtn'); if (slotNewCombatBtn) slotNewCombatBtn.addEventListener('click', function(){ hideSlotSelectionDialog(); startCombatWithTemplatePicker(); });
@@ -5203,6 +5445,742 @@ function addInfoButtons() {
   })(cards[i]);
 }
 
+/* ═══ SANDBOX ═══ */
+var sandboxOpen = false;
+var sandboxTab = 'global';   // antes: 'char'
+var sandboxCharSide = 'player';
+var sandboxCharIdx = 0;
+
+function openSandboxPanel() {
+  console.log('[Sandbox] openSandboxPanel called');
+  var p = document.getElementById('sandboxPanel');
+  var t = document.getElementById('sandboxToggleBtn');
+  if (!p) { console.error('[Sandbox] #sandboxPanel NOT FOUND'); return; }
+  sandboxOpen = true;
+  p.hidden = false;
+  p.style.display = 'flex';       // ✅ forzar display por si acaso
+  p.style.zIndex = '3000';        // ✅ por encima del modal
+  if (t && currentGameMode !== 'sandbox') t.style.display = 'none';
+  try {
+    renderSandboxPanel();
+  } catch (err) {
+    console.error('[Sandbox] renderSandboxPanel ERROR:', err);
+  }
+  var sb = document.getElementById('sandboxBody');
+  if (!sb || !sb.innerHTML.trim()) {
+    if (sb) sb.innerHTML = '<div class="sb-empty">No hay combate activo.</div>';
+  }
+  console.log('[Sandbox] panel visible? hidden=', p.hidden, '| display=', p.style.display, '| zIndex=', p.style.zIndex);
+}
+function closeSandboxPanel() {
+  var p = document.getElementById('sandboxPanel');
+  var t = document.getElementById('sandboxToggleBtn');
+  if (!p) return;
+  sandboxOpen = false;
+  p.hidden = true;
+  if (t) t.style.display = (currentGameMode === 'sandbox') ? '' : 'none';
+}
+function renderSandboxPanel() {
+  var body = document.getElementById('sandboxBody');   // ✅ AÑADIR
+  if (!combatState) {
+    if (body) body.innerHTML = '<div class="sb-empty">No hay combate activo.</div>';
+    return;
+  }
+  if (!body) return;
+  var html = '';
+  if (sandboxTab === 'global') html = sbRenderGlobal();
+  else if (sandboxTab === 'char') html = sbRenderChar();
+  else if (sandboxTab === 'dice') html = sbRenderDice();
+  else if (sandboxTab === 'cards') html = sbRenderCards();
+  else if (sandboxTab === 'fx') html = sbRenderFx();
+  body.innerHTML = html;
+  sbBindEvents();
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SANDBOX v2 — Entorno de pruebas completo
+   ═══════════════════════════════════════════════════════════════ */
+
+var SB_STATE_KEYS = [
+  'castigada','vulnerable','amenaza','furia','furiaPending',
+  'defensaActiva','sintonia','acelerado','vuelo','carrerilla',
+  'minutoSilencioShield','hipotesisShieldActive','internetEnergyGranted'
+];
+var SB_NUMERIC_KEYS = ['condena','invulnerabilidad','rencor'];
+var SB_SIDE_NUMS = ['enemyAttackDebuff','contraataque','obraMaestraTurns'];
+var SB_EQUIP_IDS = Object.keys(EQUIPMENT_CARDS);
+var SB_SUPPORT_IDS = Object.keys(SUPPORT_CARDS);
+var SB_CARD_IDS = Object.keys(CARD_DB);
+
+function sbAllChars() {
+  var out = [];
+  if (!combatState) return out;
+  ['player','bot'].forEach(function(sk){
+    combatState[sk].characters.forEach(function(cs, i){
+      out.push({ sideKey: sk, idx: i, cs: cs, side: combatState[sk] });
+    });
+  });
+  return out;
+}
+function sbTargetSelect(selected, id) {
+  var opts = sbAllChars().map(function(item){
+    var label = (item.sideKey === 'player' ? 'J1' : 'J2') + ' · ' + item.cs.character.name;
+    var val = item.sideKey + ':' + item.idx;
+    return '<option value="' + val + '"' + (selected === val ? ' selected' : '') + '>' + label + '</option>';
+  }).join('');
+  return '<select id="' + id + '">' + opts + '</select>';
+}
+function sbConsonanceLabel(c) {
+  if (!c) return '—';
+  if (c.type === 'diverse') return '🌈 Diverso';
+  return (PHILOSOPHIES[c.element] ? PHILOSOPHIES[c.element].emoji : '') + ' ' + (c.level || 0) + '/3';
+}
+
+/* ─── GLOBAL ─── */
+function sbRenderGlobal() {
+  if (!combatState) return '';
+  var c = combatState, h = '';
+
+  h += '<div class="sb-section"><div class="sb-section-title">Modo de turno (Sandbox)</div>';
+  h += '<div class="sb-row"><select id="sbTurnMode" style="flex:1;padding:0.3rem 0.5rem;background:rgba(0,0,0,0.4);border:1px solid rgba(92,179,255,0.3);border-radius:8px;color:#fff;font-family:inherit;font-size:0.78rem;">';
+  h += '<option value="player-only"' + (sandboxTurnMode === 'player-only' ? ' selected' : '') + '>Solo usuario (turno permanente)</option>';
+  h += '<option value="bot"' + (sandboxTurnMode === 'bot' ? ' selected' : '') + '>Jugar contra bot</option>';
+  h += '<option value="two-users"' + (sandboxTurnMode === 'two-users' ? ' selected' : '') + '>Control manual de ambos</option>';
+  h += '</select></div>';
+  h += '<div class="sb-row" style="font-size:0.65rem;color:var(--muted);font-style:italic;">Solo usuario: tus acciones no ceden turno. Contra bot: el rival responde. Manual: controlas ambos equipos.</div>';
+  h += '</div>';
+
+  h += '<div class="sb-section"><div class="sb-section-title">Ronda, turno y fase</div>';
+  h += '<div class="sb-row"><label>Ronda</label><input type="number" id="sbRound" value="' + c.round + '" min="1"></div>';
+  h += '<div class="sb-row"><button class="sb-btn" id="sbNextRoundBtn" style="flex:1;">⏭️ Siguiente ronda</button><button class="sb-btn danger" id="sbForceEndRoundBtn" style="flex:1;">⏹️ Fin de ronda</button></div>';
+  h += '<div class="sb-row"><label>Turno</label><select id="sbTurn" style="flex:1;"><option value="player"' + (c.turn === 'player' ? ' selected' : '') + '>J1</option><option value="bot"' + (c.turn === 'bot' ? ' selected' : '') + '>J2</option></select></div>';
+  h += '<div class="sb-row"><label>Fase</label><select id="sbPhase" style="flex:1;">' + ['playing','rolling','drawing','ended'].map(function(p){ return '<option value="' + p + '"' + (c.phase === p ? ' selected' : '') + '>' + p + '</option>'; }).join('') + '</select></div>';
+  h += '<div class="sb-row"><label>J1 fin</label><input type="checkbox" id="sbPlayerDone"' + (c.playerDone ? ' checked' : '') + '></div>';
+  h += '<div class="sb-row"><label>J2 fin</label><input type="checkbox" id="sbBotDone"' + (c.botDone ? ' checked' : '') + '></div>';
+  h += '</div>';
+
+  h += '<div class="sb-section"><div class="sb-section-title">Forzar resultado</div>';
+  h += '<div class="sb-row"><button class="sb-btn warn" id="sbWinPlayerBtn" style="flex:1;">🏆 Gana J1</button><button class="sb-btn warn" id="sbWinBotBtn" style="flex:1;">🏆 Gana J2</button></div>';
+  h += '</div>';
+
+  h += '<div class="sb-section"><div class="sb-section-title">Consonancia (forzar)</div>';
+  ['player','bot'].forEach(function(sk){
+    var cons = c[sk].consonance || {};
+    var curEl = cons.element || '';
+    var curType = cons.type || 'diverse';
+    h += '<div class="sb-row"><label>' + (sk === 'player' ? 'J1' : 'J2') + '</label><select data-sb-cons="' + sk + '" style="flex:1;">';
+    h += '<option value="diverse"' + (curType === 'diverse' ? ' selected' : '') + '>🌈 Diverso</option>';
+    CONSONANCE_ORDER.forEach(function(el){
+      h += '<option value="' + el + '"' + (curType === 'single' && curEl === el ? ' selected' : '') + '>' + ELEMENT_EMOJI[el] + ' ' + ELEMENT_NAMES[el] + '</option>';
+    });
+    h += '</select></div>';
+  });
+  h += '</div>';
+
+  h += '<div class="sb-section"><div class="sb-section-title">Contadores del lado</div>';
+  ['player','bot'].forEach(function(sk){
+    var side = c[sk];
+    h += '<div style="margin:0.4rem 0 0.2rem;font-size:0.68rem;font-weight:800;color:#5cb3ff;text-transform:uppercase;">' + (sk === 'player' ? 'J1' : 'J2') + '</div>';
+    SB_SIDE_NUMS.forEach(function(k){
+      h += '<div class="sb-row"><label>' + k + '</label><input type="number" data-sb-snum="' + sk + ':' + k + '" value="' + (side[k] || 0) + '" min="0"></div>';
+    });
+    h += '<div class="sb-row"><label>firstChangeUsed</label><input type="checkbox" data-sb-sbool="' + sk + ':firstChangeUsed"' + (side.firstChangeUsed ? ' checked' : '') + '></div>';
+    h += '<div class="sb-row"><label>firstAttackUsed</label><input type="checkbox" data-sb-sbool="' + sk + ':firstAttackUsed"' + (side.firstAttackUsed ? ' checked' : '') + '></div>';
+    h += '<div class="sb-row"><label>alterUltBuff amount</label><input type="number" data-sb-alter-amt="' + sk + '" value="' + ((side.alterUltBuff && side.alterUltBuff.amount) || 0) + '" min="0"></div>';
+    h += '<div class="sb-row"><label>alterUltBuff rounds</label><input type="number" data-sb-alter-rnd="' + sk + '" value="' + ((side.alterUltBuff && side.alterUltBuff.roundsLeft) || 0) + '" min="0"></div>';
+  });
+  h += '</div>';
+
+  h += '<div class="sb-section"><div class="sb-section-title">Vista general</div>';
+  ['player','bot'].forEach(function(sk){
+    var side = c[sk];
+    h += '<div style="margin:0.3rem 0 0.1rem;font-size:0.68rem;font-weight:800;color:#5cb3ff;">' + (sk === 'player' ? 'J1' : 'J2') + '</div>';
+    side.characters.forEach(function(cs, i){
+      var isActive = i === side.activeIndex;
+      h += '<div class="sb-row" style="font-size:0.7rem;"><span style="flex:1;">' + (isActive ? '⭐ ' : '') + cs.character.name + (cs.dead ? ' 💀' : '') + '</span><span style="color:' + (cs.dead ? '#ff8a98' : '#7aff9a') + ';">' + (cs.dead ? 'KO' : cs.hp + 'HP · ' + cs.energy + 'E') + '</span></div>';
+    });
+    h += '<div class="sb-row" style="font-size:0.7rem;"><span style="flex:1;">Deck/Hand/Discard</span><span>' + side.deck.length + ' / ' + side.hand.length + ' / ' + (side.discardPile ? side.discardPile.length : 0) + '</span></div>';
+  });
+  h += '</div>';
+
+  h += '<div class="sb-section"><div class="sb-section-title">Global</div>';
+  h += '<div class="sb-row"><label>EX combate</label><input type="checkbox" id="sbExEnabled"' + (c.exCombatEnabled ? ' checked' : '') + '></div>';
+  h += '<div class="sb-row"><button class="sb-btn warn" id="sbEndCombatBtn" style="width:100%;">⏹ Terminar combate</button></div>';
+  h += '</div>';
+
+  return h;
+}
+
+/* ─── PERSONAJE ─── */
+function sbRenderChar() {
+  if (!combatState) return '';
+  var sideKey = sandboxCharSide, side = combatState[sideKey];
+  var cs = side.characters[sandboxCharIdx] || side.characters[0];
+  if (!cs) return '';
+  var h = '';
+
+  h += '<div class="sb-section"><div class="sb-section-title">Selecciona personaje</div><div class="sb-char-selector">';
+  h += '<button class="sb-char-chip' + (sideKey === 'player' ? ' active' : '') + '" data-sb-side="player" style="--el: 140,180,230;">J1</button>';
+  h += '<button class="sb-char-chip' + (sideKey === 'bot' ? ' active' : '') + '" data-sb-side="bot" style="--el: 200,45,60;">J2</button>';
+  side.characters.forEach(function(c, i){
+    h += '<button class="sb-char-chip' + (i === sandboxCharIdx ? ' active' : '') + '" data-sb-char-idx="' + i + '" style="--el:' + ELEMENT_COLORS[c.character.element] + ';">' + c.character.emoji + ' ' + c.character.name + '</button>';
+  });
+  h += '</div>';
+  h += '<div class="sb-row"><label>ID</label><span>' + cs.id + '</span></div>';
+  h += '<div class="sb-row"><label>HP</label><input type="number" id="sbHp" value="' + cs.hp + '" min="0" max="' + cs.maxHp + '"> / ' + cs.maxHp + '</div>';
+  h += '<div class="sb-row"><label>Max HP</label><input type="number" id="sbMaxHp" value="' + cs.maxHp + '" min="1"></div>';
+  h += '<div class="sb-row"><label>Energía</label><input type="number" id="sbEnergy" value="' + cs.energy + '" min="0" max="' + cs.maxEnergy + '"> / ' + cs.maxEnergy + '</div>';
+  h += '<div class="sb-row"><label>Max energía</label><input type="number" id="sbMaxEnergy" value="' + cs.maxEnergy + '" min="1"></div>';
+  h += '<div class="sb-row"><button class="sb-btn" id="sbSetActiveBtn" style="flex:1;">⭐ Poner activo</button><button class="sb-btn danger" id="sbKillChar" style="flex:1;">💀 Matar</button></div>';
+  h += '<div class="sb-row"><button class="sb-btn warn" id="sbFullHeal" style="width:100%;">💚 Curar al máximo</button></div>';
+  h += '</div>';
+
+  h += '<div class="sb-section"><div class="sb-section-title">Escudos</div>';
+  h += '<div class="sb-row"><label>Total</label><span>' + totalShield(cs) + '</span></div>';
+  (cs.shields || []).forEach(function(sh, i){
+    h += '<div class="sb-row"><span style="flex:1;font-size:0.72rem;">🛡️ ' + sh.hp + '/' + sh.maxHp + ' (' + sh.source + ')</span><button class="sb-btn danger" data-sb-rm-shield="' + i + '">✕</button></div>';
+  });
+  h += '<div class="sb-row"><input type="number" id="sbShieldAmt" value="1" min="0" style="width:55px;"><input type="text" id="sbShieldSrc" placeholder="fuente" value="sandbox" style="flex:1;padding:0.3rem 0.5rem;background:rgba(0,0,0,0.4);border:1px solid rgba(92,179,255,0.3);border-radius:8px;color:#fff;font-family:inherit;font-size:0.78rem;"><button class="sb-btn" id="sbAddShield">+</button></div>';
+  h += '<div class="sb-row"><button class="sb-btn danger" id="sbShieldClear" style="width:100%;">Vaciar escudos</button></div>';
+  h += '</div>';
+
+  h += '<div class="sb-section"><div class="sb-section-title">Estados</div>';
+  SB_STATE_KEYS.forEach(function(k){
+    h += '<div class="sb-row"><label>' + k + '</label><input type="checkbox" data-sb-state="' + k + '"' + (cs.states && cs.states[k] ? ' checked' : '') + '></div>';
+  });
+  SB_NUMERIC_KEYS.forEach(function(k){
+    h += '<div class="sb-row"><label>' + k + '</label><input type="number" data-sb-state-num="' + k + '" value="' + ((cs.states && cs.states[k]) || 0) + '" min="0"></div>';
+  });
+  h += '<div class="sb-row"><label>manuelStacks</label><input type="number" id="sbManuelStacks" value="' + (cs.manuelStacks || 0) + '" min="0"></div>';
+  h += '</div>';
+
+  h += '<div class="sb-section"><div class="sb-section-title">Marcas</div>';
+  CONSONANCE_ORDER.forEach(function(el){
+    h += '<div class="sb-row"><label>' + ELEMENT_EMOJI[el] + ' ' + ELEMENT_NAMES[el] + '</label><input type="checkbox" data-sb-mark="' + el + '"' + (cs.marks && cs.marks[el] ? ' checked' : '') + '></div>';
+  });
+  h += '</div>';
+
+  h += '<div class="sb-section"><div class="sb-section-title">Bonos y modificadores</div>';
+  h += '<div class="sb-row"><label>pendingBuff</label><input type="number" id="sbPendingBuff" value="' + (cs.pendingBuff || 0) + '" min="0"></div>';
+  h += '<div class="sb-row"><label>cardNextAttackBonus</label><input type="number" id="sbCardAtkBonus" value="' + (cs.cardNextAttackBonus || 0) + '" min="0"></div>';
+  h += '<div class="sb-row"><label>cardNextAttackPiercing</label><input type="checkbox" id="sbCardPierce"' + (cs.cardNextAttackPiercing ? ' checked' : '') + '></div>';
+  h += '<div class="sb-row"><label>cardNextAttackDouble</label><input type="checkbox" id="sbCardDouble"' + (cs.cardNextAttackDouble ? ' checked' : '') + '></div>';
+  h += '<div class="sb-row"><label>cardNextAbilityDiscount</label><input type="number" id="sbCardDisc" value="' + (cs.cardNextAbilityDiscount || 0) + '" min="0"></div>';
+  h += '<div class="sb-row"><label>cardNextAbilityFree</label><input type="checkbox" id="sbCardFree"' + (cs.cardNextAbilityFree ? ' checked' : '') + '></div>';
+  h += '<div class="sb-row"><label>cardMarkBonus</label><input type="number" id="sbCardMarkBonus" value="' + (cs.cardMarkBonus || 0) + '" min="0"></div>';
+  h += '<div class="sb-row"><label>exActive</label><input type="checkbox" id="sbExActive"' + (cs.exActive ? ' checked' : '') + '></div>';
+  h += '</div>';
+
+  h += '<div class="sb-section"><div class="sb-section-title">Equipamiento</div>';
+  (cs.equipment || []).forEach(function(eqId, i){
+    var eq = CARD_DB[eqId]; if (!eq) return;
+    h += '<div class="sb-row"><span style="flex:1;font-size:0.72rem;">' + eq.emoji + ' ' + eq.name + '</span><button class="sb-btn danger" data-sb-rm-equip="' + i + '">✕</button></div>';
+  });
+  if (!cs.equipment || !cs.equipment.length) h += '<div class="sb-row" style="font-style:italic;color:var(--muted);font-size:0.72rem;">Sin equipamiento</div>';
+  h += '<div class="sb-row"><select id="sbAddEquipSel" style="flex:1;font-size:0.7rem;"><option value="">— Añadir —</option>' + SB_EQUIP_IDS.map(function(id){ var eq = EQUIPMENT_CARDS[id]; return '<option value="' + id + '">' + eq.emoji + ' ' + eq.name + '</option>'; }).join('') + '</select><button class="sb-btn" id="sbAddEquipBtn">+</button></div>';
+  h += '<div class="sb-row"><button class="sb-btn danger" id="sbClearEquip" style="width:100%;">Vaciar equipamiento</button></div>';
+  h += '<div class="sb-row"><label>Pintura Erik</label><select id="sbPaint" style="flex:1;"><option value="">—</option>' + ['roja','azul','verde'].map(function(c){ return '<option value="' + c + '"' + (cs.paintEquipped === c ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select></div>';
+  h += '</div>';
+
+  return h;
+}
+
+/* ─── DADOS ─── */
+function sbRenderDice() {
+  if (!combatState) return '';
+  var h = '';
+  ['player','bot'].forEach(function(sk){
+    var side = combatState[sk];
+    h += '<div class="sb-section"><div class="sb-section-title">Dados ' + (sk === 'player' ? 'J1' : 'J2') + ' (' + side.dice.length + ')</div>';
+    if (side.dice.length) {
+      side.dice.forEach(function(d, i){
+        var isOm = d.type === 'omni';
+        h += '<div class="sb-row"><span style="width:24px;text-align:center;">' + (isOm ? '✨' : ELEMENT_EMOJI[d.type]) + '</span>';
+        h += '<select data-sb-die-type="' + sk + ':' + i + '" style="flex:1;font-size:0.7rem;"><option value="omni"' + (isOm ? ' selected' : '') + '>omni</option>' + CONSONANCE_ORDER.map(function(el){ return '<option value="' + el + '"' + (d.type === el ? ' selected' : '') + '>' + ELEMENT_NAMES[el] + '</option>'; }).join('') + '</select>';
+        h += '<button class="sb-btn danger" data-sb-rm-die="' + sk + ':' + i + '">✕</button></div>';
+      });
+    } else {
+      h += '<div class="sb-row" style="font-style:italic;color:var(--muted);font-size:0.72rem;">Sin dados</div>';
+    }
+    h += '<div class="sb-row"><select data-sb-add-die-sel="' + sk + '" style="flex:1;font-size:0.7rem;"><option value="omni">✨ omni</option>' + CONSONANCE_ORDER.map(function(el){ return '<option value="' + el + '">' + ELEMENT_EMOJI[el] + ' ' + ELEMENT_NAMES[el] + '</option>'; }).join('') + '</select><input type="number" data-sb-add-die-count="' + sk + '" value="1" min="1" style="width:50px;padding:0.3rem;background:rgba(0,0,0,0.4);border:1px solid rgba(92,179,255,0.3);border-radius:8px;color:#fff;font-family:inherit;font-size:0.8rem;"><button class="sb-btn" data-sb-add-die-btn="' + sk + '">+</button></div>';
+    h += '<div class="sb-row"><button class="sb-btn" data-sb-add-specific="' + sk + ':omni" title="+1 omni">✨</button>';
+    CONSONANCE_ORDER.forEach(function(el){
+      h += '<button class="sb-btn" data-sb-add-specific="' + sk + ':' + el + '" style="background:rgba(' + ELEMENT_COLORS[el] + ',0.2);border-color:rgba(' + ELEMENT_COLORS[el] + ',0.6);color:rgb(' + ELEMENT_COLORS[el] + ');" title="+1 ' + ELEMENT_NAMES[el] + '">' + ELEMENT_EMOJI[el] + '</button>';
+    });
+    h += '</div>';
+    h += '<div class="sb-row"><button class="sb-btn" data-sb-roll-dice="' + sk + '">🎲 Tirar 8</button><button class="sb-btn danger" data-sb-clear-dice="' + sk + '" style="flex:1;">Vaciar</button></div>';
+    h += '</div>';
+  });
+  return h;
+}
+
+/* ─── CARTAS ─── */
+function sbRenderCards() {
+  if (!combatState) return '';
+  var h = '';
+  ['player','bot'].forEach(function(sk){
+    var side = combatState[sk];
+    h += '<div class="sb-section"><div class="sb-section-title">Mano ' + (sk === 'player' ? 'J1' : 'J2') + ' (' + side.hand.length + ')</div>';
+    side.hand.forEach(function(cid, i){
+      var card = CARD_DB[cid] || PAINT_CARDS[cid];
+      h += '<div class="sb-row"><span style="flex:1;font-size:0.7rem;">' + (card ? card.emoji + ' ' + card.name : cid) + '</span><button class="sb-btn danger" data-sb-rm-hand="' + sk + ':' + i + '">✕</button></div>';
+    });
+    if (!side.hand.length) h += '<div class="sb-row" style="font-style:italic;color:var(--muted);font-size:0.72rem;">Mano vacía</div>';
+    h += '<div class="sb-row"><select data-sb-add-card-sel="' + sk + '" style="flex:1;font-size:0.7rem;"><option value="">— Elegir carta —</option>' + SB_CARD_IDS.map(function(id){ var c = CARD_DB[id]; return '<option value="' + id + '">' + c.emoji + ' ' + c.name + ' [' + c.category + ']</option>'; }).join('') + '</select><input type="number" data-sb-add-card-count="' + sk + '" value="1" min="1" style="width:50px;padding:0.3rem;background:rgba(0,0,0,0.4);border:1px solid rgba(92,179,255,0.3);border-radius:8px;color:#fff;font-family:inherit;font-size:0.8rem;"><button class="sb-btn" data-sb-add-card-btn="' + sk + '">+</button></div>';
+    h += '<div class="sb-row"><button class="sb-btn" data-sb-draw="' + sk + '">Robar 1</button><button class="sb-btn" data-sb-draw-n="' + sk + '">Robar 5</button><button class="sb-btn danger" data-sb-clear-hand="' + sk + '">Vaciar</button></div>';
+    h += '<div class="sb-row" style="font-size:0.7rem;"><span style="flex:1;">Deck/Discard</span><span>' + side.deck.length + ' / ' + (side.discardPile ? side.discardPile.length : 0) + '</span></div>';
+    h += '<div class="sb-row"><button class="sb-btn warn" data-sb-reshuffle="' + sk + '">♻️ Barajar descarte al mazo</button></div>';
+    h += '</div>';
+
+    h += '<div class="sb-section"><div class="sb-section-title">Apoyos ' + (sk === 'player' ? 'J1' : 'J2') + '</div>';
+    for (var i = 0; i < 4; i++) {
+      var sp = side.supports[i];
+      if (sp) {
+        var spC = CARD_DB[sp.cardId];
+        h += '<div class="sb-row"><span style="flex:1;font-size:0.72rem;">' + (spC ? spC.emoji + ' ' + spC.name : sp.cardId) + ' (' + sp.duration + 'r)</span><button class="sb-btn danger" data-sb-rm-support="' + sk + ':' + i + '">✕</button></div>';
+      } else {
+        h += '<div class="sb-row"><span style="flex:1;font-size:0.72rem;color:var(--muted);">Slot ' + (i+1) + ' vacío</span></div>';
+      }
+    }
+    h += '<div class="sb-row"><select data-sb-add-support-sel="' + sk + '" style="flex:1;font-size:0.7rem;"><option value="">— Añadir apoyo —</option>' + SB_SUPPORT_IDS.map(function(id){ var c = SUPPORT_CARDS[id]; return '<option value="' + id + '">' + c.emoji + ' ' + c.name + '</option>'; }).join('') + '</select><button class="sb-btn" data-sb-add-support-btn="' + sk + '">+</button></div>';
+    h += '</div>';
+  });
+  return h;
+}
+
+/* ─── EFECTOS ─── */
+function sbRenderFx() {
+  if (!combatState) return '';
+  var h = '';
+
+  h += '<div class="sb-section"><div class="sb-section-title">Daño / Curación / Escudo</div>';
+  h += '<div class="sb-row"><label>Objetivo</label>' + sbTargetSelect(null, 'sbFxTarget') + '</div>';
+  h += '<div class="sb-row"><label>Daño</label><input type="number" id="sbFxDmg" value="1" min="0" style="width:60px;"><label style="flex:0;min-width:auto;">Piercing</label><input type="checkbox" id="sbFxPierce"></div>';
+  h += '<div class="sb-row"><button class="sb-btn" id="sbApplyDmg" style="flex:1;">💥 Daño</button><button class="sb-btn warn" id="sbApplyDmgAll" style="flex:1;">💥 A todos</button></div>';
+  h += '<div class="sb-row"><label>Curación</label><input type="number" id="sbFxHeal" value="1" min="0" style="width:60px;"></div>';
+  h += '<div class="sb-row"><button class="sb-btn" id="sbApplyHeal" style="flex:1;">💚 Curar</button><button class="sb-btn warn" id="sbApplyHealAll" style="flex:1;">💚 A todos</button></div>';
+  h += '<div class="sb-row"><label>Escudo</label><input type="number" id="sbFxShield" value="1" min="0" style="width:60px;"><input type="text" id="sbFxShieldSrc" value="sandbox" style="flex:1;padding:0.3rem 0.5rem;background:rgba(0,0,0,0.4);border:1px solid rgba(92,179,255,0.3);border-radius:8px;color:#fff;font-family:inherit;font-size:0.78rem;"></div>';
+  h += '<div class="sb-row"><button class="sb-btn" id="sbApplyShield" style="flex:1;">🛡️ Dar escudo</button><button class="sb-btn danger" id="sbClearShields" style="flex:1;">Vaciar escudos</button></div>';
+  h += '</div>';
+
+  h += '<div class="sb-section"><div class="sb-section-title">Estados / Marcas</div>';
+  h += '<div class="sb-row"><label>Objetivo</label>' + sbTargetSelect(null, 'sbFxTarget2') + '</div>';
+  h += '<div class="sb-row"><label>Estado</label><select id="sbFxState" style="flex:1;">' + SB_STATE_KEYS.map(function(k){ return '<option value="' + k + '">' + k + '</option>'; }).join('') + '</select></div>';
+  h += '<div class="sb-row"><button class="sb-btn" id="sbFxStateOn">✅ Activar</button><button class="sb-btn danger" id="sbFxStateOff">❌ Desactivar</button></div>';
+  h += '<div class="sb-row"><label>Marca</label><select id="sbFxMark" style="flex:1;">' + CONSONANCE_ORDER.map(function(el){ return '<option value="' + el + '">' + ELEMENT_EMOJI[el] + ' ' + ELEMENT_NAMES[el] + '</option>'; }).join('') + '</select></div>';
+  h += '<div class="sb-row"><button class="sb-btn" id="sbFxMarkAdd">🏷️ Aplicar</button><button class="sb-btn danger" id="sbFxMarkRemove">❌ Quitar</button></div>';
+  h += '</div>';
+
+  h += '<div class="sb-section"><div class="sb-section-title">Resonancias</div>';
+  h += '<div class="sb-row"><label>A</label><select id="sbResA" style="flex:1;">' + CONSONANCE_ORDER.map(function(el){ return '<option value="' + el + '">' + ELEMENT_EMOJI[el] + ' ' + ELEMENT_NAMES[el] + '</option>'; }).join('') + '</select></div>';
+  h += '<div class="sb-row"><label>B</label><select id="sbResB" style="flex:1;">' + CONSONANCE_ORDER.map(function(el){ return '<option value="' + el + '">' + ELEMENT_EMOJI[el] + ' ' + ELEMENT_NAMES[el] + '</option>'; }).join('') + '</select></div>';
+  h += '<div class="sb-row"><button class="sb-btn" id="sbForceResonance" style="width:100%;">🔮 Disparar resonancia</button></div>';
+  h += '</div>';
+
+  h += '<div class="sb-section"><div class="sb-section-title">Probar carta</div>';
+  h += '<div class="sb-row"><select id="sbTestCard" style="flex:1;font-size:0.7rem;"><option value="">— Elegir carta —</option>' + SB_CARD_IDS.map(function(id){ var c = CARD_DB[id]; return '<option value="' + id + '">' + c.emoji + ' ' + c.name + '</option>'; }).join('') + '</select><button class="sb-btn" id="sbTestCardBtn">▶️</button></div>';
+  h += '<div class="sb-row" style="font-size:0.65rem;color:var(--muted);font-style:italic;">Aplica el efecto sin gastar dados. Usa el turno actual para determinar el lado.</div>';
+  h += '</div>';
+
+  return h;
+}
+
+/* ─── EVENTOS ─── */
+function sbBindEvents() {
+  var body = document.getElementById('sandboxBody');
+  if (!body || !combatState) return;
+
+  function getCs() { return combatState[sandboxCharSide].characters[sandboxCharIdx]; }
+  function refresh() { renderCombat(); renderSandboxPanel(); }
+
+  body.querySelectorAll('[data-sb-side]').forEach(function(el){
+    el.addEventListener('click', function(){ sandboxCharSide = el.dataset.sbSide; sandboxCharIdx = 0; renderSandboxPanel(); });
+  });
+  body.querySelectorAll('[data-sb-char-idx]').forEach(function(el){
+    el.addEventListener('click', function(){ sandboxCharIdx = parseInt(el.dataset.sbCharIdx, 10); renderSandboxPanel(); });
+  });
+
+  // ── Personaje: HP / energía / acciones ──
+  var hpEl = document.getElementById('sbHp');
+  if (hpEl) hpEl.addEventListener('change', function(){ getCs().hp = Math.max(0, Math.min(getCs().maxHp, parseInt(hpEl.value, 10) || 0)); refresh(); });
+  var maxHpEl = document.getElementById('sbMaxHp');
+  if (maxHpEl) maxHpEl.addEventListener('change', function(){ getCs().maxHp = Math.max(1, parseInt(maxHpEl.value, 10) || 1); if (getCs().hp > getCs().maxHp) getCs().hp = getCs().maxHp; refresh(); });
+  var enEl = document.getElementById('sbEnergy');
+  if (enEl) enEl.addEventListener('change', function(){ getCs().energy = Math.max(0, Math.min(getCs().maxEnergy, parseInt(enEl.value, 10) || 0)); refresh(); });
+  var maxEnEl = document.getElementById('sbMaxEnergy');
+  if (maxEnEl) maxEnEl.addEventListener('change', function(){ getCs().maxEnergy = Math.max(1, parseInt(maxEnEl.value, 10) || 1); if (getCs().energy > getCs().maxEnergy) getCs().energy = getCs().maxEnergy; refresh(); });
+  var activeBtn = document.getElementById('sbSetActiveBtn');
+  if (activeBtn) activeBtn.addEventListener('click', function(){ combatState[sandboxCharSide].activeIndex = sandboxCharIdx; refresh(); });
+  var killBtn = document.getElementById('sbKillChar');
+  if (killBtn) killBtn.addEventListener('click', function(){ getCs().hp = 0; handleDeath(sandboxCharSide, sandboxCharIdx); refresh(); });
+  var healBtn = document.getElementById('sbFullHeal');
+  if (healBtn) healBtn.addEventListener('click', function(){ getCs().hp = getCs().maxHp; getCs().dead = false; refresh(); });
+
+  // ── Escudos ──
+  body.querySelectorAll('[data-sb-rm-shield]').forEach(function(el){
+    el.addEventListener('click', function(){ if (getCs().shields) getCs().shields.splice(parseInt(el.dataset.sbRmShield, 10), 1); refresh(); });
+  });
+  var addShieldBtn = document.getElementById('sbAddShield');
+  if (addShieldBtn) addShieldBtn.addEventListener('click', function(){
+    var amt = parseInt(document.getElementById('sbShieldAmt').value, 10) || 1;
+    var src = document.getElementById('sbShieldSrc').value || 'sandbox';
+    addOrRefreshShield(getCs(), src, amt); refresh();
+  });
+  var shieldClearBtn = document.getElementById('sbShieldClear');
+  if (shieldClearBtn) shieldClearBtn.addEventListener('click', function(){ getCs().shields = []; refresh(); });
+
+  // ── Estados y numéricos ──
+  body.querySelectorAll('[data-sb-state]').forEach(function(el){
+    el.addEventListener('change', function(){ csSetState(getCs(), el.dataset.sbState, el.checked); refresh(); });
+  });
+  body.querySelectorAll('[data-sb-state-num]').forEach(function(el){
+    el.addEventListener('change', function(){ csSetState(getCs(), el.dataset.sbStateNum, Math.max(0, parseInt(el.value, 10) || 0)); refresh(); });
+  });
+  var manuelEl = document.getElementById('sbManuelStacks');
+  if (manuelEl) manuelEl.addEventListener('change', function(){ getCs().manuelStacks = Math.max(0, parseInt(manuelEl.value, 10) || 0); refresh(); });
+
+  // ── Marcas ──
+  body.querySelectorAll('[data-sb-mark]').forEach(function(el){
+    el.addEventListener('change', function(){
+      if (el.checked) { if (!getCs().marks) getCs().marks = {}; getCs().marks[el.dataset.sbMark] = true; }
+      else { csRemoveMark(getCs(), el.dataset.sbMark); }
+      refresh();
+    });
+  });
+
+  // ── Bonos numéricos / booleanos ──
+  var numMap = { sbPendingBuff:'pendingBuff', sbCardAtkBonus:'cardNextAttackBonus', sbCardDisc:'cardNextAbilityDiscount', sbCardMarkBonus:'cardMarkBonus' };
+  Object.keys(numMap).forEach(function(id){
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('change', function(){ getCs()[numMap[id]] = Math.max(0, parseInt(el.value, 10) || 0); refresh(); });
+  });
+  var boolMap = { sbCardPierce:'cardNextAttackPiercing', sbCardDouble:'cardNextAttackDouble', sbCardFree:'cardNextAbilityFree', sbExActive:'exActive' };
+  Object.keys(boolMap).forEach(function(id){
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('change', function(){ getCs()[boolMap[id]] = el.checked; refresh(); });
+  });
+
+  // ── Equipamiento ──
+  body.querySelectorAll('[data-sb-rm-equip]').forEach(function(el){
+    el.addEventListener('click', function(){ if (getCs().equipment) getCs().equipment.splice(parseInt(el.dataset.sbRmEquip, 10), 1); refresh(); });
+  });
+  var addEquipBtn = document.getElementById('sbAddEquipBtn');
+  if (addEquipBtn) addEquipBtn.addEventListener('click', function(){
+    var sel = document.getElementById('sbAddEquipSel');
+    if (!sel.value) return;
+    if (!getCs().equipment) getCs().equipment = [];
+    if (getCs().equipment.length >= 2) getCs().equipment.shift();
+    getCs().equipment.push(sel.value);
+    refresh();
+  });
+  var clearEquipBtn = document.getElementById('sbClearEquip');
+  if (clearEquipBtn) clearEquipBtn.addEventListener('click', function(){ getCs().equipment = []; refresh(); });
+  var paintEl = document.getElementById('sbPaint');
+  if (paintEl) paintEl.addEventListener('change', function(){ getCs().paintEquipped = paintEl.value || null; refresh(); });
+
+  // ── GLOBAL: ronda / turno / fase / fin ──
+  var rEl = document.getElementById('sbRound');
+  if (rEl) rEl.addEventListener('change', function(){ combatState.round = Math.max(1, parseInt(rEl.value, 10) || 1); refresh(); });
+  var tEl = document.getElementById('sbTurn');
+  if (tEl) tEl.addEventListener('change', function(){ combatState.turn = tEl.value; refresh(); });
+  var pEl = document.getElementById('sbPhase');
+  if (pEl) pEl.addEventListener('change', function(){ combatState.phase = pEl.value; refresh(); });
+  var pd = document.getElementById('sbPlayerDone');
+  if (pd) pd.addEventListener('change', function(){ combatState.playerDone = pd.checked; refresh(); });
+  var bd = document.getElementById('sbBotDone');
+  if (bd) bd.addEventListener('change', function(){ combatState.botDone = bd.checked; refresh(); });
+
+  var nextRoundBtn = document.getElementById('sbNextRoundBtn');
+  if (nextRoundBtn) nextRoundBtn.addEventListener('click', function(){ try { endRound(); } catch (e) { console.error(e); } });
+  var forceEndRoundBtn = document.getElementById('sbForceEndRoundBtn');
+  if (forceEndRoundBtn) forceEndRoundBtn.addEventListener('click', function(){ try { endRound(); } catch (e) { console.error(e); } });
+
+  var winP = document.getElementById('sbWinPlayerBtn');
+  if (winP) winP.addEventListener('click', function(){ endCombat('player'); });
+  var winB = document.getElementById('sbWinBotBtn');
+  if (winB) winB.addEventListener('click', function(){ endCombat('bot'); });
+
+  // ── GLOBAL: consonancia forzada ──
+  body.querySelectorAll('[data-sb-cons]').forEach(function(sel){
+    sel.addEventListener('change', function(){
+      var sk = sel.dataset.sbCons;
+      var v = sel.value;
+      if (v === 'diverse') combatState[sk].consonance = { type:'diverse', level:3 };
+      else combatState[sk].consonance = { type:'single', element:v, level:3 };
+      refresh();
+    });
+  });
+
+  // ── GLOBAL: contadores del lado ──
+  body.querySelectorAll('[data-sb-snum]').forEach(function(el){
+    el.addEventListener('change', function(){
+      var parts = el.dataset.sbSnum.split(':');
+      combatState[parts[0]][parts[1]] = Math.max(0, parseInt(el.value, 10) || 0);
+      refresh();
+    });
+  });
+  body.querySelectorAll('[data-sb-sbool]').forEach(function(el){
+    el.addEventListener('change', function(){
+      var parts = el.dataset.sbSbool.split(':');
+      combatState[parts[0]][parts[1]] = el.checked;
+      refresh();
+    });
+  });
+  body.querySelectorAll('[data-sb-alter-amt]').forEach(function(el){
+    el.addEventListener('change', function(){
+      var sk = el.dataset.sbAlterAmt;
+      if (!combatState[sk].alterUltBuff) combatState[sk].alterUltBuff = { amount:0, roundsLeft:0 };
+      combatState[sk].alterUltBuff.amount = Math.max(0, parseInt(el.value, 10) || 0);
+      refresh();
+    });
+  });
+  body.querySelectorAll('[data-sb-alter-rnd]').forEach(function(el){
+    el.addEventListener('change', function(){
+      var sk = el.dataset.sbAlterRnd;
+      if (!combatState[sk].alterUltBuff) combatState[sk].alterUltBuff = { amount:0, roundsLeft:0 };
+      combatState[sk].alterUltBuff.roundsLeft = Math.max(0, parseInt(el.value, 10) || 0);
+      refresh();
+    });
+  });
+
+  var exE = document.getElementById('sbExEnabled');
+  if (exE) exE.addEventListener('change', function(){ combatState.exCombatEnabled = exE.checked; refresh(); });
+  var endC = document.getElementById('sbEndCombatBtn');
+  if (endC) endC.addEventListener('click', function(){ closeSandboxPanel(); endCombat(combatState.winner || 'player'); });
+
+  // ── DADOS ──
+  body.querySelectorAll('[data-sb-die-type]').forEach(function(sel){
+    sel.addEventListener('change', function(){
+      var parts = sel.dataset.sbDieType.split(':');
+      var d = combatState[parts[0]].dice[parseInt(parts[1], 10)];
+      if (d) { d.type = sel.value; refresh(); }
+    });
+  });
+  body.querySelectorAll('[data-sb-rm-die]').forEach(function(el){
+    el.addEventListener('click', function(){
+      var parts = el.dataset.sbRmDie.split(':');
+      combatState[parts[0]].dice.splice(parseInt(parts[1], 10), 1);
+      refresh();
+    });
+  });
+  body.querySelectorAll('[data-sb-add-die-btn]').forEach(function(el){
+    el.addEventListener('click', function(){
+      var sk = el.dataset.sbAddDieBtn;
+      var sel = document.querySelector('[data-sb-add-die-sel="' + sk + '"]');
+      var cnt = parseInt(document.querySelector('[data-sb-add-die-count="' + sk + '"]').value, 10) || 1;
+      for (var i = 0; i < cnt; i++) combatState[sk].dice.push({ type: sel.value, id: uid(), justAdded: true });
+      refresh();
+    });
+  });
+  body.querySelectorAll('[data-sb-add-specific]').forEach(function(el){
+    el.addEventListener('click', function(){
+      var parts = el.dataset.sbAddSpecific.split(':');
+      combatState[parts[0]].dice.push({ type: parts[1], id: uid(), justAdded: true });
+      refresh();
+    });
+  });
+  body.querySelectorAll('[data-sb-roll-dice]').forEach(function(el){
+    el.addEventListener('click', function(){ combatState[el.dataset.sbRollDice].dice = rollCombatDice(8); refresh(); });
+  });
+  body.querySelectorAll('[data-sb-clear-dice]').forEach(function(el){
+    el.addEventListener('click', function(){ combatState[el.dataset.sbClearDice].dice = []; refresh(); });
+  });
+
+  // ── CARTAS ──
+  body.querySelectorAll('[data-sb-rm-hand]').forEach(function(el){
+    el.addEventListener('click', function(){
+      var parts = el.dataset.sbRmHand.split(':');
+      combatState[parts[0]].hand.splice(parseInt(parts[1], 10), 1);
+      refresh();
+    });
+  });
+  body.querySelectorAll('[data-sb-add-card-btn]').forEach(function(el){
+    el.addEventListener('click', function(){
+      var sk = el.dataset.sbAddCardBtn;
+      var sel = document.querySelector('[data-sb-add-card-sel="' + sk + '"]');
+      if (!sel.value) return;
+      var cnt = parseInt(document.querySelector('[data-sb-add-card-count="' + sk + '"]').value, 10) || 1;
+      for (var i = 0; i < cnt; i++) combatState[sk].hand.push(sel.value);
+      refresh();
+    });
+  });
+  body.querySelectorAll('[data-sb-draw]').forEach(function(el){
+    el.addEventListener('click', function(){ drawFromDeck(el.dataset.sbDraw); refresh(); });
+  });
+  body.querySelectorAll('[data-sb-draw-n]').forEach(function(el){
+    el.addEventListener('click', function(){ for (var i = 0; i < 5; i++) drawFromDeck(el.dataset.sbDrawN); refresh(); });
+  });
+  body.querySelectorAll('[data-sb-clear-hand]').forEach(function(el){
+    el.addEventListener('click', function(){ combatState[el.dataset.sbClearHand].hand = []; refresh(); });
+  });
+  body.querySelectorAll('[data-sb-reshuffle]').forEach(function(el){
+    el.addEventListener('click', function(){
+      var side = combatState[el.dataset.sbReshuffle];
+      if (!side.discardPile) side.discardPile = [];
+      side.deck = side.deck.concat(side.discardPile);
+      side.deck = shuffleArray(side.deck);
+      side.discardPile = [];
+      refresh();
+    });
+  });
+
+  // ── APOYOS ──
+  body.querySelectorAll('[data-sb-rm-support]').forEach(function(el){
+    el.addEventListener('click', function(){
+      var parts = el.dataset.sbRmSupport.split(':');
+      combatState[parts[0]].supports[parseInt(parts[1], 10)] = null;
+      refresh();
+    });
+  });
+  body.querySelectorAll('[data-sb-add-support-btn]').forEach(function(el){
+    el.addEventListener('click', function(){
+      var sk = el.dataset.sbAddSupportBtn;
+      var sel = document.querySelector('[data-sb-add-support-sel="' + sk + '"]');
+      if (!sel.value) return;
+      var side = combatState[sk];
+      if (!side.supports) side.supports = [null,null,null,null];
+      var empty = side.supports.indexOf(null);
+      if (empty === -1) empty = 0;
+      var card = CARD_DB[sel.value];
+      side.supports[empty] = { cardId: sel.value, duration: card.duration || 2 };
+      refresh();
+    });
+  });
+
+  // ── FX: daño / curación / escudo ──
+  function splitTarget(sel) { var p = sel.value.split(':'); return { sk: p[0], idx: parseInt(p[1], 10) }; }
+
+  var apD = document.getElementById('sbApplyDmg');
+  if (apD) apD.addEventListener('click', function(){
+    var t = splitTarget(document.getElementById('sbFxTarget'));
+    var dmg = parseInt(document.getElementById('sbFxDmg').value, 10) || 0;
+    var pierce = document.getElementById('sbFxPierce').checked;
+    var s = combatState[t.sk];
+    dealDamageToChar(s.characters[t.idx], dmg, { piercing: pierce, targetSide: s, targetSideKey: t.sk, targetIdx: t.idx });
+    refresh();
+  });
+  var apDAll = document.getElementById('sbApplyDmgAll');
+  if (apDAll) apDAll.addEventListener('click', function(){
+    var t = splitTarget(document.getElementById('sbFxTarget'));
+    var dmg = parseInt(document.getElementById('sbFxDmg').value, 10) || 0;
+    var pierce = document.getElementById('sbFxPierce').checked;
+    var enemySk = t.sk === 'player' ? 'bot' : 'player';
+    var s = combatState[enemySk];
+    s.characters.forEach(function(c, i){ if (!c.dead) dealDamageToChar(c, dmg, { piercing: pierce, targetSide: s, targetSideKey: enemySk, targetIdx: i }); });
+    refresh();
+  });
+
+  var apH = document.getElementById('sbApplyHeal');
+  if (apH) apH.addEventListener('click', function(){
+    var t = splitTarget(document.getElementById('sbFxTarget'));
+    var amt = parseInt(document.getElementById('sbFxHeal').value, 10) || 0;
+    healChar(combatState[t.sk].characters[t.idx], amt);
+    refresh();
+  });
+  var apHAll = document.getElementById('sbApplyHealAll');
+  if (apHAll) apHAll.addEventListener('click', function(){
+    var t = splitTarget(document.getElementById('sbFxTarget'));
+    var amt = parseInt(document.getElementById('sbFxHeal').value, 10) || 0;
+    var s = combatState[t.sk];
+    s.characters.forEach(function(c){ if (!c.dead) healChar(c, amt); });
+    refresh();
+  });
+
+  var apS = document.getElementById('sbApplyShield');
+  if (apS) apS.addEventListener('click', function(){
+    var t = splitTarget(document.getElementById('sbFxTarget'));
+    var amt = parseInt(document.getElementById('sbFxShield').value, 10) || 0;
+    var src = document.getElementById('sbFxShieldSrc').value || 'sandbox';
+    addOrRefreshShield(combatState[t.sk].characters[t.idx], src, amt);
+    refresh();
+  });
+  var clearShBtn = document.getElementById('sbClearShields');
+  if (clearShBtn) clearShBtn.addEventListener('click', function(){
+    var t = splitTarget(document.getElementById('sbFxTarget'));
+    combatState[t.sk].characters[t.idx].shields = [];
+    refresh();
+  });
+
+  // ── FX: estado / marca ──
+  var stateOn = document.getElementById('sbFxStateOn');
+  if (stateOn) stateOn.addEventListener('click', function(){
+    var t = splitTarget(document.getElementById('sbFxTarget2'));
+    var k = document.getElementById('sbFxState').value;
+    csSetState(combatState[t.sk].characters[t.idx], k, true);
+    refresh();
+  });
+  var stateOff = document.getElementById('sbFxStateOff');
+  if (stateOff) stateOff.addEventListener('click', function(){
+    var t = splitTarget(document.getElementById('sbFxTarget2'));
+    var k = document.getElementById('sbFxState').value;
+    csSetState(combatState[t.sk].characters[t.idx], k, false);
+    refresh();
+  });
+  var markAdd = document.getElementById('sbFxMarkAdd');
+  if (markAdd) markAdd.addEventListener('click', function(){
+    var t = splitTarget(document.getElementById('sbFxTarget2'));
+    var el = document.getElementById('sbFxMark').value;
+    if (!combatState[t.sk].characters[t.idx].marks) combatState[t.sk].characters[t.idx].marks = {};
+    combatState[t.sk].characters[t.idx].marks[el] = true;
+    refresh();
+  });
+  var markRem = document.getElementById('sbFxMarkRemove');
+  if (markRem) markRem.addEventListener('click', function(){
+    var t = splitTarget(document.getElementById('sbFxTarget2'));
+    var el = document.getElementById('sbFxMark').value;
+    csRemoveMark(combatState[t.sk].characters[t.idx], el);
+    refresh();
+  });
+
+  // ── FX: resonancia manual ──
+  var fRes = document.getElementById('sbForceResonance');
+  if (fRes) fRes.addEventListener('click', function(){
+    var a = document.getElementById('sbResA').value, b = document.getElementById('sbResB').value;
+    applyResonanceEffect(a, b, 'player', 'bot');
+    refresh();
+  });
+
+  // ── FX: probar carta ──
+  var testBtn = document.getElementById('sbTestCardBtn');
+  if (testBtn) testBtn.addEventListener('click', function(){
+    var sel = document.getElementById('sbTestCard');
+    if (!sel.value) return;
+    var card = CARD_DB[sel.value] || PAINT_CARDS[sel.value];
+    if (!card) return;
+    try { applyCardEffect(card); } catch (e) { console.error(e); }
+    refresh();
+  });
+
+  var tmSel = document.getElementById('sbTurnMode');
+  if (tmSel) tmSel.addEventListener('change', function(){
+    var newMode = tmSel.value;
+    var wasBot  = sandboxTurnMode === 'bot';
+    var nowBot  = newMode === 'bot';
+
+    sandboxTurnMode = newMode;
+
+    if (combatState) {
+      combatState.pvp = !nowBot;
+
+      // ── A "solo usuario": forzar el turno al jugador y limpiar flags de fin
+      if (newMode === 'player-only') {
+        combatState.turn       = 'player';
+        combatState.playerDone = false;
+        combatState.botDone    = false;
+      }
+
+      // ── De dos-usuarios → bot: si es turno del rival, que el bot lo juegue
+      if (nowBot && !wasBot && combatState.turn === 'bot'
+          && !combatState.botDone && combatState.phase === 'playing') {
+        setTimeout(botTurn, 800);
+      }
+    }
+
+    renderCombat();
+    renderSandboxPanel();
+  });
+}
+
 var initFns = [
   ['renderPhilosophies', renderPhilosophies],
   ['renderConsonancias', renderConsonancias],
@@ -5219,8 +6197,41 @@ var initFns = [
   ['setupDamageCalculator', setupDamageCalculator],
   ['renderTemplateSlots', renderTemplateSlots],
   ['initPatches', initPatches],
-  ['initGameMode', initGameMode]
+  ['initGameMode', initGameMode],
+  ['initSandbox', initSandbox]
 ];
+
+// En initSandbox:
+function initSandbox() {
+  // Toggle y cierre del panel
+  document.addEventListener('click', function(e){
+    var tgl = e.target.closest('#sandboxToggleBtn');
+    if (tgl) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (sandboxOpen) closeSandboxPanel(); else openSandboxPanel();
+      return;
+    }
+    var cl = e.target.closest('#sandboxCloseBtn');
+    if (cl) {
+      e.preventDefault();
+      e.stopPropagation();
+      closeSandboxPanel();
+    }
+  });
+
+  // ✅ NUEVO: click en las pestañas del panel
+  document.querySelectorAll('.sandbox-tab').forEach(function(tab){
+    tab.addEventListener('click', function(e){
+      e.preventDefault();
+      document.querySelectorAll('.sandbox-tab').forEach(function(t){ t.classList.remove('active'); });
+      tab.classList.add('active');
+      sandboxTab = tab.dataset.sbTab || 'char';
+      if (sandboxOpen) renderSandboxPanel();
+    });
+  });
+}
+
 initFns.forEach(function(p){ try { p[1](); } catch (e) { console.error('Init error in ' + p[0] + ':', e); } });
 // Delegación permanente para el botón 👁️ de las plantillas
 (function setupTemplateInfoDelegation(){
