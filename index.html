@@ -23,7 +23,7 @@
     <li><a href="#resonancias">Resonancias</a></li>
     <li><a href="#calculadora">Calculadora</a></li>
     <li><a href="#jugar">Jugar</a></li>
-    <li><a href="#" id="patchesNavLink">Parches</a></li>
+    <li><a href="#" id="patchesNavLink">Parches<span class="patches-new-badge" id="patchesNewBadge" aria-label="Nuevo parche disponible" hidden>!</span></a></li>
   </ul>
 </nav>
 
@@ -491,6 +491,10 @@
 
 <div class="combat-start-confirm" id="combatStartConfirm">
   <div class="combat-start-confirm-content" style="position: relative;">
+    <button class="ex-toggle-btn" id="exToggleBtn" title="Activar/desactivar EX en este combate" aria-pressed="false">
+      <span class="ex-toggle-dot"></span>
+      <span class="ex-toggle-label">EX</span>
+    </button>
     <button class="ex-toggle-btn" id="exToggleBtn" title="Activar/desactivar sistema EX en combate" aria-pressed="false">
       <span class="ex-toggle-dot"></span>
       <span class="ex-toggle-label">EX</span>
