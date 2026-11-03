@@ -52,7 +52,7 @@ var ENVIRONMENTS = {
     name: 'Campo de Girasoles',
     emoji: '🌻',
     duration: 2,
-    effectText: 'Al final de la ronda, todos los aliados del dueño (excepto María) recuperan 1 HP. María gana 1 Semilla de Aceptación por cada aliado caído. Las Semillas potencian la curación/resurrección de la definitiva de María.'
+    effectText: 'Todos los efectos curativos del equipo dueño del entorno aumentan en 1 punto.'
   }
 };
 
