@@ -569,71 +569,71 @@ var ACTION_HANDLERS = {
     side.neonUltChangeDamage = true;
     logCombat('🎵 Killer Tunes: durante el resto de la ronda, los cambios de personaje de tu equipo causan 1 daño al enemigo');
   },
-    // ═══════════════════════════════════════════════════════════════
+
+  // ═══════════════════════════════════════════════════════════════
   // ✅ MARÍA (base)
   // ═══════════════════════════════════════════════════════════════
 
   cosecha: function(ctx) {
     var a = ctx.active, ea = ctx.enemyActive, es = ctx.enemySide, ek = ctx.enemyKey, side = ctx.side, at = ctx.actionType, ab = ctx.ability;
-    var cDmg = ab.damage || 1;
+    var counter = (a.states && a.states.cosechaCounter) || 0;
+    // Daño 1 (siempre)
+    var cDmg = 1;
     cDmg = applyGenericDamageMods(a, cDmg);
     if (a.pendingBuff) ctx.pendingBuffConsumed = true;
     if (at === 'normal') { var ob = getOptimizationBonus(side); if (ob > 0) { cDmg += ob; logCombat('🏛️ Optimización: +' + ob); } }
     applyDamageWithMods(ea, cDmg, predictPiercing(a, ab), ek, es.activeIndex, a);
-    if (combatState.environment && combatState.environment.id === 'campo_girasoles') {
+    // Repetición (2ª+ vez en la ronda): también cura 1 HP al aliado con menos vida (sin contarse a sí misma)
+    if (counter >= 1) {
       var cTarget = getMariaTarget(side, a);
       if (cTarget >= 0) {
         healChar(side.characters[cTarget], 1);
-        logCombat('🌻 Cosecha: ' + side.characters[cTarget].character.name + ' +1 HP');
+        logCombat('🌻 Cosecha (repetición): ' + side.characters[cTarget].character.name + ' +1 HP');
+      } else {
+        logCombat('🌻 Cosecha: no hay aliados que curar');
+      }
+    }
+    if (!a.states) a.states = {};
+    a.states.cosechaCounter = counter + 1;
+    logCombat('🌻 Cosecha #' + (counter + 1) + ' esta ronda');
+  },
+
+  caricia: function(ctx) {
+    var a = ctx.active, side = ctx.side, who = ctx.who, ea = ctx.enemyActive, es = ctx.enemySide, ek = ctx.enemyKey;
+    var carTarget = getMariaTarget(side, a);
+    if (carTarget >= 0) {
+      var carCs = side.characters[carTarget];
+      healChar(carCs, 3);
+      logCombat('🌻 Caricia: ' + carCs.character.name + ' +3 HP');
+    } else {
+      // Sin aliados válidos → María se cura 2 y marca al enemigo activo con Aceptación
+      healChar(a, 2);
+      logCombat('🌻 Caricia: no hay aliados → María se cura 2 HP');
+      if (!ea.dead) {
+        triggerMarkOrResonance(ea, 'aceptacion', who, ek, es.activeIndex);
+        logCombat('🌻 Caricia: enemigo marcado con Aceptación');
       }
     }
   },
 
-  caricia: function(ctx) {
-    var a = ctx.active, side = ctx.side;
-    var carTarget = getMariaTarget(side, a);
-    if (carTarget < 0) { logCombat('❌ Caricia: no hay aliados que curar'); return; }
-    var carCs = side.characters[carTarget];
-    var carOriginal = carCs.hp;
-    var carLow = carOriginal < 2;
-    var carCampo = combatState.environment && combatState.environment.id === 'campo_girasoles';
-    if (carLow && carCampo) {
-      carCs.hp = Math.min(carCs.maxHp, 5);
-      logCombat('🌻 Caricia: ' + carCs.character.name + ' sube a ' + carCs.hp + ' HP (era ' + carOriginal + ')');
-    } else {
-      healChar(carCs, 3);
-      logCombat('🌻 Caricia: ' + carCs.character.name + ' +3 HP');
-    }
-  },
-
   amor: function(ctx) {
-    var a = ctx.active, side = ctx.side;
-    var semillas = (a.states && a.states.semillas) || 0;
+    var a = ctx.active, side = ctx.side, who = ctx.who;
+    // Requiere aliado derrotado
     var fallenA = null;
     if (side.lastDeadAlly) {
       fallenA = side.characters.find(function(c){ return c.id === side.lastDeadAlly && c.dead; });
     }
     if (!fallenA) fallenA = side.characters.find(function(c){ return c.dead; });
-    if (fallenA) {
-      var reviveHp = 5 + semillas;
-      fallenA.dead = false;
-      fallenA.hp = Math.min(reviveHp, fallenA.maxHp);
-      if (fallenA.id === 'hunger') fallenA.hp = fallenA.maxHp;
-      logCombat('🌻 Amor: revive a ' + fallenA.character.name + ' con ' + fallenA.hp + ' HP (+' + semillas + ' semillas)');
-    } else {
-      var amorTarget = getMariaTarget(side, a);
-      if (amorTarget >= 0) {
-        var healAmt = 3 + semillas;
-        healChar(side.characters[amorTarget], healAmt);
-        logCombat('🌻 Amor: ' + side.characters[amorTarget].character.name + ' +' + healAmt + ' HP (+' + semillas + ' semillas)');
-      }
-    }
-    if (a.states) a.states.semillas = 0;
-    if (combatState.environment && combatState.environment.id === 'campo_girasoles') {
-      logCombat('🌻 El Campo de Girasoles desaparece');
-      combatState.environment = null;
-      updateEnvironmentVisuals();
-    }
+    if (!fallenA) { logCombat('❌ Amor: no hay aliado derrotado'); ctx.shouldEndTurn = false; return; }
+    // Revive con 3 HP (capped at 5 bajo efectos adicionales)
+    var reviveHp = Math.min(3, 5);
+    fallenA.dead = false;
+    fallenA.hp = Math.min(reviveHp, fallenA.maxHp);
+    if (fallenA.id === 'hunger') fallenA.hp = fallenA.maxHp;
+    logCombat('🌻 Amor: revive a ' + fallenA.character.name + ' con ' + fallenA.hp + ' HP');
+    // Coloca/refresca Campo de Girasoles (2 rondas)
+    setEnvironment('campo_girasoles', a, who);
+    logCombat('🌻 Amor: Campo de Girasoles colocado (2 rondas)');
   },
 
   // ═══════════════════════════════════════════════════════════════
@@ -648,10 +648,10 @@ var ACTION_HANDLERS = {
     if (a.pendingBuff) ctx.pendingBuffConsumed = true;
     if (at === 'normal') { var ob = getOptimizationBonus(side); if (ob > 0) { rDmg += ob; logCombat('🏛️ Optimización: +' + ob); } }
     if (!side.pendingRoceHits) side.pendingRoceHits = [];
-    side.pendingRoceHits.push({ targetSideKey: ek, targetIdx: es.activeIndex, damage: rDmg });
+    side.pendingRoceHits.push({ targetSideKey: ek, targetIdx: es.activeIndex, targetCharId: ea.id, damage: rDmg });
     if (!a.states) a.states = {};
     a.states.roceCounter = rCounter + 1;
-    logCombat('🌻 Roce posible: ' + rDmg + ' daño programado (repetición #' + (rCounter + 1) + ')');
+    logCombat('🌻 Roce posible: ' + rDmg + ' daño programado al final de la ronda sobre ' + ea.character.name + ' (repetición #' + (rCounter + 1) + ')');
   },
 
   amorVerdadero: function(ctx) {
@@ -660,7 +660,7 @@ var ACTION_HANDLERS = {
       triggerMarkOrResonance(ea, 'aceptacion', who, ek, es.activeIndex);
     }
     if (!side.pendingAmorVerdadero) side.pendingAmorVerdadero = [];
-    side.pendingAmorVerdadero.push({ enemySideKey: ek, enemyIdx: es.activeIndex });
+    side.pendingAmorVerdadero.push({ enemySideKey: ek, enemyIdx: es.activeIndex, enemyCharId: ea.id });
     logCombat('🌻 Amor verdadero: chequeo registrado para el final de la ronda');
   },
 
