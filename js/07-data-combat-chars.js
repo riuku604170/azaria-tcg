@@ -64,7 +64,7 @@ var COMBAT_CHARS = {
   maria: { name:'María', element:'aceptacion', emoji:'🌺', hp:8, abilities: {
     normal: { name:'Cosecha', cost:{aceptacion:1, any:2}, target:'enemy', kind:'cosecha', damage:1, energy:1 },
     elemental: { name:'Caricia', cost:{aceptacion:4}, target:'self', kind:'caricia', energy:1 },
-    ultimate: { name:'Amor', cost:{aceptacion:3}, energyCost:3, target:'self', kind:'amor' },
+    ultimate: { name:'Amor', cost:{aceptacion:5}, energyCost:3, target:'self', kind:'amor' },
     ex: { name:'EX · Recuerdo', kind:'ex', target:'self' }
   }},
   exmaria: { name:'EX-María', element:'aceptacion', emoji:'🌺', hp:8, abilities: {
