@@ -179,13 +179,13 @@ function dealDamageToChar(targetCs, rawDamage, opts) {
   if (targetCs.dead) return 0;
   rawDamage = exHookModifyIncomingDamage(targetCs, rawDamage, opts.attackerCs);
 
-  // ✅ EX-María: difiere 1 daño al final de la ronda
-  if (targetCs.id === 'exmaria' && targetCs.exActive && rawDamage > 0 && !opts.skipExmariaDelay) {
+  // ✅ EX-María: reduce el daño A 1 y difiere el resto al final de la ronda
+  if (targetCs.id === 'exmaria' && targetCs.exActive && rawDamage > 1 && !opts.skipExmariaDelay) {
     if (!targetCs.states) targetCs.states = {};
-    targetCs.states.delayedDamage = (targetCs.states.delayedDamage || 0) + 1;
-    rawDamage -= 1;
-    logCombat('🌻 EX-María difiere 1 daño al final de la ronda');
-    if (rawDamage === 0) return 0;
+    var excessDmg = rawDamage - 1;
+    targetCs.states.delayedDamage = (targetCs.states.delayedDamage || 0) + excessDmg;
+    rawDamage = 1;
+    logCombat('🌻 EX-María reduce el daño a 1 y difiere ' + excessDmg + ' al final de la ronda');
   }
 
   var side = opts.targetSide, sideKey = opts.targetSideKey, idx = opts.targetIdx;
@@ -284,6 +284,15 @@ function healChar(cs, amount, opts) {
   opts = opts || {};
   if (!cs || cs.dead) return 0;
   amount = exHookModifyHealing(cs, amount);
+
+  // ✅ Campo de Girasoles: +1 a toda curación del equipo dueño
+  if (combatState && combatState.environment && combatState.environment.id === 'campo_girasoles' && amount > 0) {
+    var csSide = sideOfChar(cs);
+    if (csSide && csSide.key === combatState.environment.ownerSide) {
+      amount += 1;
+      logCombat('🌻 Campo de Girasoles: +1 curación');
+    }
+  }
 
   // ✅ EX-María: difiere 1 curación al final de la ronda
   if (cs.id === 'exmaria' && cs.exActive && amount > 0 && !opts.skipExmariaDelay) {
