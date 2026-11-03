@@ -91,10 +91,6 @@ function renderTeamCards(who) {
     if (side.alterUltBuff && side.alterUltBuff.amount > 0 && side.alterUltBuff.roundsLeft > 0 && cs.id !== 'alter' && !isDead) {
       badges.push('<span class="ccc-badge alter-buff" title="Omnes Deam Salutate: +' + side.alterUltBuff.amount + ' daño a elementales (' + side.alterUltBuff.roundsLeft + ' ronda(s))">💥 +' + side.alterUltBuff.amount + ' elem. (' + side.alterUltBuff.roundsLeft + ')</span>');
     }
-        // ✅ María (base): contador de Semillas de Aceptación
-    if (cs.id === 'maria' && cs.states && cs.states.semillas > 0 && !isDead) {
-      badges.push('<span class="ccc-badge" data-status="semillas" data-value="' + cs.states.semillas + '" style="--bc: 130,220,140;" title="Semillas de Aceptación acumuladas (potencian la definitiva)">🌻 ' + cs.states.semillas + ' Semilla(s)</span>');
-    }
     // ✅ EX-María: contadores internos
     if (cs.id === 'exmaria' && !isDead && cs.states) {
       if (cs.states.delayedDamage > 0) badges.push('<span class="ccc-badge" style="--bc: 200,45,60;" title="Daño diferido al final de la ronda">⏳ −' + cs.states.delayedDamage + ' HP</span>');
@@ -194,6 +190,13 @@ function updateCombatActions() {
   if (char.abilities.ultimate.kind === 'obraMaestra') {
     var hasOptim = side.structures && side.structures.some(function(st){ return st.kind === 'optimizacion'; });
     if (!hasOptim) uOk = false;
+  }
+  if (char.abilities.ultimate.kind === 'amor') {
+    if (!side.characters.some(function(c){ return c.dead; })) uOk = false;
+  }
+  if (char.abilities.ultimate.kind === 'amorSuficiente') {
+    if (active.hp <= 1) uOk = false;
+    if (!side.characters.some(function(c){ return c.dead; })) uOk = false;
   }
   var eN = getEffectiveCostFull(active, char.abilities.normal), eE = getEffectiveCostFull(active, char.abilities.elemental), eU = getEffectiveCostFull(active, char.abilities.ultimate);
   var nD = sumCost(eN) === 0 || trySpendDice(side.dice, eN).ok;
