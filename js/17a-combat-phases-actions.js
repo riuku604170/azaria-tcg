@@ -454,26 +454,14 @@ function beginRoundPlay() {
         }
       });
     });
-    // ✅ María (base): pasiva Florecimiento
+    // ✅ María (base): pasiva Florecimiento (inicio de ronda)
+    // Si no hay Campo de Girasoles activo, lo establece (2 rondas). Sin heal inmediato.
     ['player','bot'].forEach(function(wk){
       var mariaCs = combatState[wk].characters.find(function(c){ return c.id === 'maria' && !c.dead; });
       if (!mariaCs) return;
       var env = combatState.environment;
-      if (env && env.id === 'campo_girasoles') {
-        logCombat('🌻 Florecimiento: el Campo de Girasoles se desvanece');
-        combatState.environment = null;
-        updateEnvironmentVisuals();
-      } else {
+      if (!env || env.id !== 'campo_girasoles') {
         setEnvironment('campo_girasoles', mariaCs, wk);
-        var healedCount = 0;
-        combatState[wk].characters.forEach(function(c){
-          if (c !== mariaCs && !c.dead) {
-            var before = c.hp;
-            c.hp = Math.min(c.maxHp, c.hp + 1);
-            if (c.hp > before) healedCount++;
-          }
-        });
-        if (healedCount) logCombat('🌻 Florecimiento: ' + healedCount + ' aliado(s) +1 HP');
       }
     });
     var pm = applyRoundStartEffects('player'), bm = applyRoundStartEffects('bot');
@@ -796,6 +784,9 @@ function botCanUseAbility(botSide, active, ability, actionType) {
     if (active.hp <= 1) return false;
     if (!botSide.characters.some(function(c){ return c.dead; })) return false;
   }
+  if (ability.kind === 'amor') {
+    if (!botSide.characters.some(function(c){ return c.dead; })) return false;
+  }
   var effCost = getEffectiveCostFull(active, ability);
   return trySpendDice(botSide.dice, effCost).ok;
 }
@@ -994,29 +985,31 @@ function endRound() {
       if (c.id === 'exmaria' && c.states) c.states.roceCounter = 0;
     });
   });
+  // ✅ Reset del contador de "Cosecha" de María (base)
+  ['player','bot'].forEach(function(wk){
+    combatState[wk].characters.forEach(function(c){
+      if (c.id === 'maria' && c.states) c.states.cosechaCounter = 0;
+    });
+  });
+
+  // ✅ María (base): pasiva Florecimiento (fin de ronda)
+  // Si el entorno es Campo de Girasoles (y es suyo) y ella está activa → cura 1 HP a todos los aliados.
+  ['player','bot'].forEach(function(wk){
+    var sd = combatState[wk];
+    var mariaCs = sd.characters.find(function(c){ return c.id === 'maria' && !c.dead; });
+    if (!mariaCs) return;
+    if (sd.activeIndex !== sd.characters.indexOf(mariaCs)) return;
+    var env = combatState.environment;
+    if (!env || env.id !== 'campo_girasoles' || env.ownerSide !== wk) return;
+    sd.characters.forEach(function(c){ if (!c.dead) healChar(c, 1); });
+    logCombat('🌻 Florecimiento (fin de ronda): María activa → aliados +1 HP');
+  });
 
   // ── Entorno: efecto de fin de ronda ──
   if (combatState.environment) {
     var envCur = combatState.environment;
-    if (envCur.id === 'campo_girasoles') {
-      var ownerSideG = combatState[envCur.ownerSide];
-      var mariaG = ownerSideG.characters.find(function(c){ return c.id === 'maria' && !c.dead; });
-      if (mariaG) {
-        ownerSideG.characters.forEach(function(c){
-          if (c !== mariaG && !c.dead) {
-            var beforeG = c.hp;
-            c.hp = Math.min(c.maxHp, c.hp + 1);
-            if (c.hp > beforeG) logCombat('🌻 ' + c.character.name + ' +' + (c.hp - beforeG) + ' HP (Campo de Girasoles)');
-          }
-        });
-        var fallenAllies = ownerSideG.characters.filter(function(c){ return c.dead; }).length;
-        if (fallenAllies > 0) {
-          if (!mariaG.states) mariaG.states = {};
-          mariaG.states.semillas = (mariaG.states.semillas || 0) + fallenAllies;
-          logCombat('🌻 María gana ' + fallenAllies + ' Semilla(s) de Aceptación (total: ' + mariaG.states.semillas + ')');
-        }
-      }
-    }
+    // ✅ Campo de Girasoles: el efecto pasivo (+1 a toda curación del equipo dueño)
+    // se aplica dentro de healChar(). No hay heal por ronda ni semillas.
     if (envCur.id === 'sobrecarga_epileptica') {
       var ownerEnvSide = combatState[envCur.ownerSide];
       var nxEnv = getNextAliveIndex(ownerEnvSide, ownerEnvSide.activeIndex);
@@ -1444,10 +1437,17 @@ function previewPlayerAction(actionType) {
 
   // ✅ María (base)
   if (ability.kind === 'cosecha') {
-    if (combatState.environment && combatState.environment.id === 'campo_girasoles') {
-      preview.notes.push('🌻 Campo de Girasoles activo: cura 1 HP al aliado con menos vida');
+    var cosechaCounterP = (active.states && active.states.cosechaCounter) || 0;
+    if (cosechaCounterP === 0) {
+      preview.notes.push('🌻 Primera Cosecha de la ronda: solo 1 daño');
     } else {
-      preview.notes.push('🌻 Sin Campo de Girasoles: solo daño');
+      preview.notes.push('🌻 Repetición #' + (cosechaCounterP + 1) + ': 1 daño + cura 1 HP');
+      var cosechaHealP = getMariaTarget(side, active);
+      if (cosechaHealP < 0) {
+        preview.notes.push('⚠️ Sin otros aliados vivos: no hay curación');
+      } else {
+        preview.notes.push('💚 ' + side.characters[cosechaHealP].character.name + ' +1 HP');
+      }
     }
   }
   if (ability.kind === 'caricia') {
@@ -1455,25 +1455,20 @@ function previewPlayerAction(actionType) {
     if (ctT >= 0) {
       var ctCs = side.characters[ctT];
       preview.notes.push('💚 Cura 3 HP a ' + ctCs.character.name + ' (' + ctCs.hp + '/' + ctCs.maxHp + ')');
-      if (ctCs.hp < 2 && combatState.environment && combatState.environment.id === 'campo_girasoles') {
-        preview.notes.push('🌻 Objetivo <2 HP + Campo de Girasoles: cura hasta 5 HP');
-      }
+    } else {
+      preview.notes.push('💚 Sin aliados a curar → María se cura 2 HP y marca al enemigo con Aceptación');
     }
   }
   if (ability.kind === 'amor') {
-    var semillasP = (active.states && active.states.semillas) || 0;
     var fallenP = null;
     if (side.lastDeadAlly) fallenP = side.characters.find(function(c){ return c.id === side.lastDeadAlly && c.dead; });
     if (!fallenP) fallenP = side.characters.find(function(c){ return c.dead; });
     if (fallenP) {
-      preview.notes.push('✝️ Revive a ' + fallenP.character.name + ' con ' + (5 + semillasP) + ' HP' + (semillasP > 0 ? ' (+' + semillasP + ' semillas)' : ''));
+      preview.notes.push('✝️ Revive a ' + fallenP.character.name + ' con 3 HP (máx. 5)');
     } else {
-      var atP = getMariaTarget(side, active);
-      if (atP >= 0) preview.notes.push('💚 Cura ' + (3 + semillasP) + ' HP a ' + side.characters[atP].character.name + (semillasP > 0 ? ' (+' + semillasP + ' semillas)' : ''));
+      preview.notes.push('❌ No hay aliado derrotado: la habilidad no puede usarse');
     }
-    if (combatState.environment && combatState.environment.id === 'campo_girasoles') {
-      preview.notes.push('🌻 El Campo de Girasoles desaparecerá tras usar esta habilidad');
-    }
+    preview.notes.push('🌻 Coloca/refresca Campo de Girasoles (2 rondas)');
   }
 
   // ✅ EX-María
@@ -1488,13 +1483,17 @@ function previewPlayerAction(actionType) {
     preview.notes.push('💀 Si el enemigo muere antes, no se resuelve');
   }
   if (ability.kind === 'amorSuficiente') {
-    var lostP = Math.max(0, active.hp - 1);
-    preview.notes.push('💔 María desciende a 1 HP (pierde ' + lostP + ')');
-    var fallenS2 = side.characters.find(function(c){ return c.dead; });
-    if (fallenS2) {
-      preview.notes.push('✝️ Revive a ' + fallenS2.character.name + ' con ' + lostP + ' HP');
-      preview.notes.push('🕊️ Si sobrevive al final de la ronda, María +2 HP');
-    }
+    var blockedEx = false;
+    if (active.hp <= 1) blockedEx = true;
+    if (!side.characters.some(function(c){ return c.dead; })) blockedEx = true;
+    if (blockedEx) { playSound('error'); var bU2 = document.getElementById('ultimateBtn'); if (bU2) { bU2.classList.add('shake'); setTimeout(function(){ bU2.classList.remove('shake'); }, 400); } return; }
+  }
+  // ✅ María (base): Amor solo se puede usar si hay un aliado derrotado
+  if (ability.kind === 'amor' && !side.characters.some(function(c){ return c.dead; })) {
+    playSound('error');
+    var bU3 = document.getElementById('ultimateBtn');
+    if (bU3) { bU3.classList.add('shake'); setTimeout(function(){ bU3.classList.remove('shake'); }, 400); }
+    return;
   }
 
   return preview;
