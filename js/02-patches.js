@@ -19,7 +19,7 @@ var PATCHES = [
   type: 'minor',
   title: 'Nuevo Personaje',
   changes: [
-    'Añadido Facebook (BTC)'
+    'Añadido Facebook (BTC).'
   ]
 },
 {
@@ -38,8 +38,8 @@ var PATCHES = [
   title: 'Arreglos y Nuevos Personajes',
   changes: [
     'Rebalanceo de Neón y María.',
-    'Arreglos en María',
-    'Añadidos NC (Eriks) y Google (BTC)'
+    'Arreglos en María.',
+    'Añadidos NC (Eriks) y Google (BTC).'
   ]
 },
 ];
