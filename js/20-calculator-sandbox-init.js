@@ -295,7 +295,7 @@ function sbRenderChar() {
   h += '<div class="sb-row"><label>cardNextAbilityDiscount</label><input type="number" id="sbCardDisc" value="' + (cs.cardNextAbilityDiscount || 0) + '" min="0"></div>';
   h += '<div class="sb-row"><label>cardNextAbilityFree</label><input type="checkbox" id="sbCardFree"' + (cs.cardNextAbilityFree ? ' checked' : '') + '></div>';
   h += '<div class="sb-row"><label>cardMarkBonus</label><input type="number" id="sbCardMarkBonus" value="' + (cs.cardMarkBonus || 0) + '" min="0"></div>';
-  h += '<div class="sb-row"><label>exActive</label><input type="checkbox" id="sbExActive"' + (cs.exActive ? ' checked' : '') + '></div>';
+  h += '<div class="sb-row"><label>🌟 EX activa</label><input type="checkbox" id="sbExActive"' + (cs.exActive ? ' checked' : '') + '></div>';
   h += '</div>';
 
   h += '<div class="sb-section"><div class="sb-section-title">Equipamiento</div>';
@@ -481,22 +481,42 @@ function sbBindEvents() {
     var el = document.getElementById(id);
     if (el) el.addEventListener('change', function(){ getCs()[numMap[id]] = Math.max(0, parseInt(el.value, 10) || 0); refresh(); });
   });
-  var boolMap = { sbCardPierce:'cardNextAttackPiercing', sbCardDouble:'cardNextAttackDouble', sbCardFree:'cardNextAbilityFree', sbExActive:'exActive' };
+  var boolMap = { sbCardPierce:'cardNextAttackPiercing', sbCardDouble:'cardNextAttackDouble', sbCardFree:'cardNextAbilityFree' };
   Object.keys(boolMap).forEach(function(id){
     var el = document.getElementById(id);
     if (el) el.addEventListener('change', function(){
-      var cs = getCs();
-      cs[boolMap[id]] = el.checked;
-      // ✅ Neón: la EX cambia su HP máximo entre 6 y 8
-      if (cs.id === 'neon' && id === 'sbExActive') {
-        var targetMax = el.checked ? 8 : 6;
-        var diff = targetMax - cs.maxHp;
-        cs.maxHp = targetMax;
-        if (diff > 0) cs.hp = Math.min(cs.maxHp, cs.hp + diff);
-        else cs.hp = Math.min(cs.hp, cs.maxHp);
-      }
+      getCs()[boolMap[id]] = el.checked;
       refresh();
     });
+  });
+
+  // ✅ EX en Sandbox: activa/desactiva EX por personaje y sincroniza flags
+  var exChk = document.getElementById('sbExActive');
+  if (exChk) exChk.addEventListener('change', function(){
+    var cs = getCs();
+    cs.exActive = exChk.checked;
+
+    // Mantener exCharId coherente (aunque el Sandbox permita varias EX,
+    // esta propiedad se usa como "fallback" en algunos sitios)
+    if (!combatState.exCharId) combatState.exCharId = { player: null, bot: null };
+    if (exChk.checked) {
+      combatState.exCharId[sandboxCharSide] = cs.id;
+      combatState.exCombatEnabled = true;
+    } else if (combatState.exCharId[sandboxCharSide] === cs.id) {
+      combatState.exCharId[sandboxCharSide] = null;
+    }
+
+    // Neón: la EX cambia su HP máximo entre 6 y 8
+    if (cs.id === 'neon') {
+      var targetMax = exChk.checked ? 8 : 6;
+      var diff = targetMax - cs.maxHp;
+      cs.maxHp = targetMax;
+      if (diff > 0) cs.hp = Math.min(cs.maxHp, cs.hp + diff);
+      else cs.hp = Math.min(cs.hp, cs.maxHp);
+    }
+
+    logCombat('🌟 Sandbox: EX de ' + cs.character.name + ' → ' + (exChk.checked ? 'ON' : 'OFF'));
+    refresh();
   });
 
   // ── Equipamiento ──
