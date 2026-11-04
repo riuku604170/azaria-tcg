@@ -9,7 +9,7 @@ var PATCHES = [
     'Arreglados todos los personajes de la categoría BTC (Internet, Google, Facebook)',
     'Flujo de combate más cómodo y sencillo de entender.',
     'Añadidos visuales a los efectos de algunas acciones pasivas.',
-    'Mejorada la comodidad de navegación en el menú.'
+    'Mejorada la comodidad de navegación en el menú.',
     'EX ahora posibles en el modo Sandbox.'
   ]
 },
