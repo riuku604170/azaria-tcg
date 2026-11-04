@@ -622,6 +622,34 @@ footer span {
   font-weight: 900;
 }
 
+/* === Botón ATRÁS en el diálogo de iniciar combate === */
+.back-toggle-btn {
+  position: absolute;
+  top: 0.8rem;
+  left: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.25s;
+  z-index: 5;
+}
+.back-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.5);
+  color: var(--text);
+}
+
 /* ─── Botones nuevos del menú ─── */
 .btn-auto {
   background: linear-gradient(135deg, #f0c860, #f5dc8a);
