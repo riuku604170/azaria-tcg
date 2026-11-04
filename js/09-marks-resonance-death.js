@@ -222,6 +222,28 @@ function dealDamageToChar(targetCs, rawDamage, opts) {
     }
   }
   if (res.overflow > 0) {
+    // ✅ Podrida (NC): el daño verdadero recibido aumenta en 1 y causa 1 al enemigo activo.
+    // Aplica a CUALQUIER fuente de daño verdadero (propio, enemigo, entorno, etc.).
+    // El `skipPodrida` evita que el daño reflejado dispare la Podrida del enemigo (bucle en espejo).
+    if (targetCs.id === 'nc' && csHasState(targetCs, 'podrida') && !opts.podridaApplied && !opts.skipPodrida) {
+      opts.podridaApplied = true;
+      res.overflow += 1;
+      logCombat('🦠 Podrida: daño verdadero sobre NC +1 (total: ' + res.overflow + ')');
+      var podridaSide = sideOfChar(targetCs);
+      if (podridaSide) {
+        var podridaEKey = podridaSide.key === 'player' ? 'bot' : 'player';
+        var podridaESide = combatState[podridaEKey];
+        var podridaEActive = podridaESide.characters[podridaESide.activeIndex];
+        if (podridaEActive && !podridaEActive.dead) {
+          dealDamageToChar(podridaEActive, 1, {
+            targetSide: podridaESide, targetSideKey: podridaEKey,
+            targetIdx: podridaESide.activeIndex, skipPodrida: true
+          });
+          logCombat('🦠 Podrida: 1 daño a ' + podridaEActive.character.name);
+        }
+      }
+    }
+
     if (targetCs.id === 'alter' && targetCs.states && targetCs.states.invulnerabilidad > 0) {
       var inv = targetCs.states.invulnerabilidad;
       var reduced = Math.min(inv, res.overflow);
@@ -324,6 +346,25 @@ function healChar(cs, amount, opts) {
   }
   var before = cs.hp; cs.hp = Math.min(cs.maxHp, cs.hp + amount); var eff = cs.hp - before;
   if (eff > 0) logCombat('💚 ' + cs.character.name + ' +' + eff + ' HP');
+
+  // ✅ Podrida (NC): si es curada → 1 daño al enemigo activo.
+  // Se pasa `skipPodrida:true` para que este daño reflejado NO dispare
+  // a su vez la Podrida del enemigo (evita bucles en espejo).
+  if (cs.id === 'nc' && csHasState(cs, 'podrida') && eff > 0) {
+    var podridaHealSide = sideOfChar(cs);
+    if (podridaHealSide) {
+      var podridaHKey = podridaHealSide.key === 'player' ? 'bot' : 'player';
+      var podridaHSide = combatState[podridaHKey];
+      var podridaHActive = podridaHSide.characters[podridaHSide.activeIndex];
+      if (podridaHActive && !podridaHActive.dead) {
+        dealDamageToChar(podridaHActive, 1, {
+          targetSide: podridaHSide, targetSideKey: podridaHKey,
+          targetIdx: podridaHSide.activeIndex, skipPodrida: true
+        });
+        logCombat('🦠 Podrida: NC curada → 1 daño a ' + podridaHActive.character.name);
+      }
+    }
+  }
   if (csHasState(cs, 'sintonia') && combatState) {
     var side2 = (combatState.player.characters.indexOf(cs) >= 0) ? combatState.player : combatState.bot;
     var sints = side2.characters.filter(function(c){ return c !== cs && !c.dead && csHasState(c, 'sintonia'); });
