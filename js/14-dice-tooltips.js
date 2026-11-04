@@ -198,6 +198,8 @@ function showStructureTooltip(anchor, st) {
   html += '<div class="ht-name">🎧 Mesa de DJ</div><div class="ht-sub">' + st.duration + ' ronda(s) · Estructura de Neón</div><div class="ht-effect">Al final de la ronda, el aliado activo del equipo pasa al siguiente.</div>';
   } else if (st.kind === 'android') {
   html += '<div class="ht-name">🤖 Android</div><div class="ht-sub">' + st.duration + ' ronda(s) · Estructura de Google</div><div class="ht-effect">Al final de cada ronda, inflige 1 punto de daño al enemigo activo.</div>';
+  } else if (st.kind === 'metaQuest') {
+  html += '<div class="ht-name">📘 Meta Quest</div><div class="ht-sub">' + st.duration + ' ronda(s) · Estructura de Facebook</div><div class="ht-effect">Cura 1 punto de vida al aliado activo cada vez que dicho aliado use su ataque normal.</div>';
   }
   hoverTooltip.innerHTML = html;
   hoverTooltip.classList.add('show');
