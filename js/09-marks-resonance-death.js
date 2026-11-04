@@ -138,6 +138,8 @@ function handleDeath(who, index) {
   if (!t || t.dead) return 'ok';
   t.dead = true;
   logCombat('💀 ' + t.character.name + ' ha caído');
+  // ✅ Facebook EX: registrar que un aliado fue derrotado esta ronda
+  side.anyAllyDiedThisRound = true;
 
   // ✅ A4: el entorno desaparece si su dueño muere
   if (combatState.environment && combatState.environment.ownerCsId === t.id) {
