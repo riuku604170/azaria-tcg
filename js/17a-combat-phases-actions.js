@@ -397,6 +397,19 @@ function applyStructureEndOfRoundEffects(who) {
       }
     }
 
+    if (st.kind === 'android') {
+      var eaA = enemySide.characters[enemySide.activeIndex];
+      if (eaA && !eaA.dead) {
+        dealDamageToChar(eaA, 1, { targetSide: enemySide, targetSideKey: enemyKey, targetIdx: enemySide.activeIndex });
+        logCombat('🤖 Android: 1 daño a ' + eaA.character.name);
+      }
+      st.duration--;
+      if (st.duration <= 0) {
+        logCombat('🤖 Android se desvanece');
+        side.structures.splice(i, 1);
+      }
+    }
+
     if (st.kind === 'cruzSangre') {
       // estructura persistente, no consume ronda
       continue;
@@ -452,18 +465,37 @@ function beginRoundPlay() {
             if (healedN > 0) logCombat('🎆 Neón (pasiva): +' + healedN + ' HP');
           }
         }
+        // ✅ Google: pasiva de inicio de ronda
+        if (c.id === 'google' && !c.dead) {
+          var sdG = combatState[wk];
+          if (sdG.activeIndex === sdG.characters.indexOf(c)) {
+            var teamElsG = computeTeamElements(sdG);
+            var activeElG = c.character.element;
+            var candidatesG = sdG.dice.filter(function(d){ return d.type !== 'omni'; });
+            if (candidatesG.length) {
+              var worstG = candidatesG.slice().sort(function(a, b){ return getDiePriority(a, teamElsG, activeElG) - getDiePriority(b, teamElsG, activeElG); })[0];
+              if (worstG) {
+                worstG.type = 'omni';
+                logCombat('🔍 Google (pasiva): dado menos relevante → omnidado');
+              }
+            }
+            csSetState(c, 'googleEndDamage', true);
+          }
+        }
       });
     });
-    // ✅ María (base): pasiva Florecimiento (inicio de ronda)
-    // Si no hay Campo de Girasoles activo, lo establece (2 rondas). Sin heal inmediato.
-    ['player','bot'].forEach(function(wk){
-      var mariaCs = combatState[wk].characters.find(function(c){ return c.id === 'maria' && !c.dead; });
-      if (!mariaCs) return;
-      var env = combatState.environment;
-      if (!env || env.id !== 'campo_girasoles') {
-        setEnvironment('campo_girasoles', mariaCs, wk);
-      }
-    });
+    // ✅ María (base): pasiva Florecimiento
+    // SOLO al principio de la partida (ronda 1): si no hay Campo de Girasoles, lo establece (2 rondas).
+    if (combatState.round === 1) {
+      ['player','bot'].forEach(function(wk){
+        var mariaCs = combatState[wk].characters.find(function(c){ return c.id === 'maria' && !c.dead; });
+        if (!mariaCs) return;
+        var env = combatState.environment;
+        if (!env || env.id !== 'campo_girasoles') {
+          setEnvironment('campo_girasoles', mariaCs, wk);
+        }
+      });
+    }
     var pm = applyRoundStartEffects('player'), bm = applyRoundStartEffects('bot');
     if (combatState.round === 1) { var cm = applyComprensionStart('player'); if (cm) pm.push(cm); var cmb = applyComprensionStart('bot'); if (cmb) bm.push(cmb); }
     applyEquipmentRoundStartEffects('player'); applyEquipmentRoundStartEffects('bot');
@@ -593,7 +625,7 @@ function getEffectiveCostFull(active, ability) {
     });
     return intCost;
   }
-  // ✅ Neón: Scratch +1 dado de ilusión si Mesa de DJ está activa
+  // ✅ Neón: Scratch con Mesa de DJ → -1 cualquiera, +1 ilusión
   if (active.id === 'neon' && ability.kind === 'scratch') {
     var sdNeon = (combatState.player.characters.indexOf(active) >= 0) ? combatState.player : combatState.bot;
     var hasMesaN = sdNeon.structures && sdNeon.structures.some(function(s){ return s.kind === 'mesaDJ'; });
@@ -601,6 +633,7 @@ function getEffectiveCostFull(active, ability) {
       var cNeon = {};
       Object.keys(base).forEach(function(k){ cNeon[k] = base[k]; });
       cNeon.ilusion = (cNeon.ilusion || 0) + 1;
+      cNeon.any = Math.max(0, (cNeon.any || 0) - 1);
       return cNeon;
     }
   }
@@ -769,6 +802,14 @@ function tryChangeCharacter(who, targetIndex) {
   side.activeIndex = targetIndex;
   hungerOnEnter(who, side.characters[targetIndex], oldChar);
   if (side.characters[targetIndex].id === 'jose') csSetState(side.characters[targetIndex], 'acelerado', true);
+  // ✅ EX de Google: al cambiar desde Google, el nuevo activo gana 1 escudo
+  if (oldChar.id === 'google' && oldChar.exActive) {
+    var newActiveG = side.characters[targetIndex];
+    if (newActiveG && !newActiveG.dead) {
+      addOrRefreshShield(newActiveG, 'google_ex', 1);
+      logCombat('🔍 EX Google: ' + newActiveG.character.name + ' +1 escudo');
+    }
+  }
   var sfx = rules.quick ? ' (acción rápida)' : (rules.discounted ? ' (gratis)' : '');
   logCombat('🔄 ' + (who === 'player' ? (combatState.pvp ? 'J1' : 'Tú') : (combatState.pvp ? 'J2' : 'El rival')) + ': ' + oldN + ' → ' + newN + sfx);
   // ✅ Killer Tunes: cambio de personaje → 1 daño al enemigo activo
@@ -782,9 +823,6 @@ function botCanUseAbility(botSide, active, ability, actionType) {
   if (ability.kind === 'obraMaestra') { var hasOptim = botSide.structures && botSide.structures.some(function(st){ return st.kind === 'optimizacion'; }); if (!hasOptim) return false; }
   if (ability.kind === 'amorSuficiente') {
     if (active.hp <= 1) return false;
-    if (!botSide.characters.some(function(c){ return c.dead; })) return false;
-  }
-  if (ability.kind === 'amor') {
     if (!botSide.characters.some(function(c){ return c.dead; })) return false;
   }
   var effCost = getEffectiveCostFull(active, ability);
@@ -991,6 +1029,51 @@ function endRound() {
       if (c.id === 'maria' && c.states) c.states.cosechaCounter = 0;
     });
   });
+  // ✅ Google (pasiva): 1 daño verdadero al final de la ronda si activó su pasiva
+  ['player','bot'].forEach(function(wk){
+    combatState[wk].characters.forEach(function(c){
+      if (c.id === 'google' && !c.dead && csHasState(c, 'googleEndDamage')) {
+        csSetState(c, 'googleEndDamage', false);
+        var dSideG = sideOfChar(c);
+        dealDamageToChar(c, 1, { piercing: true, targetSide: dSideG.side, targetSideKey: dSideG.key, targetIdx: dSideG.side.characters.indexOf(c) });
+        logCombat('🔍 Google (pasiva): 1 daño verdadero al final de la ronda');
+      }
+    });
+  });
+  // ✅ NC (pasiva): Podrida + autodaño al final de la ronda
+  ['player','bot'].forEach(function(wk){
+    var sd = combatState[wk];
+    var ncCs = sd.characters.find(function(c){ return c.id === 'nc' && !c.dead; });
+    if (!ncCs) return;
+
+    // Podrida: 1 daño al enemigo activo (o a todos si usó la ult esta ronda)
+    if (csHasState(ncCs, 'podrida')) {
+      var ek = wk === 'player' ? 'bot' : 'player';
+      var es = combatState[ek];
+      if (sd.podridaHitsAll) {
+        es.characters.forEach(function(c, i){
+          if (c.dead) return;
+          dealDamageToChar(c, 1, { targetSide: es, targetSideKey: ek, targetIdx: i });
+          logCombat('🦠 Podrida: 1 daño a ' + c.character.name + ' (todos)');
+        });
+      } else {
+        var ea = es.characters[es.activeIndex];
+        if (ea && !ea.dead) {
+          dealDamageToChar(ea, 1, { targetSide: es, targetSideKey: ek, targetIdx: es.activeIndex });
+          logCombat('🦠 Podrida: 1 daño a ' + ea.character.name);
+        }
+      }
+    }
+
+    // Pasiva: NC recibe 1 daño al final de la ronda (si sigue viva)
+    if (!ncCs.dead && ncCs.hp > 0) {
+      var ncSide = sideOfChar(ncCs);
+      dealDamageToChar(ncCs, 1, { targetSide: ncSide.side, targetSideKey: ncSide.key, targetIdx: ncSide.side.characters.indexOf(ncCs) });
+      logCombat('🎯 NC (pasiva): 1 daño al final de la ronda');
+    }
+  });
+  // ✅ Reset flag Podrida-a-todos
+  ['player','bot'].forEach(function(wk){ combatState[wk].podridaHitsAll = false; });
 
   // ✅ María (base): pasiva Florecimiento (fin de ronda)
   // Si el entorno es Campo de Girasoles (y es suyo) y ella está activa → cura 1 HP a todos los aliados.
@@ -1423,7 +1506,7 @@ function previewPlayerAction(actionType) {
   if (ability.kind === 'scratch') {
     if (combatState.environment && combatState.environment.id === 'sobrecarga_epileptica') preview.notes.push('⚡ +1 daño por Sobrecarga Epiléptica');
     var hasMesaPrev = side.structures && side.structures.some(function(s){ return s.kind === 'mesaDJ'; });
-    if (hasMesaPrev) preview.notes.push('🎧 +1 daño por Mesa de DJ (coste +1 ilusión)');
+    if (hasMesaPrev) preview.notes.push('🎧 Mesa de DJ: +1 daño · coste 2 ilusión + 1 cualquiera');
   }
   if (ability.kind === 'remix') {
     var hasMesaPrev2 = side.structures && side.structures.some(function(s){ return s.kind === 'mesaDJ'; });
@@ -1452,11 +1535,12 @@ function previewPlayerAction(actionType) {
   }
   if (ability.kind === 'caricia') {
     var ctT = getMariaTarget(side, active);
-    if (ctT >= 0) {
+    var ctNoOne = (ctT < 0) || (side.characters[ctT].hp >= side.characters[ctT].maxHp);
+    if (!ctNoOne) {
       var ctCs = side.characters[ctT];
       preview.notes.push('💚 Cura 3 HP a ' + ctCs.character.name + ' (' + ctCs.hp + '/' + ctCs.maxHp + ')');
     } else {
-      preview.notes.push('💚 Sin aliados a curar → María se cura 2 HP y marca al enemigo con Aceptación');
+      preview.notes.push('💚 Sin aliados a los que curar → María se cura 2 HP y marca al enemigo con Aceptación');
     }
   }
   if (ability.kind === 'amor') {
@@ -1466,7 +1550,7 @@ function previewPlayerAction(actionType) {
     if (fallenP) {
       preview.notes.push('✝️ Revive a ' + fallenP.character.name + ' con 3 HP (máx. 5)');
     } else {
-      preview.notes.push('❌ No hay aliado derrotado: la habilidad no puede usarse');
+      preview.notes.push('⚠️ Sin aliado caído: solo se establece el entorno');
     }
     preview.notes.push('🌻 Coloca/refresca Campo de Girasoles (2 rondas)');
   }
@@ -1487,13 +1571,6 @@ function previewPlayerAction(actionType) {
     if (active.hp <= 1) blockedEx = true;
     if (!side.characters.some(function(c){ return c.dead; })) blockedEx = true;
     if (blockedEx) { playSound('error'); var bU2 = document.getElementById('ultimateBtn'); if (bU2) { bU2.classList.add('shake'); setTimeout(function(){ bU2.classList.remove('shake'); }, 400); } return; }
-  }
-  // ✅ María (base): Amor solo se puede usar si hay un aliado derrotado
-  if (ability.kind === 'amor' && !side.characters.some(function(c){ return c.dead; })) {
-    playSound('error');
-    var bU3 = document.getElementById('ultimateBtn');
-    if (bU3) { bU3.classList.add('shake'); setTimeout(function(){ bU3.classList.remove('shake'); }, 400); }
-    return;
   }
 
   return preview;
@@ -1675,6 +1752,14 @@ function playerChangeCharacterRequest(targetIndex) {
     side.activeIndex = targetIndex;
     hungerOnEnter(turnKey, side.characters[targetIndex], oldChar);
     if (side.characters[targetIndex].id === 'jose') csSetState(side.characters[targetIndex], 'acelerado', true);
+    // ✅ EX de Google: al cambiar desde Google, el nuevo activo gana 1 escudo
+    if (oldChar.id === 'google' && oldChar.exActive) {
+      var newActiveG2 = side.characters[targetIndex];
+      if (newActiveG2 && !newActiveG2.dead) {
+        addOrRefreshShield(newActiveG2, 'google_ex', 1);
+        logCombat('🔍 EX Google: ' + newActiveG2.character.name + ' +1 escudo');
+      }
+    }
     var sfx = rules.quick ? ' (acción rápida)' : (rules.discounted ? ' (gratis)' : '');
     var label = combatState.pvp ? (turnKey === 'player' ? 'J1' : 'J2') : 'Tú';
     logCombat('🔄 ' + label + ': ' + oldN + ' → ' + newN + sfx);
