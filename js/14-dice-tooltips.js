@@ -196,6 +196,8 @@ function showStructureTooltip(anchor, st) {
     html += '<div class="ht-name">✝️ Cruz de Sangre</div><div class="ht-sub">Estructura de Orath</div><div class="ht-effect">Se destruye si un aliado muere. Al destruirse, revive al último aliado caído con 1 HP y 2 de escudo.</div>';
   } else if (st.kind === 'mesaDJ') {
   html += '<div class="ht-name">🎧 Mesa de DJ</div><div class="ht-sub">' + st.duration + ' ronda(s) · Estructura de Neón</div><div class="ht-effect">Al final de la ronda, el aliado activo del equipo pasa al siguiente.</div>';
+  } else if (st.kind === 'android') {
+  html += '<div class="ht-name">🤖 Android</div><div class="ht-sub">' + st.duration + ' ronda(s) · Estructura de Google</div><div class="ht-effect">Al final de cada ronda, inflige 1 punto de daño al enemigo activo.</div>';
   }
   hoverTooltip.innerHTML = html;
   hoverTooltip.classList.add('show');
