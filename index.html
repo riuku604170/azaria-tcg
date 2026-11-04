@@ -36,7 +36,7 @@
     <li><a href="#resonancias">Resonancias</a></li>
     <li><a href="#calculadora">Calculadora</a></li>
     <li><a href="#jugar">Jugar</a></li>
-    <li><a href="#" id="patchesNavLink">Parches<span class="patches-new-badge" id="patchesNewBadge" aria-label="Nuevo parche disponible" hidden>!</span></a></li>
+    <li><a href="#" id="patchesNavLink">Avisos<span class="patches-new-badge" id="patchesNewBadge" aria-label="Nuevo aviso disponible" hidden>!</span></a></li>
   </ul>
 </nav>
 
@@ -743,13 +743,24 @@
 </div>    <!-- cierra combatModal -->
 
 <!-- ═══ Modal de Parches ═══ -->
+<!-- ═══ Modal de Avisos (Anuncios + Novedades) ═══ -->
 <div class="patches-modal" id="patchesModal" role="dialog" aria-modal="true" aria-labelledby="patchesTitle">
   <div class="patches-backdrop"></div>
   <div class="patches-content">
     <button class="patches-close" id="patchesCloseBtn" aria-label="Cerrar">✕</button>
     <div class="patches-header">
-      <h2 class="patches-title" id="patchesTitle">📜 Historial de Parches</h2>
-      <p class="patches-sub">Todos los cambios de Azaria TCG, ordenados del más reciente al más antiguo.</p>
+      <h2 class="patches-title" id="patchesTitle">📢 Avisos</h2>
+      <p class="patches-sub">Anuncios generales del juego y novedades de la última actualización.</p>
+    </div>
+    <div class="avisos-tabs">
+      <button class="avisos-tab" data-avisos-tab="anuncios" id="avisosTabAnuncios" type="button">
+        📢 Anuncios
+        <span class="avisos-tab-badge" id="tabAnnouncementsBadge" hidden>!</span>
+      </button>
+      <button class="avisos-tab active" data-avisos-tab="novedades" id="avisosTabNovedades" type="button">
+        📜 Novedades
+        <span class="avisos-tab-badge" id="tabNovedadesBadge" hidden>!</span>
+      </button>
     </div>
     <div class="patches-body" id="patchesBody"></div>
   </div>
