@@ -84,4 +84,10 @@ var COMBAT_CHARS = {
     ultimate: { name:'Descanso Mental', cost:{comprension:3}, energyCost:2, target:'self', kind:'descansoMental' },
     ex: { name:'EX · Infraestructura Conectada', kind:'ex', target:'self' }
   }},
+  facebook: { name:'Facebook', element:'aceptacion', emoji:'📘', hp:11, abilities: {
+    normal: { name:'Buscando un Equilibrio', cost:{aceptacion:1, any:1}, target:'enemy', kind:'damage', damage:1, energy:1 },
+    elemental: { name:'Protocolo de Seguridad', cost:{aceptacion:4}, target:'self', kind:'protocoloSeguridad', energy:1, shieldSelf:2 },
+    ultimate: { name:'Pilar Fundamental', cost:{aceptacion:3}, energyCost:3, target:'enemy', kind:'pilarFundamental', damage:3 },
+    ex: { name:'EX · Informes de Rendimiento', kind:'ex', target:'self' }
+  }},
 };
