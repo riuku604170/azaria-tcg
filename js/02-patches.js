@@ -8,7 +8,7 @@ var PATCHES = [
   changes: [
     'Arreglos en NC, Google y Neón.'
   ]
-}
+},
 {
   version: 'BETA',
   date: '2026-11-04',
