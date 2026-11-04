@@ -415,6 +415,14 @@ function applyStructureEndOfRoundEffects(who) {
       continue;
     }
 
+    if (st.kind === 'metaQuest') {
+      st.duration--;
+      if (st.duration <= 0) {
+        logCombat('📘 Meta Quest se desvanece');
+        side.structures.splice(i, 1);
+      }
+    }
+
     if (st.kind === 'mesaDJ') {
       try {
         // 1) Pasa el activo del dueño al siguiente vivo
@@ -444,6 +452,9 @@ function beginRoundPlay() {
   combatState.phase = 'playing';
   combatState.player.selected = {};
   combatState.bot.selected = {};
+  // ✅ Facebook EX: reset del flag al inicio de la ronda
+  combatState.player.anyAllyDiedThisRound = false;
+  combatState.bot.anyAllyDiedThisRound = false;
   var activeSide = combatState.pvp ? combatState[combatState.turn] : combatState.player;
   var pc = activeSide.consonance, toast = null;
   if (pc) { if (pc.type === 'diverse') toast = '🌈 DIVERSO · +2 OMNIDADOS'; else toast = ELEMENT_EMOJI[pc.element] + ' ' + ELEMENT_NAMES[pc.element].toUpperCase() + ' · ' + pc.level + ' PERSONAJES'; }
@@ -480,6 +491,23 @@ function beginRoundPlay() {
               }
             }
             csSetState(c, 'googleEndDamage', true);
+          }
+        }
+        // ✅ Facebook: pasiva de inicio de ronda (dado menos relevante → aceptación)
+        if (c.id === 'facebook' && !c.dead) {
+          var sdF = combatState[wk];
+          if (sdF.activeIndex === sdF.characters.indexOf(c)) {
+            var teamElsF = computeTeamElements(sdF);
+            var candidatesF = sdF.dice.filter(function(d){ return d.type !== 'aceptacion' && d.type !== 'omni'; });
+            if (candidatesF.length) {
+              var worstF = candidatesF.slice().sort(function(x, y){
+                return getDiePriority(x, teamElsF, 'aceptacion') - getDiePriority(y, teamElsF, 'aceptacion');
+              })[0];
+              if (worstF) {
+                worstF.type = 'aceptacion';
+                logCombat('📘 Facebook (pasiva): dado menos relevante → Aceptación');
+              }
+            }
           }
         }
       });
@@ -526,6 +554,7 @@ function computeBaseDamageForAbility(attackerCs, ability, actionType) {
     case 'carrerilla': return 0;
     case 'damage': return ability.damage || 0;
     case 'cosecha': return ability.damage || 1;
+    case 'pilarFundamental': return ability.damage || 3;
     case 'trazoVivo': { var b = ability.damage || 1; if (attackerCs.paintEquipped === 'roja') b += 2; return b; }
     case 'intervencion': return (enemyActive && csHasState(enemyActive, 'amenaza')) ? 3 : 2;
     case 'aceleron': return 2 + (csHasState(attackerCs, 'acelerado') ? 1 : 0);
@@ -735,6 +764,15 @@ function executeAction(who, actionType, preSpentDice) {
   var handler = ACTION_HANDLERS[ability.kind];
   if (handler) handler(ctx);
   else logCombat('⚠️ Habilidad sin implementar: ' + ability.name);
+
+  // ✅ Meta Quest: cura 1 HP al activo cada vez que usa su ataque normal
+  if (actionType === 'normal' && !active.dead && side.structures) {
+    var metaQ = side.structures.find(function(s){ return s.kind === 'metaQuest'; });
+    if (metaQ) {
+      healChar(active, 1);
+      logCombat('📘 Meta Quest: ' + active.character.name + ' +1 HP (ataque normal)');
+    }
+  }
 
   if (ability.energy && ability.energy > 0 && !active.dead) {
     // ✅ EX-María no gana energía con sus propias habilidades
@@ -1112,6 +1150,17 @@ function endRound() {
   renderCombat();
   if (bdead) { setTimeout(function(){ endCombat('player'); }, 600); return; }
   if (pdead) { setTimeout(function(){ endCombat('bot'); }, 600); return; }
+
+  // ✅ Facebook EX: al final de la ronda, si ningún aliado fue derrotado → robar 1 carta
+  ['player','bot'].forEach(function(wk){
+    var sd = combatState[wk];
+    var fb = sd.characters.find(function(c){ return c.id === 'facebook' && !c.dead; });
+    if (fb && fb.exActive && !sd.anyAllyDiedThisRound) {
+      drawFromDeck(wk);
+      logCombat('📘 EX Facebook: ningún aliado derrotado → +1 carta');
+    }
+  });
+
   combatState.round++; combatState.playerDone = false; combatState.botDone = false;
   combatState.player.firstChangeUsed = false; combatState.player.firstAttackUsed = false;
   combatState.bot.firstChangeUsed = false; combatState.bot.firstAttackUsed = false;
@@ -1274,7 +1323,7 @@ function previewPlayerAction(actionType) {
   preview.shieldSelf = predictShieldGain(ability);
   preview.reflectDmg = getReflectDamage(enemySide);
 
-  var applyGeneric = ['damage','trazoVivo','intervencion','aceleron','instinto','deudaSangre','graciaPicara','cosecha','rocePosible'].indexOf(ability.kind) !== -1;
+  var applyGeneric = ['damage','trazoVivo','intervencion','aceleron','instinto','deudaSangre','graciaPicara','cosecha','rocePosible','pilarFundamental'].indexOf(ability.kind) !== -1;
   if (ability.target === 'enemy' && preview.baseDmg > 0 && target) {
     if (applyGeneric) {
       var gb = getGenericBonuses(active);
@@ -1526,6 +1575,20 @@ function previewPlayerAction(actionType) {
   if (ability.kind === 'killerTunes') {
     preview.notes.push('🌍 Establece entorno: Sobrecarga Epiléptica (2 rondas)');
     preview.notes.push('🎵 Cambios de personaje del equipo → 1 daño al enemigo (resto de ronda)');
+  }
+
+  // ✅ Facebook
+  if (ability.kind === 'protocoloSeguridad') {
+    preview.notes.push('🛡️ +2 escudo');
+    preview.notes.push('📘 -1 dado a la siguiente carta jugada');
+  }
+  if (ability.kind === 'pilarFundamental') {
+    var hasMQ = side.structures && side.structures.some(function(s){ return s.kind === 'metaQuest'; });
+    if (hasMQ) preview.notes.push('📘 Meta Quest: ya activa');
+    else preview.notes.push('📘 Coloca Meta Quest (2 rondas): activo +1 HP por ataque normal');
+  }
+  if (actionType === 'normal' && side.structures && side.structures.some(function(s){ return s.kind === 'metaQuest'; })) {
+    preview.notes.push('📘 Meta Quest: +1 HP al activo tras el ataque normal');
   }
 
   // ✅ María (base)
