@@ -787,4 +787,35 @@ var ACTION_HANDLERS = {
     logCombat('🔍 Descanso Mental: Google limpiada de todos sus efectos');
   },
 
+  // ═══════════════════════════════════════════════════════════════
+  // ✅ Facebook
+  // ═══════════════════════════════════════════════════════════════
+
+  protocoloSeguridad: function(ctx) {
+    var a = ctx.active;
+    addOrRefreshShield(a, 'facebook_protocolo', 2);
+    a.nextCardDiscount = (a.nextCardDiscount || 0) + 1;
+    logCombat('📘 Protocolo de Seguridad: +2 escudo · siguiente carta -1 dado');
+  },
+
+  pilarFundamental: function(ctx) {
+    var a = ctx.active, ea = ctx.enemyActive, es = ctx.enemySide, ek = ctx.enemyKey, side = ctx.side, ab = ctx.ability, at = ctx.actionType;
+    var dmg = ab.damage || 3;
+    dmg = applyGenericDamageMods(a, dmg, at === 'elemental');
+    if (a.pendingBuff) ctx.pendingBuffConsumed = true;
+    if (side.obraMaestraTurns > 0) { dmg *= 2; logCombat('💥 Obra Maestra: daño x2'); }
+    applyDamageWithMods(ea, dmg, predictPiercing(a, ab), ek, es.activeIndex, a);
+    logCombat('📘 Pilar Fundamental: ' + dmg + ' daño a ' + ea.character.name);
+
+    // Colocar Meta Quest si no estaba
+    if (!side.structures) side.structures = [];
+    var existing = side.structures.find(function(s){ return s.kind === 'metaQuest'; });
+    if (existing) {
+      logCombat('📘 Meta Quest: ya estaba activa');
+    } else {
+      side.structures.push({ kind:'metaQuest', duration:2 });
+      logCombat('📘 Meta Quest: colocada (2 rondas)');
+    }
+  },
+
 };
