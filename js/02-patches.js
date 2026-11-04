@@ -1,7 +1,7 @@
 /* ═══ SISTEMA DE PARCHES ═══ */
 var PATCHES = [
 {
-  version: 'BETA',
+  version: 'BETA 1.3',
   date: '2026-11-04',
   type: 'minor',
   title: 'Arreglos de flujo, navegación, personajes, Sandbox y mejoras visuales',
@@ -14,7 +14,7 @@ var PATCHES = [
   ]
 },
 {
-  version: 'BETA',
+  version: 'BETA 1.2',
   date: '2026-11-04',
   type: 'minor',
   title: 'Nuevo Personaje',
@@ -23,7 +23,7 @@ var PATCHES = [
   ]
 },
 {
-  version: 'BETA',
+  version: 'BETA 1.1',
   date: '2026-11-04',
   type: 'minor',
   title: 'Arreglos menores',
@@ -32,7 +32,7 @@ var PATCHES = [
   ]
 },
 {
-  version: 'BETA',
+  version: 'BETA 1',
   date: '2026-11-04',
   type: 'minor',
   title: 'Arreglos y Nuevos Personajes',
