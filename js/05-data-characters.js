@@ -171,4 +171,11 @@ var CHARACTERS = {
     { type:'passive', icon:'🛡️', name:'Carga de Información', effect:'Si Google está activo al inicio de la ronda, el dado menos relevante (el de menor prioridad según el orden establecido) se transforma en omnidado, pero Google sufre 1 punto de daño penetrante (verdadero) al final de la ronda.' },
     { type:'ex', icon:'🌟', name:'Infraestructura Conectada', effect:'Cuando Google cambia a otro personaje, el nuevo personaje activo obtiene un escudo de 1 punto de vida.' }
   ]},
+  facebook: { name:'Facebook', element:'aceptacion', set:'BTC', category:'BTC', hp:11, emoji:'📘', img:'img/facebook.png', concept:'', abilities: [
+    { type:'normal', icon:'⚔️', name:'Buscando un Equilibrio', cost:'x1 dado de aceptación, x1 dado cualquiera', effect:'Inflige 1 punto de daño al enemigo activo.' },
+    { type:'elemental', icon:'🔮', name:'Protocolo de Seguridad', cost:'x4 dados de aceptación', effect:'Se otorga a sí mismo un escudo de 2 puntos de vida y reduce en 1 dado el coste de la siguiente carta.' },
+    { type:'ultimate', icon:'💥', name:'Pilar Fundamental', cost:'x3 dados de aceptación, x3 puntos de energía', effect:'Inflige 3 puntos de daño al enemigo activo. Si la estructura "Meta Quest" no estaba ya activa, la coloca (2 rondas). Meta Quest: cura 1 punto de vida al aliado activo cada vez que dicho aliado use su ataque normal.' },
+    { type:'passive', icon:'🛡️', name:'Mente Metódica', effect:'Si Facebook está activo al inicio de la ronda, el dado menos relevante (según el orden de prioridad ya establecido) se transforma en un dado de Aceptación.' },
+    { type:'ex', icon:'🌟', name:'Informes de Rendimiento', effect:'Al final de cada ronda, si ningún personaje de tu equipo fue derrotado, robas 1 carta de tu mazo.' }
+  ]},
 };
