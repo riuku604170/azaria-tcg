@@ -328,12 +328,14 @@ function applyEquipmentRoundStartEffects(who) {
   var side = combatState[who];
   side.characters.forEach(function(cs){
     if (cs.dead || !cs.equipment) return;
+    var csIdx = side.characters.indexOf(cs);
     cs.equipment.forEach(function(eqId){
       var eq = CARD_DB[eqId]; if (!eq || !eq.effect) return;
-      if (eq.effect.healPerRound) { var b = cs.hp; cs.hp = Math.min(cs.maxHp, cs.hp + eq.effect.healPerRound); if (cs.hp > b) logCombat('🎴 ' + eq.name + ': +' + (cs.hp - b) + ' HP'); }
-      if (eq.effect.energyPerRound) { var p = cs.energy; cs.energy = Math.min(cs.maxEnergy, cs.energy + eq.effect.energyPerRound); if (cs.energy > p) logCombat('🎴 ' + eq.name + ': +' + (cs.energy - p) + ' energía'); }
-      if (eq.effect.elementDicePerRound && who === 'player') { for (var i = 0; i < eq.effect.elementDicePerRound; i++) side.dice.push({ type:cs.character.element, id:uid(), justAdded:true }); }
-      if (eq.effect.elementDicePerRound && who === 'bot' && combatState.pvp) { for (var i2 = 0; i2 < eq.effect.elementDicePerRound; i2++) side.dice.push({ type:cs.character.element, id:uid(), justAdded:true }); }
+      var flashed = false;
+      if (eq.effect.healPerRound) { var b = cs.hp; cs.hp = Math.min(cs.maxHp, cs.hp + eq.effect.healPerRound); if (cs.hp > b) { logCombat('🎴 ' + eq.name + ': +' + (cs.hp - b) + ' HP'); if (!flashed) { flashCharCard(who, csIdx, '+' + (cs.hp - b) + ' HP', '#7aff9a'); flashed = true; } } }
+      if (eq.effect.energyPerRound) { var p = cs.energy; cs.energy = Math.min(cs.maxEnergy, cs.energy + eq.effect.energyPerRound); if (cs.energy > p) { logCombat('🎴 ' + eq.name + ': +' + (cs.energy - p) + ' energía'); if (!flashed) { flashCharCard(who, csIdx, '+' + (cs.energy - p) + ' ⚡', '#f0c860'); flashed = true; } } }
+      if (eq.effect.elementDicePerRound && who === 'player') { for (var i = 0; i < eq.effect.elementDicePerRound; i++) side.dice.push({ type:cs.character.element, id:uid(), justAdded:true }); flashCharCard(who, csIdx, '+' + eq.effect.elementDicePerRound + ' 🎲', '#a583ff'); }
+      if (eq.effect.elementDicePerRound && who === 'bot' && combatState.pvp) { for (var i2 = 0; i2 < eq.effect.elementDicePerRound; i2++) side.dice.push({ type:cs.character.element, id:uid(), justAdded:true }); flashCharCard(who, csIdx, '+' + eq.effect.elementDicePerRound + ' 🎲', '#a583ff'); }
     });
   });
 }
@@ -344,14 +346,17 @@ function applySupportRoundStartEffects(who) {
     var sp = side.supports[i]; if (!sp) continue;
     var card = CARD_DB[sp.cardId]; if (!card || !card.effect) continue;
     var e = card.effect;
-    if (e.energyPerRound && active && !active.dead) { var p = active.energy; active.energy = Math.min(active.maxEnergy, active.energy + e.energyPerRound); if (active.energy > p) logCombat('📜 ' + card.name + ': +' + (active.energy - p) + ' energía'); }
-    if (e.shieldPerRound && active && !active.dead) { addOrRefreshShield(active, 'support_' + card.id, e.shieldPerRound); logCombat('📜 ' + card.name + ': +' + e.shieldPerRound + ' escudo'); }
-    if (e.teamShieldPerRound) { side.characters.forEach(function(c){ if (!c.dead) addOrRefreshShield(c, 'support_' + card.id, e.teamShieldPerRound); }); }
-    if (e.teamEnergyPerRound) { side.characters.forEach(function(c){ if (!c.dead) c.energy = Math.min(c.maxEnergy, c.energy + e.teamEnergyPerRound); }); }
-    if (e.elementDiePerRound && who === 'player' && active && !active.dead) { for (var d = 0; d < e.elementDiePerRound; d++) side.dice.push({ type:active.character.element, id:uid(), justAdded:true }); }
-    if (e.omniDiePerRound && who === 'player') { for (var o = 0; o < e.omniDiePerRound; o++) side.dice.push({ type:'omni', id:uid(), justAdded:true }); }
-    if (e.elementDiePerRound && who === 'bot' && combatState.pvp && active && !active.dead) { for (var d2 = 0; d2 < e.elementDiePerRound; d2++) side.dice.push({ type:active.character.element, id:uid(), justAdded:true }); }
-    if (e.omniDiePerRound && who === 'bot' && combatState.pvp) { for (var o2 = 0; o2 < e.omniDiePerRound; o2++) side.dice.push({ type:'omni', id:uid(), justAdded:true }); }
+    var suppSel = '#' + (who === 'player' ? 'player' : 'bot') + 'SupportsGrid .side-slot-filled[data-slot="' + i + '"]';
+    var flashed = false;
+    var _flashSupp = function(txt, col) { if (!flashed) { flashCombatElement(suppSel, txt, col); flashed = true; } };
+    if (e.energyPerRound && active && !active.dead) { var p = active.energy; active.energy = Math.min(active.maxEnergy, active.energy + e.energyPerRound); if (active.energy > p) { logCombat('📜 ' + card.name + ': +' + (active.energy - p) + ' energía'); _flashSupp('+' + (active.energy - p) + ' ⚡', '#f0c860'); } }
+    if (e.shieldPerRound && active && !active.dead) { addOrRefreshShield(active, 'support_' + card.id, e.shieldPerRound); logCombat('📜 ' + card.name + ': +' + e.shieldPerRound + ' escudo'); _flashSupp('+' + e.shieldPerRound + ' 🛡️', '#7ac8ff'); }
+    if (e.teamShieldPerRound) { side.characters.forEach(function(c){ if (!c.dead) addOrRefreshShield(c, 'support_' + card.id, e.teamShieldPerRound); }); _flashSupp('🛡️ equipo', '#7ac8ff'); }
+    if (e.teamEnergyPerRound) { side.characters.forEach(function(c){ if (!c.dead) c.energy = Math.min(c.maxEnergy, c.energy + e.teamEnergyPerRound); }); _flashSupp('⚡ equipo', '#f0c860'); }
+    if (e.elementDiePerRound && who === 'player' && active && !active.dead) { for (var d = 0; d < e.elementDiePerRound; d++) side.dice.push({ type:active.character.element, id:uid(), justAdded:true }); _flashSupp('🎲', '#a583ff'); }
+    if (e.omniDiePerRound && who === 'player') { for (var o = 0; o < e.omniDiePerRound; o++) side.dice.push({ type:'omni', id:uid(), justAdded:true }); _flashSupp('✨', '#f0c860'); }
+    if (e.elementDiePerRound && who === 'bot' && combatState.pvp && active && !active.dead) { for (var d2 = 0; d2 < e.elementDiePerRound; d2++) side.dice.push({ type:active.character.element, id:uid(), justAdded:true }); _flashSupp('🎲', '#a583ff'); }
+    if (e.omniDiePerRound && who === 'bot' && combatState.pvp) { for (var o2 = 0; o2 < e.omniDiePerRound; o2++) side.dice.push({ type:'omni', id:uid(), justAdded:true }); _flashSupp('✨', '#f0c860'); }
   }
 }
 function applySupportEndOfRoundEffects(who) {
@@ -361,10 +366,13 @@ function applySupportEndOfRoundEffects(who) {
     var sp = side.supports[i]; if (!sp) continue;
     var card = CARD_DB[sp.cardId]; if (!card || !card.effect) continue;
     var e = card.effect;
-    if (e.healPerRound && active && !active.dead) { var b = active.hp; active.hp = Math.min(active.maxHp, active.hp + e.healPerRound); if (active.hp > b) logCombat('📜 ' + card.name + ': +' + (active.hp - b) + ' HP'); }
-    if (e.drawPerRound && who === 'player') { for (var d = 0; d < e.drawPerRound; d++) drawFromDeck(who); }
-    if (e.drawPerRound && who === 'bot' && combatState.pvp) { for (var d2 = 0; d2 < e.drawPerRound; d2++) drawFromDeck(who); }
-    if (e.teamHealPerRound) { side.characters.forEach(function(cs){ if (!cs.dead) cs.hp = Math.min(cs.maxHp, cs.hp + e.teamHealPerRound); }); }
+    var suppSel = '#' + (who === 'player' ? 'player' : 'bot') + 'SupportsGrid .side-slot-filled[data-slot="' + i + '"]';
+    var flashed = false;
+    var _flashSupp = function(txt, col) { if (!flashed) { flashCombatElement(suppSel, txt, col); flashed = true; } };
+    if (e.healPerRound && active && !active.dead) { var b = active.hp; active.hp = Math.min(active.maxHp, active.hp + e.healPerRound); if (active.hp > b) { logCombat('📜 ' + card.name + ': +' + (active.hp - b) + ' HP'); _flashSupp('+' + (active.hp - b) + ' HP', '#7aff9a'); } }
+    if (e.drawPerRound && who === 'player') { for (var d = 0; d < e.drawPerRound; d++) drawFromDeck(who); _flashSupp('+1 🎴', '#a583ff'); }
+    if (e.drawPerRound && who === 'bot' && combatState.pvp) { for (var d2 = 0; d2 < e.drawPerRound; d2++) drawFromDeck(who); _flashSupp('+1 🎴', '#a583ff'); }
+    if (e.teamHealPerRound) { side.characters.forEach(function(cs){ if (!cs.dead) cs.hp = Math.min(cs.maxHp, cs.hp + e.teamHealPerRound); }); _flashSupp('+' + e.teamHealPerRound + ' equipo', '#7aff9a'); }
     sp.duration--; if (sp.duration <= 0) { logCombat('📜 ' + card.name + ' se desvanece'); side.supports[i] = null; }
   }
 }
@@ -374,6 +382,14 @@ function applyStructureEndOfRoundEffects(who) {
 
   var enemySide = combatState[who === 'player' ? 'bot' : 'player'];
   var enemyKey  = who === 'player' ? 'bot' : 'player';
+
+  // ✅ Helper local: anima la casilla de estructura con el texto/color dado
+  function _flashStruct(idx, txt, col) {
+    flashCombatElement(
+      '#' + (who === 'player' ? 'player' : 'bot') + 'StructuresGrid .side-slot-filled[data-struct-slot="' + idx + '"]',
+      txt, col
+    );
+  }
 
   for (var i = side.structures.length - 1; i >= 0; i--) {
     var st = side.structures[i];
@@ -389,6 +405,7 @@ function applyStructureEndOfRoundEffects(who) {
         });
         if (!ea.dead) triggerMarkOrResonance(ea, 'comprension', who, enemyKey, enemySide.activeIndex);
         logCombat('🏛️ Optimización: 1 daño y marca comprensión');
+        _flashStruct(i, '−1 HP', '#ff8a98');
       }
       st.duration--;
       if (st.duration <= 0) {
@@ -402,6 +419,7 @@ function applyStructureEndOfRoundEffects(who) {
       if (eaA && !eaA.dead) {
         dealDamageToChar(eaA, 1, { targetSide: enemySide, targetSideKey: enemyKey, targetIdx: enemySide.activeIndex });
         logCombat('🤖 Android: 1 daño a ' + eaA.character.name);
+        _flashStruct(i, '−1 HP', '#ff8a98');
       }
       st.duration--;
       if (st.duration <= 0) {
@@ -420,6 +438,8 @@ function applyStructureEndOfRoundEffects(who) {
       if (st.duration <= 0) {
         logCombat('📘 Meta Quest se desvanece');
         side.structures.splice(i, 1);
+      } else {
+        _flashStruct(i, '📘', '#7ac8ff');
       }
     }
 
@@ -433,13 +453,15 @@ function applyStructureEndOfRoundEffects(who) {
           // 2) Si Killer Tunes está activo, el cambio pega 1 al rival
           if (typeof triggerKillerTunesDamage === 'function') triggerKillerTunesDamage(who);
           // ✅ Forzar repintado para que la UI muestre al nuevo activo YA
-          if (typeof renderCombat === 'function') renderCombat();      
+          if (typeof renderCombat === 'function') renderCombat();
         }
         // 3) Duración
         st.duration--;
         if (st.duration <= 0) {
           logCombat('🎧 Mesa de DJ se desvanece');
           side.structures.splice(i, 1);
+        } else {
+          _flashStruct(i, '🎧', '#a583ff');
         }
       } catch (err) {
         console.error('[Mesa de DJ] Error al resolver el fin de ronda:', err);
@@ -450,6 +472,7 @@ function applyStructureEndOfRoundEffects(who) {
 function beginRoundPlay() {
   if (!combatState) return;
   combatState.phase = 'playing';
+  combatState.roundStarting = true;
   combatState.player.selected = {};
   combatState.bot.selected = {};
   // ✅ Facebook EX: reset del flag al inicio de la ronda
@@ -531,6 +554,7 @@ function beginRoundPlay() {
     combatState.player.characters.forEach(function(c){ if (c.states) c.states.acelerado = false; });
     combatState.bot.characters.forEach(function(c){ if (c.states) c.states.acelerado = false; });
     logCombat('⚔️ ¡Comienza el combate!'); pm.forEach(function(m){ logCombat(m); });
+    combatState.roundStarting = false;
     renderCombat();
   };
   // ✅ Repintado extra por si el activeIndex cambió entre endRound y aquí
@@ -638,20 +662,31 @@ function getEffectiveCostFull(active, ability) {
     Object.keys(base).forEach(function(k){ hCost[k] = base[k] * hungerMarkMultiplier(active); });
     return hCost;
   }
-  // ✅ Internet EX: -1 dado en TODAS sus habilidades si su vida ≤ 2
+  // ✅ Internet EX: -1 dado si HP ≤ 2 (prioridad: any > same > elemental)
   if (active.id === 'internet' && active.exActive && active.hp <= 2) {
     var intCost = {};
+    Object.keys(base).forEach(function(k){ intCost[k] = base[k]; });
     var rem = 1;
-    Object.keys(base).forEach(function(k){
-      if (rem > 0) {
-        var take = Math.min(base[k], rem);
-        var left = base[k] - take;
-        rem -= take;
-        if (left > 0) intCost[k] = left;
-      } else {
-        intCost[k] = base[k];
+    if (intCost.any && intCost.any > 0) {
+      var r1 = Math.min(intCost.any, rem);
+      intCost.any -= r1; rem -= r1;
+      if (intCost.any === 0) delete intCost.any;
+    }
+    if (rem > 0 && intCost.same && intCost.same > 0) {
+      var r2 = Math.min(intCost.same, rem);
+      intCost.same -= r2; rem -= r2;
+      if (intCost.same === 0) delete intCost.same;
+    }
+    if (rem > 0) {
+      var keys = Object.keys(intCost);
+      for (var i = 0; i < keys.length && rem > 0; i++) {
+        var k = keys[i];
+        if (k === 'any' || k === 'same') continue;
+        var r3 = Math.min(intCost[k], rem);
+        intCost[k] -= r3; rem -= r3;
+        if (intCost[k] === 0) delete intCost[k];
       }
-    });
+    }
     return intCost;
   }
   // ✅ Neón: Scratch con Mesa de DJ → -1 cualquiera, +1 ilusión
@@ -691,6 +726,11 @@ function applyGenericDamageMods(active, dmg, isElemental) {
   if (active.pendingBuff) { add += active.pendingBuff; logCombat('💪 Impulso: +' + active.pendingBuff); }
   if (active.cardNextAttackBonus) { add += active.cardNextAttackBonus; logCombat('🎴 Carta: +' + active.cardNextAttackBonus); }
   var eq = getEquipmentAttackBonus(active); if (eq.bonus > 0) { add += eq.bonus; logCombat('⚔️ Equipo: +' + eq.bonus); }
+  // ✅ EX Internet: daño base x2 si HP ≤ 2 (antes de sumar buffs/equipo)
+  if (active.id === 'internet' && active.exActive && active.hp <= 2 && dmg > 0) {
+    dmg *= 2;
+    logCombat('🌐 EX Internet: daño base x2');
+  }
   var base = dmg + add;
   if (active.cardNextAttackDouble) { base *= 2; logCombat('🎴 Daño duplicado'); }
   if (combatState && dmg > 0) {
@@ -840,7 +880,6 @@ function tryChangeCharacter(who, targetIndex) {
   side.activeIndex = targetIndex;
   hungerOnEnter(who, side.characters[targetIndex], oldChar);
   if (side.characters[targetIndex].id === 'jose') csSetState(side.characters[targetIndex], 'acelerado', true);
-  // ✅ EX de Google: al cambiar desde Google, el nuevo activo gana 1 escudo
   applyGoogleExOnChange(oldChar, side, targetIndex, who);
   var sfx = rules.quick ? ' (acción rápida)' : (rules.discounted ? ' (gratis)' : '');
   logCombat('🔄 ' + (who === 'player' ? (combatState.pvp ? 'J1' : 'Tú') : (combatState.pvp ? 'J2' : 'El rival')) + ': ' + oldN + ' → ' + newN + sfx);
@@ -938,6 +977,8 @@ function declareEnd(who) {
 }
 function endRound() {
   if (!combatState) return;
+  if (combatState.roundEnding) return;             // ✅ guard
+  combatState.roundEnding = true;                  // ✅ nuevo flag
   playSound('endRound'); showBanner('FIN DE RONDA', 1600);
   applySupportEndOfRoundEffects('player'); applySupportEndOfRoundEffects('bot');
   // ── Orath: pasiva al final de ronda ──
@@ -1135,8 +1176,14 @@ function endRound() {
         ownerEnvSide.activeIndex = nxEnv;
         logCombat('⚡ Sobrecarga Epiléptica: ' + ownerEnvSide.characters[nxEnv].character.name + ' pasa a activo');
         triggerKillerTunesDamage(envCur.ownerSide);
+        // ✅ Flash visual del entorno
+        flashCombatElement('#combatEnvironmentDisplay', '⚡ CAMBIO', '#5cb3ff');
         if (typeof renderCombat === 'function') renderCombat();
       }
+    }
+    if (envCur.id === 'campo_girasoles') {
+      // ✅ Flash visual: el entorno sigue activo y "pulsa" al final de la ronda
+      flashCombatElement('#combatEnvironmentDisplay', '🌻 +1 curación', '#7aff9a');
     }
     envCur.roundsLeft--;
     if (envCur.roundsLeft <= 0) {
@@ -1208,6 +1255,7 @@ function endRound() {
     combatState.bot.cardsUsedThisRound = {};
   }
   setTimeout(function(){
+    combatState.roundEnding = false;               // ✅ libera input
     // ✅ Sandbox: saltar setup PvP entre rondas
     if (currentGameMode === 'sandbox') {
       rollDiceForSide('player', false);
@@ -1240,7 +1288,7 @@ function endRound() {
       return;
     }
     showRollOverlay();
-  }, 1700);
+  }, 2400);
 }
 function endCombat(winner) {
   if (!combatState) return;
@@ -1286,14 +1334,12 @@ function getMariaTarget(side, mariaCs) {
 /* ═══ GOOGLE EX: helper para cambio de personaje ═══ */
 function applyGoogleExOnChange(oldChar, side, newIndex, turnKey) {
   if (!oldChar || oldChar.id !== 'google') return;
-  // Doble comprobación por si acaso `exActive` no estuviera seteado
-  var hasEx = oldChar.exActive
-    || (combatState && combatState.exCharId && combatState.exCharId[turnKey] === 'google');
-  if (!hasEx) return;
+  // ✅ FIX: comprobar sólo `exActive` (más fiable en Sandbox)
+  if (!oldChar.exActive) return;
   var newActive = side.characters[newIndex];
   if (!newActive || newActive.dead) return;
   addOrRefreshShield(newActive, 'google_ex', 1);
-  logCombat('🔍 EX Google: ' + newActive.character.name + ' +1 escudo');
+  logCombat('🔍 EX Google: ' + newActive.character.name + ' +1 escudo (total: ' + totalShield(newActive) + ')');
 }
 
 function previewPlayerAction(actionType) {
@@ -1825,7 +1871,6 @@ function playerChangeCharacterRequest(targetIndex) {
     side.activeIndex = targetIndex;
     hungerOnEnter(turnKey, side.characters[targetIndex], oldChar);
     if (side.characters[targetIndex].id === 'jose') csSetState(side.characters[targetIndex], 'acelerado', true);
-    // ✅ EX de Google: al cambiar desde Google, el nuevo activo gana 1 escudo
     applyGoogleExOnChange(oldChar, side, targetIndex, turnKey);
     var sfx = rules.quick ? ' (acción rápida)' : (rules.discounted ? ' (gratis)' : '');
     var sfx = rules.quick ? ' (acción rápida)' : (rules.discounted ? ' (gratis)' : '');
