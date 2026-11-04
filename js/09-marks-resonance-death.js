@@ -138,34 +138,55 @@ function handleDeath(who, index) {
   if (!t || t.dead) return 'ok';
   t.dead = true;
   logCombat('💀 ' + t.character.name + ' ha caído');
-  // ✅ Facebook EX: registrar que un aliado fue derrotado esta ronda
   side.anyAllyDiedThisRound = true;
 
-  // ✅ A4: el entorno desaparece si su dueño muere
+  // ── Entorno del que era dueño ──
   if (combatState.environment && combatState.environment.ownerCsId === t.id) {
     logCombat('🌍 El entorno ' + combatState.environment.name + ' desaparece al caer ' + t.character.name);
     combatState.environment = null;
     if (typeof updateEnvironmentVisuals === 'function') updateEnvironmentVisuals();
   }
 
+  // ── Cruz de Sangre (Orath) ──
   var orathCs = side.characters.find(function(c){ return c.id === 'orath'; });
   var cruzSangreAllowed = !!(orathCs && orathCs.exActive);
-
   if (t.id === 'orath') {
-    if (cruzSangreAllowed) {
-      spawnCruzSangre(who);
-    } else {
-      logCombat('✝️ Orath cae sin su EX activa: no se genera la Cruz de Sangre');
-    }
+    if (cruzSangreAllowed) spawnCruzSangre(who);
+    else logCombat('✝️ Orath cae sin su EX activa: no se genera la Cruz de Sangre');
   }
-
   if (t.id !== 'orath') {
     side.lastDeadAlly = t.id;
-    if (side.cruzSangreActive) {
-      destroyCruzSangre(who);
-    }
+    if (side.cruzSangreActive) destroyCruzSangre(who);
   }
 
+  // ── ✅ LIMPIEZA TOTAL DEL PERSONAJE CAÍDO ──
+  t.equipment = [];
+  t.paintEquipped = null;
+  t.energy = 0;
+  t.shields = [];
+  t.marks = {};
+  t.states = {};
+  t.pendingBuff = 0;
+  t.cardNextAttackBonus = 0;
+  t.cardNextAttackPiercing = false;
+  t.cardNextAttackDouble = false;
+  t.cardNextAbilityDiscount = 0;
+  t.cardNextAbilityFree = false;
+  t.cardMarkBonus = 0;
+  t.manuelStacks = 0;
+  t.nextCardDiscount = 0;
+
+  // ── Estructuras creadas por este aliado ──
+  if (side.structures) {
+    side.structures = side.structures.filter(function(st){
+      return st.ownerId !== t.id && st.source !== t.id;
+    });
+  }
+  if (side.cruzMaderaByAlly) {
+    delete side.cruzMaderaByAlly[t.id];
+  }
+
+  // ── Cambio de activo si era él ──
   if (side.activeIndex === index) {
     var nx = getNextAliveIndex(side, index);
     if (nx === -1) return 'all_dead';
