@@ -56,7 +56,7 @@ var COMBAT_CHARS = {
     ex: { name:'EX · Último Recurso', kind:'ex', target:'self' }
   }},
   neon: { name:'Neón', element:'ilusion', emoji:'🎆', hp:6, abilities: {
-    normal: { name:'Scratch', cost:{ilusion:3}, target:'enemy', kind:'scratch', damage:1, energy:1 },
+    normal: { name:'Scratch', cost:{ilusion:1, any:2}, target:'enemy', kind:'scratch', damage:1, energy:1 },
     elemental: { name:'Remix', cost:{ilusion:4}, target:'self', kind:'remix', energy:1 },
     ultimate: { name:'Killer Tunes', cost:{ilusion:4}, energyCost:3, target:'self', kind:'killerTunes' },
     ex: { name:'EX · Sobrecarga', kind:'ex', target:'self' }
@@ -71,5 +71,17 @@ var COMBAT_CHARS = {
     normal: { name:'Es acaso el roce posible', cost:{aceptacion:1, any:1}, target:'enemy', kind:'rocePosible', damage:1, energy:1 },
     elemental: { name:'Es acaso tu amor verdadero', cost:{aceptacion:3}, target:'self', kind:'amorVerdadero', energy:1 },
     ultimate: { name:'Es acaso mi amor suficiente', cost:{aceptacion:4}, energyCost:2, target:'self', kind:'amorSuficiente' }
+  }},
+  nc: { name:'NC', element:'proteccion', emoji:'🎯', hp:12, abilities: {
+    normal: { name:'Lectura', cost:{proteccion:1, any:2}, target:'enemy', kind:'lectura', damage:1, energy:0 },
+    elemental: { name:'Interpretación', cost:{proteccion:3}, target:'self', kind:'interpretacionNC', energy:0 },
+    ultimate: { name:'Sobre-exageración', cost:{proteccion:4}, energyCost:4, target:'enemy', kind:'sobreExageracion', energy:0 },
+    ex: { name:'EX · Desquite artístico', kind:'ex', target:'self' }
+  }},
+  google: { name:'Google', element:'comprension', emoji:'🔍', hp:10, abilities: {
+    normal: { name:'Consulta Rápida', cost:{comprension:1, any:1}, target:'enemy', kind:'damage', damage:1, energy:1 },
+    elemental: { name:'Android', cost:{comprension:3}, target:'enemy', kind:'android', damage:1, piercing:true, energy:1 },
+    ultimate: { name:'Descanso Mental', cost:{comprension:3}, energyCost:2, target:'self', kind:'descansoMental' },
+    ex: { name:'EX · Infraestructura Conectada', kind:'ex', target:'self' }
   }},
 };
