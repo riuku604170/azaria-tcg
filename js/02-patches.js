@@ -4,6 +4,19 @@ var PATCHES = [
   version: 'BETA',
   date: '2026-11-04',
   type: 'minor',
+  title: 'Arreglos de flujo, navegación, personajes, Sandbox y mejoras visuales',
+  changes: [
+    'Arreglados todos los personajes de la categoría BTC (Internet, Google, Facebook)',
+    'Flujo de combate más cómodo y sencillo de entender.',
+    'Añadidos visuales a los efectos de algunas acciones pasivas.',
+    'Mejorada la comodidad de navegación en el menú.'
+    'EX ahora posibles en el modo Sandbox.'
+  ]
+},
+{
+  version: 'BETA',
+  date: '2026-11-04',
+  type: 'minor',
   title: 'Nuevo Personaje',
   changes: [
     'Añadido Facebook (BTC)'
