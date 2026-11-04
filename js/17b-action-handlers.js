@@ -601,14 +601,16 @@ var ACTION_HANDLERS = {
   caricia: function(ctx) {
     var a = ctx.active, side = ctx.side, who = ctx.who, ea = ctx.enemyActive, es = ctx.enemySide, ek = ctx.enemyKey;
     var carTarget = getMariaTarget(side, a);
-    if (carTarget >= 0) {
+    // "Sin nadie a quien curar" = no hay objetivo válido O el objetivo ya está al máximo de HP
+    var noOneToHeal = (carTarget < 0) || (side.characters[carTarget].hp >= side.characters[carTarget].maxHp);
+    if (!noOneToHeal) {
       var carCs = side.characters[carTarget];
       healChar(carCs, 3);
       logCombat('🌻 Caricia: ' + carCs.character.name + ' +3 HP');
     } else {
-      // Sin aliados válidos → María se cura 2 y marca al enemigo activo con Aceptación
+      // María se cura 2 y marca al enemigo activo con Aceptación
       healChar(a, 2);
-      logCombat('🌻 Caricia: no hay aliados → María se cura 2 HP');
+      logCombat('🌻 Caricia: no hay aliados a los que curar → María se cura 2 HP');
       if (!ea.dead) {
         triggerMarkOrResonance(ea, 'aceptacion', who, ek, es.activeIndex);
         logCombat('🌻 Caricia: enemigo marcado con Aceptación');
@@ -618,22 +620,24 @@ var ACTION_HANDLERS = {
 
   amor: function(ctx) {
     var a = ctx.active, side = ctx.side, who = ctx.who;
-    // Requiere aliado derrotado
+    // Si hay caído, revivir con 3 HP (cap 5).
     var fallenA = null;
     if (side.lastDeadAlly) {
       fallenA = side.characters.find(function(c){ return c.id === side.lastDeadAlly && c.dead; });
     }
     if (!fallenA) fallenA = side.characters.find(function(c){ return c.dead; });
-    if (!fallenA) { logCombat('❌ Amor: no hay aliado derrotado'); ctx.shouldEndTurn = false; return; }
-    // Revive con 3 HP (capped at 5 bajo efectos adicionales)
-    var reviveHp = Math.min(3, 5);
-    fallenA.dead = false;
-    fallenA.hp = Math.min(reviveHp, fallenA.maxHp);
-    if (fallenA.id === 'hunger') fallenA.hp = fallenA.maxHp;
-    logCombat('🌻 Amor: revive a ' + fallenA.character.name + ' con ' + fallenA.hp + ' HP');
-    // Coloca/refresca Campo de Girasoles (2 rondas)
+    if (fallenA) {
+      var reviveHp = Math.min(3, 5);
+      fallenA.dead = false;
+      fallenA.hp = Math.min(reviveHp, fallenA.maxHp);
+      if (fallenA.id === 'hunger') fallenA.hp = fallenA.maxHp;
+      logCombat('🌻 Amor: revive a ' + fallenA.character.name + ' con ' + fallenA.hp + ' HP');
+    } else {
+      logCombat('🌻 Amor: no hay aliado derrotado, solo se establece/refresca el entorno');
+    }
+    // Coloca/refresca Campo de Girasoles (2 rondas) SIEMPRE
     setEnvironment('campo_girasoles', a, who);
-    logCombat('🌻 Amor: Campo de Girasoles colocado (2 rondas)');
+    logCombat('🌻 Amor: Campo de Girasoles colocado/refrescado (2 rondas)');
   },
 
   // ═══════════════════════════════════════════════════════════════
@@ -677,6 +681,110 @@ var ACTION_HANDLERS = {
     logCombat('🌻 Amor suficiente: María desciende a 1 HP, revive a ' + fallenS.character.name + ' con ' + fallenS.hp + ' HP');
     if (!side.pendingAmorSuficiente) side.pendingAmorSuficiente = [];
     side.pendingAmorSuficiente.push({ revivedId: fallenS.id });
-  }
+  },
+
+  // ═══════════════════════════════════════════════════════════════
+  // ✅ NC
+  // ═══════════════════════════════════════════════════════════════
+
+  lectura: function(ctx) {
+    var a = ctx.active, ea = ctx.enemyActive, es = ctx.enemySide, ek = ctx.enemyKey, side = ctx.side, who = ctx.who, ab = ctx.ability;
+    var dmg = ab.damage || 1;
+    dmg = applyGenericDamageMods(a, dmg);
+    if (a.pendingBuff) ctx.pendingBuffConsumed = true;
+    applyDamageWithMods(ea, dmg, predictPiercing(a, ab), ek, es.activeIndex, a);
+    if (csHasState(a, 'podrida')) {
+      csSetState(a, 'podrida', false);
+      if (!ea.dead) triggerMarkOrResonance(ea, 'proteccion', who, ek, es.activeIndex);
+      logCombat('🎯 Lectura: Podrida consumida · enemigo marcado con Protección');
+    }
+  },
+
+  interpretacionNC: function(ctx) {
+    var a = ctx.active, side = ctx.side;
+    if (csHasState(a, 'podrida')) {
+      var beforeHp = a.hp;
+      var dSide = sideOfChar(a);
+      dealDamageToChar(a, 1, { targetSide: dSide.side, targetSideKey: dSide.key, targetIdx: dSide.side.characters.indexOf(a) });
+      logCombat('🎯 Interpretación: NC se inflige 1 daño (tenía Podrida)');
+      // Si su HP bajó → daño verdadero → +2 escudo
+      if (a.hp < beforeHp && !a.dead) {
+        addOrRefreshShield(a, 'nc_interpretacion', 2);
+        logCombat('🎯 Interpretación: daño verdadero recibido → +2 escudo');
+      }
+    } else {
+      csSetState(a, 'podrida', true);
+      logCombat('🎯 Interpretación: NC aplica Podrida a sí misma');
+    }
+  },
+
+  sobreExageracion: function(ctx) {
+    var a = ctx.active, ea = ctx.enemyActive, es = ctx.enemySide, ek = ctx.enemyKey, side = ctx.side, who = ctx.who;
+    // Flag para la ronda: Podrida afecta a todos
+    side.podridaHitsAll = true;
+    logCombat('🎯 Sobre-exageración: Podrida afectará a todos los enemigos esta ronda');
+
+    if (csHasState(a, 'podrida')) {
+      // Rama: tenía Podrida → 1 pierce a todos + marcar + autodaño 1
+      es.characters.forEach(function(c, i){
+        if (c.dead) return;
+        applyDamageWithMods(c, 1, true, ek, i, a);
+        if (!c.dead) triggerMarkOrResonance(c, 'proteccion', who, ek, i);
+      });
+      logCombat('🎯 Sobre-exageración: 1 daño penetrante a todos los enemigos');
+      // Autodaño 1 (normal, shields aplican)
+      var dSide = sideOfChar(a);
+      dealDamageToChar(a, 1, { targetSide: dSide.side, targetSideKey: dSide.key, targetIdx: dSide.side.characters.indexOf(a) });
+      logCombat('🎯 Sobre-exageración: NC se inflige 1 daño');
+    } else {
+      // Rama: no tenía Podrida → 1 pierce al activo + heal 3 (ignorando pasiva) + aplicar Podrida
+      applyDamageWithMods(ea, 1, true, ek, es.activeIndex, a);
+      logCombat('🎯 Sobre-exageración: 1 daño penetrante a ' + ea.character.name);
+      healChar(a, 3, { ignoreNC: true });
+      csSetState(a, 'podrida', true);
+      logCombat('🎯 Sobre-exageración: NC aplica Podrida y recibe 3 HP');
+    }
+  },
+
+  // ═══════════════════════════════════════════════════════════════
+  // ✅ Google
+  // ═══════════════════════════════════════════════════════════════
+
+  android: function(ctx) {
+    var a = ctx.active, ea = ctx.enemyActive, es = ctx.enemySide, ek = ctx.enemyKey, side = ctx.side, ab = ctx.ability;
+    // 1 daño penetrante al activo
+    var dmg = ab.damage || 1;
+    applyDamageWithMods(ea, dmg, true, ek, es.activeIndex, a);
+    logCombat('🔍 Android: 1 daño penetrante a ' + ea.character.name);
+    // Colocar / reestablecer la estructura Android
+    if (!side.structures) side.structures = [];
+    var existing = side.structures.find(function(st){ return st.kind === 'android'; });
+    if (existing) {
+      existing.duration = 2;
+      logCombat('🤖 Android: duración reestablecida (2 rondas)');
+    } else {
+      side.structures.push({ kind:'android', duration:2 });
+      logCombat('🤖 Android: estructura colocada (2 rondas)');
+    }
+  },
+
+  descansoMental: function(ctx) {
+    var a = ctx.active, side = ctx.side;
+    // Curar 2 HP a todos los aliados (incluye a Google)
+    side.characters.forEach(function(c){ if (!c.dead) healChar(c, 2); });
+    logCombat('🔍 Descanso Mental: aliados +2 HP');
+    // Limpiar estados/marcas/bonos de Google
+    a.states = { internetEnergyGranted: false };
+    a.marks = {};
+    a.pendingBuff = 0;
+    a.cardNextAttackBonus = 0;
+    a.cardNextAttackPiercing = false;
+    a.cardNextAttackDouble = false;
+    a.cardNextAbilityDiscount = 0;
+    a.cardNextAbilityFree = false;
+    a.cardMarkBonus = 0;
+    a.manuelStacks = 0;
+    logCombat('🔍 Descanso Mental: Google limpiada de todos sus efectos');
+  },
 
 };
