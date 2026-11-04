@@ -1,36 +1,16 @@
 /* ═══ SISTEMA DE PARCHES ═══ */
 var PATCHES = [
 {
-  version: 'v92.46',
-  date: '2026-11-02',
-  type: 'mayor',
-  title: 'Me pican los cocos otra vez gente',
-  changes: [
-    'Erik quédate quieto.', 'Tú  también.', 'Tú  también.', 'Tú  también.',
-    'Tú  también.', 'Tú  también.', 'Tú  también.', 'Tú  también.',
-    'Tú  también.', 'Tú  también.', 'Tú  también.', 'Tú  también.',
-    'Tú  también.', 'Tú  también.', 'Tú  también.', 'Tú  también.',
-    'Tú  también.', 'Tú  también.', 'Tú  también.', 'Tú  también.',
-    '¡OOOOH, ME VENGOOOO!'
-  ]
-},
-{
-  version: 'v46.92',
-  date: '2026-11-02',
+  version: 'BETA',
+  date: '2026-11-04',
   type: 'minor',
-  title: 'Me pican los cocos gente',
-  changes: ['¡Oh, mi lefa!', 'Así me gusta, Oliverín...']
-},
-{
-  version: 'v46',
-  date: '2026-11-02',
-  type: 'major',
-  title: 'lol',
+  title: 'Arreglos y Nuevos Personajes',
   changes: [
-    'Ni de puta coña escribo yo aquí todo lo que he hecho, averígualo bro.',
-    'Me lefo. Para pensar.'
+    'Rebalanceo de Neón y María.',
+    'Arreglos en María',
+    'Añadidos NC (Eriks) y Google (BTC)'
   ]
-}
+},
 ];
 
 var PATCH_TYPE_LABEL = { major: 'Major', minor: 'Minor', fix: 'Fix', balance: 'Balance' };
