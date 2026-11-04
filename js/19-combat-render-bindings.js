@@ -83,6 +83,8 @@ function renderTeamCards(who) {
       if (cs.states.vuelo) badges.push('<span class="ccc-badge vuelo" data-status="vuelo">🦅 Vuelo</span>');
       if (cs.states.carrerilla) badges.push('<span class="ccc-badge carrerilla" data-status="carrerilla">🏃 Carrerilla</span>');
       if (cs.states.invulnerabilidad) badges.push('<span class="ccc-badge" data-status="invulnerabilidad" data-value="' + cs.states.invulnerabilidad + '" style="--bc: 240,200,96;">🛡️ Invuln. ' + cs.states.invulnerabilidad + '</span>');
+      if (cs.states.podrida) badges.push('<span class="ccc-badge" data-status="podrida" style="--bc: 200,150,60;" title="Podrida: al final de la ronda, 1 daño al enemigo activo">🦠 Podrida</span>');
+      if (cs.states.googleEndDamage) badges.push('<span class="ccc-badge" style="--bc: 100,200,255;" title="Al final de la ronda, 1 daño verdadero">⏳ −1 HP</span>');
     }
     if (cs.manuelStacks > 0) badges.push('<span class="ccc-badge" data-status="manuelStacks" data-value="' + cs.manuelStacks + '" style="--bc: 200,150,60;">📈 +' + cs.manuelStacks + '</span>');
     if (side.obraMaestraTurns > 0 && isActive) badges.push('<span class="ccc-badge" data-status="obraMaestra" data-value="' + side.obraMaestraTurns + '" style="--bc: 240,200,96;">💥 Obra Maestra (' + side.obraMaestraTurns + ')</span>');
@@ -148,6 +150,7 @@ function renderSupports(uiWho) {
       var stEmoji = st.kind === 'cruzMadera' ? '✝️'
             : st.kind === 'cruzSangre' ? '🩸'
             : st.kind === 'mesaDJ' ? '🎧'
+            : st.kind === 'android' ? '🤖'
             : '🧠';
       sHtml += '<div class="side-slot-filled" data-struct-slot="' + si + '" style="--dc: 130,220,140;">' + stEmoji + durHtml + '</div>';
     } else sHtml += '<div class="side-slot-empty">+</div>';
@@ -190,9 +193,6 @@ function updateCombatActions() {
   if (char.abilities.ultimate.kind === 'obraMaestra') {
     var hasOptim = side.structures && side.structures.some(function(st){ return st.kind === 'optimizacion'; });
     if (!hasOptim) uOk = false;
-  }
-  if (char.abilities.ultimate.kind === 'amor') {
-    if (!side.characters.some(function(c){ return c.dead; })) uOk = false;
   }
   if (char.abilities.ultimate.kind === 'amorSuficiente') {
     if (active.hp <= 1) uOk = false;
