@@ -234,6 +234,12 @@ function dealDamageToChar(targetCs, rawDamage, opts) {
     }
     targetCs.hp = Math.max(0, targetCs.hp - res.overflow);
     logCombat('💥 Daño verdadero: ' + res.overflow + ' · HP: ' + targetCs.hp + '/' + targetCs.maxHp);
+    // ✅ NC: +1 energía cada vez que recibe daño verdadero
+    if (targetCs.id === 'nc' && !targetCs.dead) {
+      var beforeEn = targetCs.energy;
+      targetCs.energy = Math.min(targetCs.maxEnergy, targetCs.energy + 1);
+      if (targetCs.energy > beforeEn) logCombat('🎯 NC gana 1 energía (daño verdadero recibido)');
+    }
     if (targetCs.id === 'internet' && targetCs.hp > 0 && targetCs.hp <= 2 && !targetCs.states.internetEnergyGranted) {
       targetCs.energy = Math.min(targetCs.maxEnergy, targetCs.energy + 1);
       targetCs.states.internetEnergyGranted = true;
@@ -292,6 +298,11 @@ function healChar(cs, amount, opts) {
       amount += 1;
       logCombat('🌻 Campo de Girasoles: +1 curación');
     }
+  }
+
+  // ✅ NC: los efectos de salud sobre ella se reducen en 1 (salvo que se ignore explícitamente)
+  if (cs.id === 'nc' && amount > 0 && !opts.ignoreNC) {
+    amount = Math.max(0, amount - 1);
   }
 
   // ✅ EX-María: difiere 1 curación al final de la ronda
@@ -390,6 +401,11 @@ function exHookPreventDeath(cs, sideKey, idx) {
 }
 function exHookRoundStart(cs, sideKey) {
   if (!cs || !cs.exActive) return;
+  // ✅ EX NC: comienza cada ronda con Podrida
+  if (cs.id === 'nc') {
+    csSetState(cs, 'podrida', true);
+    logCombat('🎯 EX NC: comienza la ronda con Podrida');
+  }
 }
 function exHookModifyOutgoingDamage(attackerCs, damage, targetCs) {
   if (!attackerCs || !attackerCs.exActive) return damage;
