@@ -3,6 +3,23 @@ function adjustCardCostForPassives(card, side) {
   Object.keys(card.cost || {}).forEach(function(k){ adjusted[k] = card.cost[k]; });
   if (card.category === 'equipo') { var oa = side.characters.some(function(c){ return c.id === 'oliver' && !c.dead; }); if (oa) { if (adjusted.any && adjusted.any > 0) adjusted.any = Math.max(0, adjusted.any - 1); else if (adjusted.same && adjusted.same > 0) adjusted.same = Math.max(0, adjusted.same - 1); } }
   if (card.tag === 'Curación') { var na = side.characters.some(function(c){ return c.id === 'noah' && !c.dead; }); if (na) { if (adjusted.any && adjusted.any > 0) adjusted.any = Math.max(0, adjusted.any - 1); else if (adjusted.same && adjusted.same > 0) adjusted.same = Math.max(0, adjusted.same - 1); } }
+  // ✅ Facebook: siguiente carta -1 dado (se consume al jugarla)
+  var act = side.characters[side.activeIndex];
+  if (act && act.nextCardDiscount > 0) {
+    var rem = act.nextCardDiscount;
+    if (adjusted.any && adjusted.any > 0) { var r1 = Math.min(adjusted.any, rem); adjusted.any -= r1; rem -= r1; if (adjusted.any === 0) delete adjusted.any; }
+    if (rem > 0 && adjusted.same && adjusted.same > 0) { var r2 = Math.min(adjusted.same, rem); adjusted.same -= r2; rem -= r2; if (adjusted.same === 0) delete adjusted.same; }
+    if (rem > 0) {
+      var keys = Object.keys(adjusted);
+      for (var i = 0; i < keys.length && rem > 0; i++) {
+        var k = keys[i];
+        if (k === 'any' || k === 'same') continue;
+        var take = Math.min(adjusted[k], rem);
+        adjusted[k] -= take; rem -= take;
+        if (adjusted[k] === 0) delete adjusted[k];
+      }
+    }
+  }
   return adjusted;
 }
 function applyCardEffect(card) {
@@ -121,6 +138,12 @@ function playCardRequest(cardId) {
 function finalizeCardPlay(cardId) {
   var card = CARD_DB[cardId] || PAINT_CARDS[cardId]; if (!card) return;
   var player = getActiveSide(); if (!player) return;
+  // ✅ Facebook: consumir el descuento de carta
+  var actDisc = player.characters[player.activeIndex];
+  if (actDisc && actDisc.nextCardDiscount > 0) {
+    actDisc.nextCardDiscount = 0;
+    logCombat('📘 Protocolo de Seguridad: descuento consumido');
+  }
   if (card.oncePerRound) player.cardsUsedThisRound[cardId] = true;
   if (card.oncePerGame) player.cardsUsedThisGame[cardId] = true;
   var hi = player.hand.indexOf(cardId); if (hi >= 0) player.hand.splice(hi, 1);
