@@ -4,6 +4,15 @@ var PATCHES = [
   version: 'BETA',
   date: '2026-11-04',
   type: 'minor',
+  title: 'Arreglos menores',
+  changes: [
+    'Arreglos en NC, Google y Neón.'
+  ]
+}
+{
+  version: 'BETA',
+  date: '2026-11-04',
+  type: 'minor',
   title: 'Arreglos y Nuevos Personajes',
   changes: [
     'Rebalanceo de Neón y María.',
