@@ -63,6 +63,15 @@ document.addEventListener('click', function(e){
   playSound('select');
 });
 
+// ✅ Botón ATRÁS del confirm de inicio (delegación, se engancha una sola vez)
+document.addEventListener('click', function(e){
+  var btn = e.target.closest('#combatBackBtn');
+  if (!btn) return;
+  e.preventDefault();
+  e.stopPropagation();
+  goBackFromCombatStartConfirm();
+});
+
 function showCombatStartConfirm(slotNum) {
   initAudio();
   var ov = document.getElementById('combatStartConfirm'), prev = document.getElementById('combatStartTeamPreview'); if (!ov || !prev) return;
@@ -92,6 +101,24 @@ function showCombatStartConfirmForP2(slotNum) {
   ov.classList.add('show'); playSound('banner');
   updateCombatStartConfirmState();
   refreshGameModeBtn();
+}
+/* ═══ Botón ATRÁS en el diálogo de iniciar combate ═══ */
+function goBackFromCombatStartConfirm() {
+  if (!combatState && !pendingCombatTeam && !pendingCombatDeck && !pvpP2Team) {
+    // Nada que restaurar
+    hideCombatStartConfirm();
+    return;
+  }
+  var isP2 = combatStartConfirmForP2;
+  hideCombatStartConfirm();
+  playSound('deselect');
+  if (isP2) {
+    // Volver al selector de plantilla del J2
+    askP2TemplateAndConfirm();
+  } else {
+    // Volver al selector de plantilla del J1 (solo o PvP)
+    startCombatWithTemplatePicker();
+  }
 }
 function updateCombatStartConfirmState() {
   var content = document.querySelector('#combatStartConfirm .combat-start-confirm-content');
@@ -547,6 +574,8 @@ function resumeCombatFromSlot(s) {
     });
   });
   if (typeof combatState.player.mulliganUsed === 'undefined') combatState.player.mulliganUsed = false;
+  // ✅ Evitar bloqueo residual si la partida se guardó a mitad de un round-start
+  combatState.roundStarting = false;
   pendingPvpMode = !!combatState.pvp;
   hideSlotSelectionDialog();
   var m = document.getElementById('combatModal'); m.classList.add('open'); document.body.style.overflow = 'hidden';
