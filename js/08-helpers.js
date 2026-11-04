@@ -33,6 +33,8 @@ function canHumanControlCurrentTurn() {
   if (!combatState) return false;
   if (combatState.mode === 'auto') return false;
   if (combatState.phase !== 'playing') return false;
+  if (combatState.roundStarting) return false;
+  if (combatState.roundEnding) return false;   // ✅ FIX: bloquear input durante fin de ronda
   if (isTurnDone()) return false;
   if (combatState.pvp) return true;
   return combatState.turn === 'player';
@@ -154,4 +156,32 @@ function getEnemyActiveOf(whoKey) {
   var ek = whoKey === 'player' ? 'bot' : 'player';
   var es = combatState[ek];
   return { side:es, key:ek, active:es.characters[es.activeIndex] };
+}
+
+/* ═══ Feedback visual de efectos ═══ */
+function flashCombatElement(target, text, color) {
+  var el = typeof target === 'string' ? document.querySelector(target) : target;
+  if (!el) return;
+  el.classList.remove('effect-flash');
+  void el.offsetWidth;
+  el.classList.add('effect-flash');
+  setTimeout(function(){ el.classList.remove('effect-flash'); }, 700);
+
+  if (text) {
+    var rect = el.getBoundingClientRect();
+    var span = document.createElement('div');
+    span.className = 'effect-float';
+    span.textContent = text;
+    span.style.left = (rect.left + rect.width / 2) + 'px';
+    span.style.top  = (rect.top - 4) + 'px';
+    span.style.transform = 'translateX(-50%)';
+    span.style.color = color || '#f0c860';
+    document.body.appendChild(span);
+    setTimeout(function(){ span.remove(); }, 1100);
+  }
+}
+
+function flashCharCard(who, idx, text, color) {
+  var sel = '.combat-char-card[data-team="' + who + '"][data-index="' + idx + '"]';
+  flashCombatElement(sel, text, color);
 }
