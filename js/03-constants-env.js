@@ -25,6 +25,7 @@ var STATUS_DESCRIPTIONS = {
   cruzMadera: { name:'✝️ Cruz de Madera', text:'Estructura exclusiva de Orath. Causa 1 punto de daño al enemigo activo al ser destruida. Al final de la ronda, si Orath está activa, marca al enemigo activo con redención y se destruye.' },
   cruzSangre: { name:'✝️ Cruz de Sangre', text:'Estructura exclusiva de Orath generada al morir ella. Se destruye si un aliado muere. Al destruirse, revive al último aliado caído con 1 HP y 2 de escudo.' },
   invulnerabilidad: { name:'🛡️ Invulnerabilidad', text:'Cada punto de invulnerabilidad reduce en 1 el daño verdadero que recibe Alter. No se consume al absorber daño: Alter pierde 1 punto al final de cada ronda (máx 3). Solo se elimina por efectos que la quiten o por esta pérdida al final de ronda.' },
+  podrida: { name:'🦠 Podrida', text:'Al final de cada ronda, NC inflige 1 daño al enemigo activo (a todos los enemigos si usó su definitiva ese turno). La lectura consume esta podredumbre para marcar al enemigo con Protección.' },
 };
 
 var PHILOSOPHIES = {
