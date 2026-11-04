@@ -803,13 +803,9 @@ function tryChangeCharacter(who, targetIndex) {
   hungerOnEnter(who, side.characters[targetIndex], oldChar);
   if (side.characters[targetIndex].id === 'jose') csSetState(side.characters[targetIndex], 'acelerado', true);
   // ✅ EX de Google: al cambiar desde Google, el nuevo activo gana 1 escudo
-  if (oldChar.id === 'google' && oldChar.exActive) {
-    var newActiveG = side.characters[targetIndex];
-    if (newActiveG && !newActiveG.dead) {
-      addOrRefreshShield(newActiveG, 'google_ex', 1);
-      logCombat('🔍 EX Google: ' + newActiveG.character.name + ' +1 escudo');
-    }
-  }
+  applyGoogleExOnChange(oldChar, side, targetIndex, who);
+  var sfx = rules.quick ? ' (acción rápida)' : (rules.discounted ? ' (gratis)' : '');
+  logCombat('🔄 ' + (who === 'player' ? (combatState.pvp ? 'J1' : 'Tú') : (combatState.pvp ? 'J2' : 'El rival')) + ': ' + oldN + ' → ' + newN + sfx);
   var sfx = rules.quick ? ' (acción rápida)' : (rules.discounted ? ' (gratis)' : '');
   logCombat('🔄 ' + (who === 'player' ? (combatState.pvp ? 'J1' : 'Tú') : (combatState.pvp ? 'J2' : 'El rival')) + ': ' + oldN + ' → ' + newN + sfx);
   // ✅ Killer Tunes: cambio de personaje → 1 daño al enemigo activo
@@ -878,14 +874,15 @@ function declareEnd(who) {
   var sdDecl = combatState[who];
   var activeDecl = sdDecl.characters[sdDecl.activeIndex];
   if (activeDecl && !activeDecl.dead && activeDecl.id === 'neon') {
-    addOrRefreshShield(activeDecl, 'neon_passive', 2);
     var nxDecl = getNextAliveIndex(sdDecl, sdDecl.activeIndex);
+    // ✅ Solo aplica el escudo + cambio si REALMENTE puede cambiar de personaje.
     if (nxDecl >= 0 && nxDecl !== sdDecl.activeIndex) {
+      addOrRefreshShield(activeDecl, 'neon_passive', 2);
       sdDecl.activeIndex = nxDecl;
       logCombat('🎆 Neón (pasiva): +2 escudo y cambia a ' + sdDecl.characters[nxDecl].character.name);
       triggerKillerTunesDamage(who);
     } else {
-      logCombat('🎆 Neón (pasiva): +2 escudo (no hay más aliados vivos)');
+      logCombat('🎆 Neón (pasiva): no puede cambiar de personaje (no hay otros aliados vivos) — sin escudo');
     }
   }
   // ✅ Sandbox player-only: declarar fin de ronda termina la ronda directamente
@@ -1235,6 +1232,19 @@ function getMariaTarget(side, mariaCs) {
     }
   }
   return tied[0].idx;
+}
+
+/* ═══ GOOGLE EX: helper para cambio de personaje ═══ */
+function applyGoogleExOnChange(oldChar, side, newIndex, turnKey) {
+  if (!oldChar || oldChar.id !== 'google') return;
+  // Doble comprobación por si acaso `exActive` no estuviera seteado
+  var hasEx = oldChar.exActive
+    || (combatState && combatState.exCharId && combatState.exCharId[turnKey] === 'google');
+  if (!hasEx) return;
+  var newActive = side.characters[newIndex];
+  if (!newActive || newActive.dead) return;
+  addOrRefreshShield(newActive, 'google_ex', 1);
+  logCombat('🔍 EX Google: ' + newActive.character.name + ' +1 escudo');
 }
 
 function previewPlayerAction(actionType) {
@@ -1753,13 +1763,8 @@ function playerChangeCharacterRequest(targetIndex) {
     hungerOnEnter(turnKey, side.characters[targetIndex], oldChar);
     if (side.characters[targetIndex].id === 'jose') csSetState(side.characters[targetIndex], 'acelerado', true);
     // ✅ EX de Google: al cambiar desde Google, el nuevo activo gana 1 escudo
-    if (oldChar.id === 'google' && oldChar.exActive) {
-      var newActiveG2 = side.characters[targetIndex];
-      if (newActiveG2 && !newActiveG2.dead) {
-        addOrRefreshShield(newActiveG2, 'google_ex', 1);
-        logCombat('🔍 EX Google: ' + newActiveG2.character.name + ' +1 escudo');
-      }
-    }
+    applyGoogleExOnChange(oldChar, side, targetIndex, turnKey);
+    var sfx = rules.quick ? ' (acción rápida)' : (rules.discounted ? ' (gratis)' : '');
     var sfx = rules.quick ? ' (acción rápida)' : (rules.discounted ? ' (gratis)' : '');
     var label = combatState.pvp ? (turnKey === 'player' ? 'J1' : 'J2') : 'Tú';
     logCombat('🔄 ' + label + ': ' + oldN + ' → ' + newN + sfx);
