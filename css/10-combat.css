@@ -2417,3 +2417,31 @@
   0%, 100% { transform: scale(1); }
   50%      { transform: scale(1.15); }
 }
+
+/* ═══ Flash de efecto (equipo/apoyo/estructura/entorno) ═══ */
+@keyframes effectFlash {
+  0%   { box-shadow: 0 0 0 rgba(240, 200, 96, 0); }
+  35%  { box-shadow: 0 0 25px rgba(240, 200, 96, 1), 0 0 45px rgba(240, 200, 96, 0.55); }
+  100% { box-shadow: 0 0 0 rgba(240, 200, 96, 0); }
+}
+.effect-flash {
+  animation: effectFlash 0.65s ease;
+}
+
+/* Texto flotante */
+@keyframes effectFloatUp {
+  0%   { transform: translateY(0) scale(1);   opacity: 0; }
+  20%  { transform: translateY(-4px) scale(1.08); opacity: 1; }
+  100% { transform: translateY(-42px) scale(0.95); opacity: 0; }
+}
+.effect-float {
+  position: fixed;
+  font-size: 1.15rem;
+  font-weight: 900;
+  pointer-events: none;
+  animation: effectFloatUp 1.1s ease forwards;
+  z-index: 9999;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.85), 0 0 12px currentColor;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
