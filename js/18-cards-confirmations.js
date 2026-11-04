@@ -43,7 +43,15 @@ function applyCardEffect(card) {
     case 'rerollDice': { var te = computeTeamElements(side); var tE = active.character.element; var s = side.dice.slice().sort(function(a, b){ return getDiePriority(b, te, tE) - getDiePriority(a, te, tE); }); s.slice(0, Math.min(card.value, s.length)).forEach(function(d){ if (Math.random() < 0.125) d.type = 'omni'; else d.type = CONSONANCE_ORDER[Math.floor(Math.random() * 7)]; }); break; }
     case 'convertDice': { var te2 = computeTeamElements(side); var tE2 = active.character.element; var s2 = side.dice.slice().sort(function(a, b){ return getDiePriority(b, te2, tE2) - getDiePriority(a, te2, tE2); }); s2.slice(0, Math.min(card.value, s2.length)).forEach(function(d){ if (d.type !== tE2) d.type = tE2; }); break; }
     case 'sacrificeDie': { if (side.dice.length > 0) { var te3 = computeTeamElements(side); var tE3 = active.character.element; var w = side.dice.slice().sort(function(a, b){ return getDiePriority(b, te3, tE3) - getDiePriority(a, te3, tE3); })[0]; side.dice = side.dice.filter(function(d){ return d.id !== w.id; }); for (var k = 0; k < 2; k++) side.dice.push({ type:tE3, id:uid(), justAdded:true }); } break; }
-    case 'quickChange': { var ni = getNextAliveIndex(side, side.activeIndex); if (ni >= 0) { side.activeIndex = ni; } break; }
+    case 'quickChange': {
+      var ni = getNextAliveIndex(side, side.activeIndex);
+      if (ni >= 0) {
+        var oldG = side.characters[side.activeIndex];
+        side.activeIndex = ni;
+        if (typeof applyGoogleExOnChange === 'function') applyGoogleExOnChange(oldG, side, ni, getTurnKey());
+      }
+      break;
+    }
     case 'nextAbilityDiscount': active.cardNextAbilityDiscount = (active.cardNextAbilityDiscount || 0) + card.value; break;
     case 'nextAbilityFree': active.cardNextAbilityFree = true; break;
     case 'markEnemy': enemyActive.cardMarkBonus = (enemyActive.cardMarkBonus || 0) + card.value; break;
@@ -822,7 +830,6 @@ function playerChangeCharacterRequest(targetIndex) {
   var turnKey = getTurnKey();
   var side = combatState[turnKey];
   if (side.activeIndex === targetIndex) {
-    // ✅ Si el clic cae sobre el que ya es activo, forzar render y salir
     if (typeof renderCombat === 'function') renderCombat();
     return;
   }
@@ -839,10 +846,13 @@ function playerChangeCharacterRequest(targetIndex) {
     side.activeIndex = targetIndex;
     hungerOnEnter(turnKey, side.characters[targetIndex], oldChar);
     if (side.characters[targetIndex].id === 'jose') csSetState(side.characters[targetIndex], 'acelerado', true);
+
+    // ✅ FIX Google EX: llamada que faltaba (la de 17a quedaba pisada)
+    applyGoogleExOnChange(oldChar, side, targetIndex, turnKey);
+
     var sfx = rules.quick ? ' (acción rápida)' : (rules.discounted ? ' (gratis)' : '');
     var label = combatState.pvp ? (turnKey === 'player' ? 'J1' : 'J2') : 'Tú';
     logCombat('🔄 ' + label + ': ' + oldN + ' → ' + newN + sfx);
-    // ✅ Killer Tunes: cambio de personaje → 1 daño al enemigo activo
     if (typeof triggerKillerTunesDamage === 'function') triggerKillerTunesDamage(turnKey);
     playSound('change'); renderCombat();
     if (!rules.quick) setTimeout(nextTurn, 400);
