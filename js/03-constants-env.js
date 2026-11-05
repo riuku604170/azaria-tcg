@@ -8,24 +8,27 @@ var CARD_TAG_COLORS = { 'Ataque':'200,45,60','Curación':'78,194,107','Defensa':
 var CARD_CATEGORY_META = { equipo:{label:'Equipo',icon:'⚔️',color:'200,45,60'}, apoyo:{label:'Apoyo',icon:'📜',color:'130,220,140'}, evento:{label:'Evento',icon:'✨',color:'165,131,255'}, pintura:{label:'Pintura',icon:'🎨',color:'255,130,190'} };
 
 var STATUS_DESCRIPTIONS = {
-  castigada: { name:'🩸 Castigada', text:'Toda curación que reciba se convierte en daño verdadero. Cada golpe recibido mientras dure el estado otorga +1 punto de condena.' },
-  condena: { name:'💀 Condena', text:'Recurso acumulado por Alaya al recibir golpes. Su habilidad definitiva la consume íntegramente como daño penetrante al enemigo.' },
-  vulnerable: { name:'💔 Vulnerable', text:'La primera vez que reciba daño verdadero se reduce en 1 y el atacante culpable pasa a estar Amenaza. Al recibir ese golpe, deja de ser Vulnerable.' },
-  amenaza: { name:'🚨 Amenaza', text:'Estado que la habilidad definitiva de Tenshi (Suficiente) explota infligiendo daño penetrante extra.' },
-  furia: { name:'🔥 Furia', text:'Los ataques normales de Eevee contra el enemigo que la hirió suman +1 de daño durante el resto de la ronda. Se reinicia al finalizar la ronda.' },
-  defensaActiva: { name:'💠 Defensa Activa', text:'El próximo ataque recibido se reduce en 1 y Eevee contraataca inmediatamente con un ataque normal. Se consume al activarse.' },
-  sintonia: { name:'🎵 Sintonía', text:'La próxima curación que reciba este personaje también la reciben todos los aliados en Sintonía. Una vez ocurre, todos dejan de estar en Sintonía.' },
-  acelerado: { name:'💨 Acelerado', text:'Estado de Jose: el siguiente ataque normal que realice tras cambiar a él suma bono de daño y marca con transformación. Se consume al realizar la acción.' },
+  castigada: { name:'🩸 Castigada', text:'Cuando Alaya tiene este efecto, toda curación que reciba se convierte en daño verdadero (penetrante). Cada vez que Alaya recibe curación mientras está Castigada, gana 1 punto de Condena por cada punto de curación transformado en daño verdadero.' },
+  condena: { name:'💀 Condena', text:'Recurso acumulado por Alaya mientras está Castigada y recibe curación. Su habilidad definitiva lo consume íntegramente como daño penetrante al enemigo.' },
+  vulnerable: { name:'💔 Vulnerable', text:'Aplica una reducción de daño verdadero. Al recibir daño verdadero, el enemigo causante de dicho daño pasa a considerarse como Amenaza, y se elimina el efecto de Vulnerable.' },
+  amenaza: { name:'🚨 Amenaza', text:'Al infligir daño a un enemigo considerado como Vulnerable estando ya marcado como Amenaza, se marca a sí mismo con Protección. La habilidad definitiva de Tenshi (Suficiente) explota esta condición infligiendo daño penetrante extra.' },
+  furia: { name:'🔥 Furia', text:'Aumenta el daño infligido con el ataque normal en 1 punto. El estado se elimina al final de la ronda. No es acumulable. Se activa cuando Eevee recibe daño verdadero.' },
+  defensaActiva: { name:'💠 Defensa Activa', text:'El daño del próximo golpe que reciba Eevee se reduce en 1, y contraataca inmediatamente con un ataque normal. Después, el estado se elimina.' },
+  sintonia: { name:'🎵 Sintonía', text:'La siguiente curación que reciba también la recibirán el resto de aliados en Sintonía. Una vez ocurra, todos los aliados dejan de estar en Sintonía.' },
+  acelerado: { name:'💨 Acelerado', text:'Se considera un ataque acelerado todo ataque normal ejecutado como primera acción tras cambiar de personaje a Jose en ese mismo turno.' },
   marca: { name:'🏷️ Marca elemental', text:'Si se aplica otra marca distinta a este personaje, ambas desaparecen al instante y se desencadena una Resonancia.' },
-  manuelStacks: { name:'📈 Acumulación (Decadencia)', text:'Cada stack de Decadencia de Manuel suma +1 al daño de su habilidad Degradación (tanto al enemigo como a sí mismo) y reduce en 1 el coste de dados de Degradación.' },
-  obraMaestra: { name:'💥 Obra Maestra', text:'Mientras esté activa, las habilidades definitivas de los aliados hacen el doble de daño base (una vez por aliado).' },
-  rencor: { name:'💢 Rencor', text:'Acumulación de Abla sobre este personaje. La habilidad definitiva de Abla inflige daño adicional por cada acumulación y consume todas al golpear.' },
+  manuelStacks: { name:'📈 Acumulación (Decadencia)', text:'Cada stack de Decadencia de Manuel suma +1 al daño base de Degradación (tanto al enemigo como a sí mismo) y reduce en 1 el coste de dados de Degradación.' },
+  obraMaestra: { name:'💥 Obra Maestra', text:'Mientras esté activa, las habilidades definitivas de los aliados doblan su daño base (el valor numérico propio de la habilidad, sin bufos ni bonos), siempre que la estructura Portátil siga en el campo.' },
+  rencor: { name:'💢 Rencor', text:'Acumulación de Abla sobre este personaje. La habilidad definitiva de Abla inflige daño adicional por cada acumulación y las consume al golpear.' },
   vuelo: { name:'🦅 Vuelo', text:'Artemis en vuelo: reduce en 2 el daño recibido. Si recibe daño verdadero recibe +3 de daño adicional, gana 1 de energía y pierde este efecto.' },
   carrerilla: { name:'🏃 Carrerilla', text:'El siguiente ataque de Artemis que cause daño añade +2 de daño. Si ese ataque es su ataque normal, gana 1 de energía adicional.' },
   cruzMadera: { name:'✝️ Cruz de Madera', text:'Estructura exclusiva de Orath. Causa 1 punto de daño al enemigo activo al ser destruida. Al final de la ronda, si Orath está activa, marca al enemigo activo con redención y se destruye.' },
   cruzSangre: { name:'✝️ Cruz de Sangre', text:'Estructura exclusiva de Orath generada al morir ella. Se destruye si un aliado muere. Al destruirse, revive al último aliado caído con 1 HP y 2 de escudo.' },
   invulnerabilidad: { name:'🛡️ Invulnerabilidad', text:'Cada punto de invulnerabilidad reduce en 1 el daño verdadero que recibe Alter. No se consume al absorber daño: Alter pierde 1 punto al final de cada ronda (máx 3). Solo se elimina por efectos que la quiten o por esta pérdida al final de ronda.' },
   podrida: { name:'🦠 Podrida', text:'Al final de cada ronda, NC inflige 1 daño al enemigo activo (a todos los enemigos si usó su definitiva ese turno). La lectura consume esta podredumbre para marcar al enemigo con Protección.' },
+  advertido: { name:'⚠️ Advertido', text:'Cargas acumuladas sobre un enemigo de Iris. Máximo 3 cargas sin EX, 1 con EX. Cuando el enemigo está al máximo y recibe otra carga, en su lugar se le marca con Protección. Se consumen con el ataque normal de Iris cuando tiene EX activa.' },
+  buenRecaudo: { name:'🛡️ Buen Recaudo', text:'Mientras dure, si este aliado es atacado, el daño es redirigido a Iris y el atacante gana 1 carga de Advertido. Se consume tras redirigir 1 ataque o al final de la ronda.' },
+  advertenciaActive: { name:'⚔️ Advertencia', text:'Iris ha activado Advertencia: durante el resto de la ronda, los ataques dirigidos al activo de su equipo se redirigen a Iris con +1 de daño y otorgan 1 carga de Advertido al atacante.' },
 };
 
 var PHILOSOPHIES = {
