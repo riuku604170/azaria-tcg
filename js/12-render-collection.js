@@ -191,13 +191,33 @@ function applyResonanceFilters() {
 
 function parseCost(text) {
   if (!text) return [];
-  return text.split(/,\s*/).map(function(part){
-    part = part.trim(); var m;
-    if ((m = part.match(/x(\d+)\s+dados?\s+de\s+(.+)/i))) { var el = m[2].trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); return { count:+m[1], type:'element', element:el }; }
-    if ((m = part.match(/x(\d+)\s+dados?\s+cual(?:es)?quiera/i))) return { count:+m[1], type:'any' };
-    if ((m = part.match(/x(\d+)\s+puntos?\s+de\s+energía/i))) return { count:+m[1], type:'energy' };
+  // ✅ Quita el prefijo "Coste:" si lo hay (formato nuevo o antiguo)
+  var clean = String(text).replace(/^\s*Coste\s*:\s*/i, '').trim();
+  if (!clean) return [];
+
+  // Mapa de nombres (con acentos) → clave de elemento
+  var EL_KEYS = {
+    redencion:'redencion', comprension:'comprension', expresion:'expresion',
+    proteccion:'proteccion', ilusion:'ilusion', transformacion:'transformacion',
+    aceptacion:'aceptacion'
+  };
+
+  return clean.split(/\s*[,+]\s*/).map(function(part){
+    part = part.trim();
+    if (!part) return null;
+    var m;
+    // "x2 dados de aceptación"  |  "1 dado de Redención"  |  "2 dados de redención"
+    if ((m = part.match(/^x?(\d+)\s+dados?\s+de\s+(.+)/i))) {
+      var raw = m[2].trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      var el = EL_KEYS[raw] || raw;
+      return { count:+m[1], type:'element', element: el };
+    }
+    // "x2 dados cualesquiera"  |  "2 dados cualesquiera"  |  "1 dado cualquiera"
+    if ((m = part.match(/^x?(\d+)\s+dados?\s+cual(?:es)?quiera/i))) return { count:+m[1], type:'any' };
+    // "x3 puntos de energía"  |  "3 puntos de energía"
+    if ((m = part.match(/^x?(\d+)\s+puntos?\s+de\s+energ[ií]a/i))) return { count:+m[1], type:'energy' };
     return { text:part };
-  });
+  }).filter(Boolean);
 }
 function renderCost(costText) {
   var parts = parseCost(costText); if (!parts.length) return '';
@@ -209,15 +229,43 @@ function renderCost(costText) {
     return '';
   }).join('');
 }
-function renderAbility(ab, elementColor) {
-  var costHtml = ab.cost ? '<div class="ability-cost">' + renderCost(ab.cost) + '</div>' : '';
+function renderAbility(ab, elementColor, charTerms) {
+  ab = normalizeAbility(ab);
+  var isNew = !!ab.description;
   var inlineStyle = ab.type === 'elemental' ? 'style="--abc:' + elementColor + ';"' : '';
-  return '<div class="ability ability-' + ab.type + '" ' + inlineStyle + '><div class="ability-head"><span class="ability-type-icon">' + ab.icon + '</span><span class="ability-type">' + (ABILITY_TYPES[ab.type] || '') + '</span></div><h4 class="ability-name">' + ab.name + '</h4>' + costHtml + '<p class="ability-effect">' + ab.effect + '</p></div>';
+  var descHtml = isNew
+    ? '<p class="ability-description">' + renderAbilityDescription(ab.description, charTerms) + '</p>'
+    : '';
+
+  // ✅ Extrae el coste de attributes y lo pinta bajo el nombre (como antes)
+  var costHtml = '';
+  if (ab.attributes && ab.attributes.length) {
+    for (var ci = 0; ci < ab.attributes.length; ci++) {
+      if (/^\s*Coste\s*:/i.test(ab.attributes[ci])) {
+        var renderedCost = renderCost(ab.attributes[ci]);
+        if (renderedCost) costHtml = '<div class="ability-cost">' + renderedCost + '</div>';
+        break;
+      }
+    }
+  }
+
+  var attrsBtn = (ab.attributes && ab.attributes.length)
+    ? '<button class="ability-attributes-btn" data-ability-name="' + (ab.name || '').replace(/"/g,'&quot;') + '">📊 Atributos</button>'
+    : '';
+
+  return '<div class="ability ability-' + ab.type + '" ' + inlineStyle + '>' +
+    '<div class="ability-head"><span class="ability-type-icon">' + ab.icon + '</span><span class="ability-type">' + (ABILITY_TYPES[ab.type] || '') + '</span></div>' +
+    '<h4 class="ability-name">' + ab.name + '</h4>' +
+    costHtml +
+    descHtml +
+    attrsBtn +
+    '</div>';
 }
 function buildModalContent(charId, char, originalId) {
   var el = char.element;
+  var terms = char.terms || [];
   var obtainText = 'Se obtiene comprándolo en la tienda con cierto precio y un nivel de amistad concreto, tras vencerlo en una batalla (desbloqueado por ' + char.name + ').';
-  // ✅ Botón de alternar Adela <-> Hunger
+
   var toggleHtml = '';
   if (charId === 'adela') {
     toggleHtml = '<button class="modal-toggle-view" data-toggle-view="hunger" title="Ver Hunger Incarnate">👹 Ver Hunger Incarnate</button>';
@@ -228,20 +276,26 @@ function buildModalContent(charId, char, originalId) {
   } else if (charId === 'exmaria') {
     toggleHtml = '<button class="modal-toggle-view" data-toggle-view="maria" title="Volver a María">👁️ Volver a María</button>';
   }
-  return '<div class="modal-header"><div class="modal-portrait" data-fallback="' + char.emoji + '"><img src="' + char.img + '" alt="' + char.name + '" class="portrait-img" style="opacity:0;" onload="this.style.opacity=1;" onerror="this.style.display=\'none\';"><div class="modal-hp-badge">' + char.hp + ' HP</div></div><div class="modal-info"><div class="modal-eyebrow"><span class="el-badge-lg">' + ELEMENT_EMOJI[el] + '</span>' + ELEMENT_NAMES[el] + ' · ' + char.set + '</div><h2 class="modal-title" id="modalTitle">' + char.name + '</h2><p class="modal-concept">"' + char.concept + '"</p>' + toggleHtml + '</div><button class="modal-close" aria-label="Cerrar">×</button></div><div class="modal-body"><div class="obtain-box"><div class="obtain-label">📍 Obtención</div><p class="obtain-text">' + obtainText + '</p></div><div class="abilities">' + char.abilities.map(function(ab){ return renderAbility(ab, ELEMENT_COLORS[el]); }).join('') + '</div></div>';
+
+  var abilitiesHtml = (char.abilities || []).map(function(ab){ return renderAbility(ab, ELEMENT_COLORS[el], terms); }).join('');
+
+  return '<div class="modal-header"><div class="modal-portrait" data-fallback="' + char.emoji + '"><img src="' + char.img + '" alt="' + char.name + '" class="portrait-img" style="opacity:0;" onload="this.style.opacity=1;" onerror="this.style.display=\'none\';"><div class="modal-hp-badge">' + char.hp + ' HP</div></div><div class="modal-info"><div class="modal-eyebrow"><span class="el-badge-lg">' + ELEMENT_EMOJI[el] + '</span>' + ELEMENT_NAMES[el] + ' · ' + char.set + '</div><h2 class="modal-title" id="modalTitle">' + char.name + '</h2><p class="modal-concept">"' + char.concept + '"</p>' + toggleHtml + '</div><button class="modal-close" aria-label="Cerrar">×</button></div><div class="modal-body"><div class="obtain-box"><div class="obtain-label">📍 Obtención</div><p class="obtain-text">' + obtainText + '</p></div><div class="abilities">' + abilitiesHtml + '</div></div>';
 }
 
 var modal = document.getElementById('cardModal');
 var modalContent = document.getElementById('modalContent');
 function openCharacter(id, viewId) {
-  // viewId permite abrir el modal mostrando una "vista" distinta a la del id
-  // (ej: abrir 'adela' pero mostrando 'hunger').
   var showId = viewId || id;
   var char = CHARACTERS[showId]; if (!char || !modal || !modalContent) return;
+  var terms = char.terms || [];
+  var abilities = (char.abilities || []).map(normalizeAbility);
+
   modalContent.style.setProperty('--el', ELEMENT_COLORS[char.element]);
   modalContent.innerHTML = buildModalContent(showId, char, id);
-  var closeBtn = modalContent.querySelector('.modal-close'); if (closeBtn) closeBtn.addEventListener('click', closeModal);
-  // Botón para alternar Adela <-> Hunger dentro del mismo modal
+
+  var closeBtn = modalContent.querySelector('.modal-close');
+  if (closeBtn) closeBtn.addEventListener('click', closeModal);
+
   var toggleBtn = modalContent.querySelector('[data-toggle-view]');
   if (toggleBtn) {
     toggleBtn.addEventListener('click', function() {
@@ -249,16 +303,115 @@ function openCharacter(id, viewId) {
       openCharacter(targetView, targetView);
     });
   }
-  // Botón para cambiar el personaje activo del modal (solo Adela)
-  var changeBtn = modalContent.querySelector('[data-modal-team-btn]');
-  if (changeBtn) {
-    changeBtn.addEventListener('click', function() {
-      closeModal();
-      toggleTeam(changeBtn.getAttribute('data-modal-team-btn'));
+
+  // Términos clicables
+  modalContent.querySelectorAll('.clickable-term').forEach(function(span){
+    span.addEventListener('click', function(e){
+      e.stopPropagation();
+      var key = span.dataset.termKey;
+      var term = null;
+      for (var i = 0; i < terms.length; i++) if (terms[i].key === key) { term = terms[i]; break; }
+      if (term) showTermPopup(span, term);
     });
-  }
-  modal.classList.add('open'); document.body.style.overflow = 'hidden';
+  });
+
+  // Botones de Atributos
+  modalContent.querySelectorAll('.ability-attributes-btn').forEach(function(btn){
+    btn.addEventListener('click', function(e){
+      e.stopPropagation();
+      var aname = btn.dataset.abilityName;
+      var ab = null;
+      for (var i = 0; i < abilities.length; i++) if (abilities[i].name === aname) { ab = abilities[i]; break; }
+      if (ab && ab.attributes && ab.attributes.length) showAttributesPopup(btn, ab.name, ab.attributes);
+    });
+  });
+
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
 }
 function closeModal(){ if (!modal) return; modal.classList.remove('open'); document.body.style.overflow = ''; }
 if (modal) { var backdrop = modal.querySelector('.card-modal-backdrop'); if (backdrop) backdrop.addEventListener('click', closeModal); }
 document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && modal && modal.classList.contains('open')) closeModal(); });
+
+/* ═══ Adaptador: normaliza habilidades antiguas (effect) a la nueva estructura (description/attributes) ═══ */
+function normalizeAbility(ab) {
+  if (ab.description || ab.effect === undefined) return ab;
+  // Habilidad antigua con `effect`: la mostramos tal cual como descripción, sin atributos.
+  return Object.assign({}, ab, { description: ab.effect, attributes: ab.cost ? ['Coste: ' + ab.cost] : null });
+}
+
+/* ═══ Render de descripción con términos clicables ═══ */
+function renderAbilityDescription(desc, terms) {
+  if (!desc) return '';
+  return desc.replace(/\*\*(.+?)\*\*/g, function(m, rawName) {
+    var name = rawName.trim();
+    var term = null;
+    if (terms && terms.length) {
+      for (var i = 0; i < terms.length; i++) {
+        if (terms[i].name === name) { term = terms[i]; break; }
+      }
+    }
+    if (!term) return '<strong>' + name + '</strong>';
+    return '<span class="clickable-term" data-term-key="' + term.key + '"><strong>' + name + '</strong></span>';
+  });
+}
+
+/* ═══ Popup compartido ═══ */
+var _statPopup = null;
+function ensureStatPopup() {
+  if (_statPopup) return _statPopup;
+  _statPopup = document.createElement('div');
+  _statPopup.className = 'stat-popup';
+  _statPopup.setAttribute('role', 'tooltip');
+  document.body.appendChild(_statPopup);
+  return _statPopup;
+}
+function hideStatPopup() {
+  if (_statPopup) _statPopup.classList.remove('show');
+}
+function showTermPopup(anchorEl, term) {
+  if (!term) return;
+  var pop = ensureStatPopup();
+  pop.className = 'stat-popup term';
+  pop.innerHTML =
+    '<div class="sp-head">📖 Término</div>' +
+    '<div class="sp-title">' + term.name + '</div>' +
+    '<div class="sp-body">' + term.definition + '</div>';
+  positionStatPopup(pop, anchorEl.getBoundingClientRect());
+  pop.classList.add('show');
+}
+function showAttributesPopup(anchorEl, title, attributes) {
+  if (!attributes || !attributes.length) return;
+  var pop = ensureStatPopup();
+  pop.className = 'stat-popup attributes';
+  var listHtml = attributes.map(function(a){ return '<li>' + a + '</li>'; }).join('');
+  pop.innerHTML =
+    '<div class="sp-head">📊 Atributos · ' + (title || '') + '</div>' +
+    '<ul class="sp-attr-list">' + listHtml + '</ul>';
+  positionStatPopup(pop, anchorEl.getBoundingClientRect());
+  pop.classList.add('show');
+}
+function positionStatPopup(pop, rect) {
+  var w = pop.offsetWidth, h = pop.offsetHeight;
+  var left = rect.left;
+  var top = rect.bottom + 10;
+  if (left + w > window.innerWidth - 12) left = window.innerWidth - w - 12;
+  if (left < 12) left = 12;
+  if (top + h > window.innerHeight - 12) top = rect.top - h - 10;
+  if (top < 12) top = 12;
+  pop.style.left = left + 'px';
+  pop.style.top = top + 'px';
+}
+// Cierre global
+document.addEventListener('click', function(e){
+  if (!_statPopup) return;
+  if (e.target.closest('.stat-popup')) return;
+  if (e.target.closest('.clickable-term')) return;
+  if (e.target.closest('.ability-attributes-btn')) return;
+  hideStatPopup();
+});
+document.addEventListener('keydown', function(e){
+  if (e.key === 'Escape') hideStatPopup();
+});
+window.addEventListener('scroll', hideStatPopup, true);
+window.addEventListener('resize', hideStatPopup);
