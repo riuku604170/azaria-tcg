@@ -750,8 +750,75 @@ function applyGenericDamageMods(active, dmg, isElemental) {
   }
   return base;
 }
+/* ═══ Iris: Advertido + redirección de ataques ═══ */
+var AOE_ABILITY_KINDS = ['estratosfera','faseDeLimpieza','suficiente','retribucionFinal','sobreExageracion','diosTeAmpare'];
+
+function addAdvertidoCharge(enemyCs, irisCs) {
+  if (!enemyCs || !irisCs || !enemyCs.states) return;
+  var maxCharges = irisCs.exActive ? 1 : 3;
+  var current = enemyCs.states.advertido || 0;
+  if (current >= maxCharges) {
+    // Marcar con Protección
+    var eSide = sideOfChar(enemyCs);
+    var irisSide = sideOfChar(irisCs);
+    if (eSide && irisSide) {
+      triggerMarkOrResonance(enemyCs, 'proteccion', irisSide.key, eSide.key, eSide.side.characters.indexOf(enemyCs));
+      logCombat('⚠️ ' + enemyCs.character.name + ' ya tenía el máximo de Advertido → marcado con Protección');
+    }
+    return;
+  }
+  enemyCs.states.advertido = current + 1;
+  logCombat('⚠️ ' + enemyCs.character.name + ' recibe Advertido (' + (current + 1) + '/' + maxCharges + ')');
+}
+
+function maybeRedirectToIris(targetCs, targetSideKey, targetIdx, attackerCs, currentDmg) {
+  if (!combatState || !targetCs || !attackerCs || !attackerCs.character) return null;
+  if (targetCs.dead) return null;
+  if (attackerCs === targetCs) return null;
+  var kind = combatState._currentAbilityKind;
+  if (kind && AOE_ABILITY_KINDS.indexOf(kind) !== -1) return null;
+  var side = combatState[targetSideKey];
+  var irisCs = side.characters.find(function(c){ return c.id === 'iris' && !c.dead; });
+  if (!irisCs) return null;
+  if (targetCs === irisCs) return null;
+
+  var shouldRedirect = false, bonusDmg = 0, consumeBuenRecaudo = false;
+
+  if (csHasState(targetCs, 'buenRecaudo')) {
+    shouldRedirect = true;
+    consumeBuenRecaudo = true;
+  }
+  if (irisCs.states && irisCs.states.advertenciaActive && side.activeIndex === targetIdx) {
+    shouldRedirect = true;
+    bonusDmg = 1;
+  }
+  if (!shouldRedirect) return null;
+
+  if (consumeBuenRecaudo) csSetState(targetCs, 'buenRecaudo', false);
+
+  addAdvertidoCharge(attackerCs, irisCs);
+  logCombat('🛡️ Lealtad Imbatible: ataque redirigido a Iris' + (bonusDmg > 0 ? ' (+1 daño de Advertencia)' : ''));
+
+  return {
+    newTarget: irisCs,
+    newSideKey: targetSideKey,
+    newIdx: side.characters.indexOf(irisCs),
+    modifiedDmg: currentDmg + bonusDmg
+  };
+}
 function applyDamageWithMods(targetCs, dmg, forcedPiercing, sideKey, idx, attackerCs) {
   var side = combatState[sideKey], piercing = forcedPiercing;
+
+  // ✅ Iris: redirección de ataques (Buen Recaudo + Advertencia)
+  var redirectResult = maybeRedirectToIris(targetCs, sideKey, idx, attackerCs, dmg);
+  if (redirectResult) {
+    targetCs = redirectResult.newTarget;
+    sideKey = redirectResult.newSideKey;
+    idx = redirectResult.newIdx;
+    side = combatState[sideKey];
+    dmg = redirectResult.modifiedDmg;
+  }
+
   if (attackerCs) {
     var eq = getEquipmentAttackBonus(attackerCs); if (eq.piercing) piercing = true;
     // ── EX hook saliente (se aplica antes de escudos/reducciones) ──
@@ -798,12 +865,21 @@ function executeAction(who, actionType, preSpentDice) {
     ability: ability,
     actionType: actionType,
     shouldEndTurn: true,
-    pendingBuffConsumed: false
+    pendingBuffConsumed: false,
+    hadStacks: false          // ✅ EX Manuel: marca si Degradación resuelve acumulación
   };
 
-  var handler = ACTION_HANDLERS[ability.kind];
-  if (handler) handler(ctx);
-  else logCombat('⚠️ Habilidad sin implementar: ' + ability.name);
+  // ✅ EX Óliver: identifica la acción actual para doblar el daño FINAL de las definitivas
+  combatState._currentActionType = actionType;
+  combatState._currentAbilityKind = ability.kind;
+  try {
+    var handler = ACTION_HANDLERS[ability.kind];
+    if (handler) handler(ctx);
+    else logCombat('⚠️ Habilidad sin implementar: ' + ability.name);
+  } finally {
+    combatState._currentActionType = null;
+    combatState._currentAbilityKind = null;
+  }
 
   // ✅ Meta Quest: cura 1 HP al activo cada vez que usa su ataque normal
   if (actionType === 'normal' && !active.dead && side.structures) {
@@ -815,11 +891,23 @@ function executeAction(who, actionType, preSpentDice) {
   }
 
   if (ability.energy && ability.energy > 0 && !active.dead) {
+    var energyGain = ability.energy;
+    // ✅ EX Manuel (Caos Acelerado): Degradación otorga 2 energía
+    // Base Manuel: si resuelve stacks (post-Decadencia), no genera energía
+    if (active.id === 'manuel' && ability.kind === 'degradacion') {
+      if (active.exActive) {
+        energyGain = 2;
+        logCombat('🌟 EX Manuel: Degradación otorga 2 energía');
+      } else if (ctx.hadStacks) {
+        energyGain = 0;
+        logCombat('📈 Manuel: Degradación resuelve acumulación → 0 energía');
+      }
+    }
     // ✅ EX-María no gana energía con sus propias habilidades
     if (active.id === 'exmaria') {
       logCombat('🌻 EX-María no gana energía de sus propias habilidades');
-    } else {
-      var p = active.energy; active.energy = Math.min(active.maxEnergy, active.energy + ability.energy);
+    } else if (energyGain > 0) {
+      var p = active.energy; active.energy = Math.min(active.maxEnergy, active.energy + energyGain);
       if (active.energy > p) logCombat('⚡ +' + (active.energy - p) + ' energía');
     }
   }
@@ -862,7 +950,10 @@ function getChangeRulesForTarget(who, targetIndex) {
   var rules = getChangeRules(who);
   var side = combatState[who];
   if (targetIndex !== undefined && side.characters[targetIndex] && side.characters[targetIndex].id === 'jose') {
+    var joseCs = side.characters[targetIndex];
     rules.quick = true;
+    // ✅ EX Jose (Inercia): cambiar a Jose no cuesta dados
+    if (joseCs.exActive) { rules.diceCost = 0; rules.discounted = true; }
   }
   return rules;
 }
@@ -881,8 +972,6 @@ function tryChangeCharacter(who, targetIndex) {
   hungerOnEnter(who, side.characters[targetIndex], oldChar);
   if (side.characters[targetIndex].id === 'jose') csSetState(side.characters[targetIndex], 'acelerado', true);
   applyGoogleExOnChange(oldChar, side, targetIndex, who);
-  var sfx = rules.quick ? ' (acción rápida)' : (rules.discounted ? ' (gratis)' : '');
-  logCombat('🔄 ' + (who === 'player' ? (combatState.pvp ? 'J1' : 'Tú') : (combatState.pvp ? 'J2' : 'El rival')) + ': ' + oldN + ' → ' + newN + sfx);
   var sfx = rules.quick ? ' (acción rápida)' : (rules.discounted ? ' (gratis)' : '');
   logCombat('🔄 ' + (who === 'player' ? (combatState.pvp ? 'J1' : 'Tú') : (combatState.pvp ? 'J2' : 'El rival')) + ': ' + oldN + ' → ' + newN + sfx);
   // ✅ Killer Tunes: cambio de personaje → 1 daño al enemigo activo
@@ -1192,6 +1281,21 @@ function endRound() {
     }
     updateEnvironmentVisuals();
   }
+
+  // ✅ EX Abla (Sangría Persistente): enemigos con Rencor reciben 1 daño al final de la ronda
+  ['player','bot'].forEach(function(wk){
+    var sd = combatState[wk];
+    var ablaEx = sd.characters.find(function(c){ return c.id === 'abla' && c.exActive && !c.dead; });
+    if (!ablaEx) return;
+    var ek = wk === 'player' ? 'bot' : 'player';
+    var es = combatState[ek];
+    es.characters.forEach(function(c, i){
+      if (c.dead || !c.states || !c.states.rencor) return;
+      dealDamageToChar(c, 1, { targetSide: es, targetSideKey: ek, targetIdx: i });
+      logCombat('🌟 EX Abla: ' + c.character.name + ' con Rencor recibe 1 daño');
+    });
+  });
+
   ['player','bot'].forEach(function(wk){ var sd = combatState[wk]; if (sd.hand) sd.hand = sd.hand.filter(function(cid){ return !PAINT_CARDS[cid]; }); });
   var pdead = processDeathsAtRoundEnd('player'), bdead = processDeathsAtRoundEnd('bot');
   renderCombat();
@@ -1244,6 +1348,18 @@ function endRound() {
           handleDeath(wk, hSide.characters.indexOf(c));
         }
       }
+      // ✅ Iris: limpieza de estados de fin de ronda
+      if (c.id === 'iris') {
+        c.states.advertenciaActive = false;
+        if (c.states.advertenciaShieldActive) {
+          c.shields = (c.shields || []).filter(function(sh){ return sh.source !== 'iris_advertencia'; });
+          c.states.advertenciaShieldActive = false;
+          logCombat('🛡️ Advertencia: el escudo restante de Iris se desvanece');
+        }
+      }
+      // ✅ Buen Recaudo dura hasta el fin de la ronda
+      if (c.states.buenRecaudo) c.states.buenRecaudo = false;
+      // (Advertido NO se limpia: persiste entre rondas en el enemigo)
     }
   }); });
   combatState.player.neonUltChangeDamage = false;
@@ -1339,7 +1455,7 @@ function applyGoogleExOnChange(oldChar, side, newIndex, turnKey) {
   var newActive = side.characters[newIndex];
   if (!newActive || newActive.dead) return;
   addOrRefreshShield(newActive, 'google_ex', 1);
-  logCombat('🔍 EX Google: ' + newActive.character.name + ' +1 escudo (total: ' + totalShield(newActive) + ')');
+  logCombat('🔍 EX Google: ' + newActive.character.name + '+1 escudo (total: ' + totalShield(newActive) + ')'.replace('+', ' +'));
 }
 
 function previewPlayerAction(actionType) {
@@ -1872,7 +1988,6 @@ function playerChangeCharacterRequest(targetIndex) {
     hungerOnEnter(turnKey, side.characters[targetIndex], oldChar);
     if (side.characters[targetIndex].id === 'jose') csSetState(side.characters[targetIndex], 'acelerado', true);
     applyGoogleExOnChange(oldChar, side, targetIndex, turnKey);
-    var sfx = rules.quick ? ' (acción rápida)' : (rules.discounted ? ' (gratis)' : '');
     var sfx = rules.quick ? ' (acción rápida)' : (rules.discounted ? ' (gratis)' : '');
     var label = combatState.pvp ? (turnKey === 'player' ? 'J1' : 'J2') : 'Tú';
     logCombat('🔄 ' + label + ': ' + oldN + ' → ' + newN + sfx);
