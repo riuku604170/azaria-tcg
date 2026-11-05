@@ -4,6 +4,52 @@
 // en el momento de resolver la habilidad y puede mutar `ctx.shouldEndTurn`
 // y `ctx.pendingBuffConsumed`.
 
+/* ═══ Helper central: aplica Obra Maestra al DAÑO BASE de una definitiva ═══ */
+function applyObraMaestraToBase(attackerCs, ability, actionType, baseDmg) {
+  if (!combatState) return baseDmg;
+  if (actionType !== 'ultimate') return baseDmg;
+  if (ability.kind === 'instinto') return baseDmg;
+  var side = (combatState.player.characters.indexOf(attackerCs) >= 0) ? combatState.player : combatState.bot;
+  if (!side.obraMaestraTurns || side.obraMaestraTurns <= 0) return baseDmg;
+  var hasPortatil = side.structures && side.structures.some(function(st){ return st.kind === 'optimizacion'; });
+  if (!hasPortatil) return baseDmg;
+  // ✅ EX Óliver: NO dobla base; el doblado se hace al FINAL en dealDamageToChar
+  var oliverEx = side.characters.find(function(c){ return c.id === 'oliver' && c.exActive && !c.dead; });
+  if (oliverEx) return baseDmg;
+  return baseDmg * 2;
+}
+
+/* ═══ Iris: Suela a la Cara (reutilizable por su definitiva) ═══ */
+function executeSuelaALaCaraDamage(a, ea, es, ek, side, who, extraBaseDmg, ctx) {
+  var dmg = 2 + (extraBaseDmg || 0);
+  // Romper equipación propia (no cuenta pinturas)
+  if (a.equipment && a.equipment.length > 0) {
+    var equipCount = a.equipment.length;
+    dmg += equipCount;
+    logCombat('🥊 Suela a la Cara: +' + equipCount + ' daño por romper equipación');
+    if (!side.discardPile) side.discardPile = [];
+    a.equipment.forEach(function(eqId){
+      var eqName = CARD_DB[eqId] ? CARD_DB[eqId].name : eqId;
+      side.discardPile.push(eqId);
+      logCombat('💥 Equipación rota: ' + eqName);
+    });
+    a.equipment = [];
+  }
+  // Modificadores genéricos (aplica como ataque normal)
+  dmg = applyGenericDamageMods(a, dmg, false);
+  if (a.pendingBuff && ctx) ctx.pendingBuffConsumed = true;
+  var ob = getOptimizationBonus(side);
+  if (ob > 0) { dmg += ob; logCombat('🏛️ Optimización: +' + ob); }
+  // EX: consume cargas de Advertido para +2 daño por carga
+  if (a.exActive && ea.states && ea.states.advertido > 0) {
+    var charges = ea.states.advertido;
+    dmg += 2 * charges;
+    ea.states.advertido = 0;
+    logCombat('🌟 EX Iris: +' + (2 * charges) + ' daño por ' + charges + ' carga(s) de Advertido consumida(s)');
+  }
+  applyDamageWithMods(ea, dmg, false, ek, es.activeIndex, a);
+}
+
 var ACTION_HANDLERS = {
 
   carrerilla: function(ctx) {
@@ -21,9 +67,11 @@ var ACTION_HANDLERS = {
     }
     var carrB = 0;
     if (csHasState(a, 'carrerilla')) { carrB = 2; csSetState(a, 'carrerilla', false); logCombat('🏃 Carrerilla: +2 daño a cada enemigo'); }
-    var hitCount = 0;
     var exB = a.exActive ? 2 : 0;
-    var dmg = 6 + carrB + exB;
+    // ✅ Obra Maestra dobla SOLO el daño base (6 + exB); Carrerilla es bono
+    var baseDmg = applyObraMaestraToBase(a, ctx.ability, ctx.actionType, 6 + exB);
+    var dmg = baseDmg + carrB;
+    var hitCount = 0;
     es.characters.forEach(function(c, i){
       if (c.dead) return;
       applyDamageWithMods(c, dmg, false, ek, i, a);
@@ -38,6 +86,7 @@ var ACTION_HANDLERS = {
     var a = ctx.active, es = ctx.enemySide, ea = ctx.enemyActive, ek = ctx.enemyKey, side = ctx.side;
     var ab = ctx.ability, at = ctx.actionType;
     var dmg = ab.damage || 0;
+    dmg = applyObraMaestraToBase(a, ab, at, dmg);
     var carrerillaEnergy = 0;
     if (a.id === 'artemis' && csHasState(a, 'carrerilla')) {
       dmg += 2; csSetState(a, 'carrerilla', false);
@@ -47,7 +96,6 @@ var ACTION_HANDLERS = {
     dmg = applyGenericDamageMods(a, dmg, at === 'elemental');
     if (a.pendingBuff) ctx.pendingBuffConsumed = true;
     if (at === 'normal' || at === 'elemental') { var ob = getOptimizationBonus(side); if (ob > 0) { dmg += ob; logCombat('🏛️ Optimización: +' + ob); } }
-    if (at === 'ultimate' && side.obraMaestraTurns > 0) { dmg *= 2; logCombat('💥 Obra Maestra: daño x2'); }
     if (a.id === 'erik') { var eb = applyErikPassive(a); if (eb > 0) { dmg += eb; logCombat('🩸 Inspiración: +' + eb); } }
     if (a.id === 'eevee' && csHasState(a, 'furia') && a.states.furiaTarget === ea.id && at === 'normal') { dmg += 1; logCombat('🔥 Furia: +1'); }
     applyDamageWithMods(ea, dmg, predictPiercing(a, ab), ek, es.activeIndex, a);
@@ -75,8 +123,11 @@ var ACTION_HANDLERS = {
 
   finComienzo: function(ctx) {
     var a = ctx.active, es = ctx.enemySide, ek = ctx.enemyKey, who = ctx.who, side = ctx.side;
-    var condena = (a.states && a.states.condena) ? a.states.condena : 0;
-    logCombat('💥 Condena acumulada: ' + condena);
+    var condenaRaw = (a.states && a.states.condena) ? a.states.condena : 0;
+    logCombat('💥 Condena acumulada: ' + condenaRaw);
+    // ✅ Obra Maestra dobla el daño base (la condena consumida)
+    var condena = applyObraMaestraToBase(a, ctx.ability, ctx.actionType, condenaRaw);
+    if (condena !== condenaRaw) logCombat('💥 Obra Maestra: condena doblada ' + condenaRaw + ' → ' + condena);
     var target = es.characters[es.activeIndex];
     if (condena > 0 && target && !target.dead) {
       applyDamageWithMods(target, condena, true, ek, es.activeIndex, a);
@@ -87,6 +138,31 @@ var ACTION_HANDLERS = {
     es.characters.forEach(function(c, i){ if (!c.dead) { triggerMarkOrResonance(c, 'redencion', who, ek, i); marked++; } });
     logCombat('🏷️ Marcados con redención: ' + marked + ' enemigo(s)');
     var targetDied = target ? (target.dead || target.hp <= 0) : true;
+
+    // ✅ EX Resurrección Afligida
+    if (a.exActive && !targetDied) {
+      var hasRevive = (side.hand || []).some(function(cid){ return cid === 'c_resurreccion'; });
+      if (hasRevive) {
+        logCombat('🌟 EX Alaya: consume Resurrección + todos los dados y repite el golpe');
+        var revIdx = side.hand.indexOf('c_resurreccion');
+        if (revIdx >= 0) side.hand.splice(revIdx, 1);
+        side.dice = [];
+        a.dead = false; a.hp = a.maxHp;
+        var target2 = es.characters[es.activeIndex];
+        if (target2 && !target2.dead) {
+          applyDamageWithMods(target2, condena, true, ek, es.activeIndex, a);
+          logCombat('💥 Repetición del Fin: ' + condena + ' de daño penetrante');
+        }
+        es.characters.forEach(function(c, i){ if (!c.dead) triggerMarkOrResonance(c, 'redencion', who, ek, i); });
+        a.hp = 0;
+        handleDeath(who, side.activeIndex);
+        logCombat('💀 ' + a.character.name + ' se sacrifica definitivamente');
+        return;
+      } else {
+        logCombat('❌ EX Alaya: no hay Resurrección en mano, se suicida sin repetir');
+      }
+    }
+
     if (!targetDied && !a.dead) { a.hp = 0; handleDeath(who, side.activeIndex); logCombat('💀 ' + a.character.name + ' muere por el precio de su definitiva (' + target.character.name + ' sobrevivió)'); }
     else if (targetDied) { logCombat('✅ ' + target.character.name + ' ha caído: Alaya sobrevive'); }
   },
@@ -103,7 +179,12 @@ var ACTION_HANDLERS = {
     applyDamageWithMods(ea, baseDmg, predictPiercing(a, ab), ek, es.activeIndex, a);
     if (paint === 'azul') { addOrRefreshShield(a, 'erik_paint_azul', 1); logCombat('🎨 Pintura Azul: +1 escudo'); }
     if (paint === 'verde') { healChar(a, 2); logCombat('🎨 Pintura Verde: cura 2'); }
-    if (!paint) { if (!ea.dead) triggerMarkOrResonance(ea, 'expresion', who, ek, es.activeIndex); }
+    // ✅ EX Erik (Paleta Inagotable): marca con Expresión siempre (aunque haya pintura)
+    var shouldMark = !paint || a.exActive;
+    if (shouldMark && !ea.dead) {
+      triggerMarkOrResonance(ea, 'expresion', who, ek, es.activeIndex);
+      if (a.exActive && paint) logCombat('🌟 EX Erik: marca con Expresión (aun con pintura)');
+    }
     if (paint) { a.paintEquipped = null; logCombat('🎨 La pintura se ha consumido'); }
   },
 
@@ -124,7 +205,9 @@ var ACTION_HANDLERS = {
       else if (cid === 'paint_azul') { pA++; side.hand.splice(i, 1); }
       else if (cid === 'paint_verde') { pV++; side.hand.splice(i, 1); }
     }
-    if (pR > 0) { applyDamageWithMods(ea, pR, false, ek, es.activeIndex, a); logCombat('🔴 ' + pR + ' daño por pinturas rojas'); }
+    // ✅ Obra Maestra dobla el daño base por pintura roja (1 → 2)
+    var baseDmgRed = applyObraMaestraToBase(a, ctx.ability, ctx.actionType, 1);
+    if (pR > 0) { applyDamageWithMods(ea, pR * baseDmgRed, false, ek, es.activeIndex, a); logCombat('🔴 ' + (pR * baseDmgRed) + ' daño por pinturas rojas'); }
     if (pA > 0) { var hs = healShieldBy(a, pA); logCombat('🔵 Escudo +' + hs + ' HP'); }
     if (pV > 0) { healChar(a, pV); logCombat('🟢 Cura ' + pV); }
     if (!pR && !pA && !pV) logCombat('❌ No había pinturas en la mano');
@@ -153,10 +236,15 @@ var ACTION_HANDLERS = {
     var side = ctx.side, es = ctx.enemySide, ek = ctx.enemyKey, who = ctx.who, a = ctx.active;
     var amz = es.characters.filter(function(c){ return !c.dead && csHasState(c, 'amenaza'); });
     if (!amz.length) logCombat('❌ No hay Amenazas');
+    var baseDmg = applyObraMaestraToBase(a, ctx.ability, ctx.actionType, 3);
     amz.forEach(function(cs){
-      applyDamageWithMods(cs, 3, true, ek, es.characters.indexOf(cs), a);
+      applyDamageWithMods(cs, baseDmg, true, ek, es.characters.indexOf(cs), a);
       csSetState(cs, 'amenaza', false);
-      if (!cs.dead) triggerMarkOrResonance(cs, 'proteccion', who, ek, es.characters.indexOf(cs));
+      // ✅ EX Tenshi (Resguardo Divino): marca con Protección a los golpeados
+      if (!cs.dead && a.exActive) {
+        triggerMarkOrResonance(cs, 'proteccion', who, ek, es.characters.indexOf(cs));
+        logCombat('🌟 EX Tenshi: ' + cs.character.name + ' marcado con Protección');
+      }
     });
     if (amz.length) logCombat('🚨 Amenazas dejan de ser Amenaza');
     var vuln = side.characters.filter(function(c){ return !c.dead && csHasState(c, 'vulnerable'); });
@@ -173,8 +261,14 @@ var ACTION_HANDLERS = {
 
   conclusion: function(ctx) {
     var a = ctx.active, side = ctx.side;
-    side.characters.forEach(function(c){ if (c === a || c.dead) return; addOrRefreshShield(c, 'eloy_conclusion', 1); c.energy = Math.min(c.maxEnergy, c.energy + 1); });
-    logCombat('🛡️ Aliados +1 escudo y +1 energía');
+    var energyPer = a.exActive ? 2 : 1;
+    side.characters.forEach(function(c){
+      if (c === a || c.dead) return;
+      addOrRefreshShield(c, 'eloy_conclusion', 1);
+      c.energy = Math.min(c.maxEnergy, c.energy + energyPer);
+    });
+    logCombat('🛡️ Aliados +1 escudo y +' + energyPer + ' energía');
+    if (a.exActive) logCombat('🌟 EX Eloy: +2 energía por aliado (en lugar de +1)');
   },
 
   defensaActiva: function(ctx) {
@@ -185,9 +279,11 @@ var ACTION_HANDLERS = {
 
   contraofensiva: function(ctx) {
     var a = ctx.active, ea = ctx.enemyActive, es = ctx.enemySide, ek = ctx.enemyKey, who = ctx.who, ab = ctx.ability;
-    var d = 3;
-    if (csHasState(a, 'furia')) { d = 5; if (a.states && a.states.furiaTarget === ea.id) d = 6; }
-    applyDamageWithMods(ea, d, predictPiercing(a, ab), ek, es.activeIndex, a);
+    var baseDmg = 3;
+    if (csHasState(a, 'furia')) { baseDmg = 5; if (a.states && a.states.furiaTarget === ea.id) baseDmg = 6; }
+    // ✅ Obra Maestra dobla el daño base (3/5/6 → 6/10/12)
+    baseDmg = applyObraMaestraToBase(a, ctx.ability, ctx.actionType, baseDmg);
+    applyDamageWithMods(ea, baseDmg, predictPiercing(a, ab), ek, es.activeIndex, a);
     if (a.states && a.states.furiaTarget === ea.id && !ea.dead) triggerMarkOrResonance(ea, 'proteccion', who, ek, es.activeIndex);
   },
 
@@ -238,7 +334,9 @@ var ACTION_HANDLERS = {
   destruccionLogica: function(ctx) {
     var a = ctx.active, ea = ctx.enemyActive, es = ctx.enemySide, ek = ctx.enemyKey, side = ctx.side, who = ctx.who;
     if (!ea.dead) triggerMarkOrResonance(ea, 'ilusion', who, ek, es.activeIndex);
-    applyDamageWithMods(ea, 3, true, ek, es.activeIndex, a);
+    // ✅ Obra Maestra dobla el daño base (3 → 6)
+    var baseDmg = applyObraMaestraToBase(a, ctx.ability, ctx.actionType, 3);
+    applyDamageWithMods(ea, baseDmg, true, ek, es.activeIndex, a);
     var nx = getNextAliveIndex(es, es.activeIndex);
     if (nx >= 0) { es.activeIndex = nx; logCombat('🔄 Enemigo forzado'); }
     var rsv = getNextAliveIndex(side, side.activeIndex);
@@ -247,8 +345,44 @@ var ACTION_HANDLERS = {
 
   ecoVital: function(ctx) {
     var a = ctx.active, side = ctx.side;
-    side.characters.forEach(function(cs){ if (cs === a || cs.dead) return; healChar(cs, 2); csSetState(cs, 'sintonia', true); });
-    logCombat('🎵 Aliados +2 HP y en Sintonía');
+    // Recopilar aliados vivos (sin contar a Noah)
+    var allies = side.characters.filter(function(c){ return c !== a && !c.dead; });
+    if (allies.length === 0) {
+      healChar(a, 2);
+      logCombat('🎵 Eco Vital: sin aliados, Noah +2 HP');
+      return;
+    }
+
+    // Empate de HP entre los dos aliados → Noah se cura a sí misma
+    var allSameHp = allies.length >= 2 && allies.every(function(c){ return c.hp === allies[0].hp; });
+    if (allSameHp) {
+      healChar(a, 2);
+      logCombat('🎵 Eco Vital: empate de HP → Noah +2 HP (no cura aliados)');
+      return;
+    }
+
+    var sintonicos = allies.filter(function(c){ return csHasState(c, 'sintonia'); });
+    var target, healAmt;
+
+    if (sintonicos.length === 0) {
+      // 0 en Sintonía: curar al de menos HP, leve (2)
+      allies.sort(function(x,y){ return x.hp - y.hp; });
+      target = allies[0];
+      healAmt = 2;
+    } else if (sintonicos.length === 1) {
+      // 1 en Sintonía: curar al otro, leve (2)
+      target = allies.filter(function(c){ return !csHasState(c, 'sintonia'); })[0] || sintonicos[0];
+      healAmt = 2;
+    } else {
+      // 2 en Sintonía: curar al de menos HP, leve reducido (1)
+      allies.sort(function(x,y){ return x.hp - y.hp; });
+      target = allies[0];
+      healAmt = 1;
+    }
+
+    var healed = healChar(target, healAmt);
+    csSetState(target, 'sintonia', true);
+    logCombat('🎵 Eco Vital: ' + target.character.name + ' +' + healed + ' HP · Sintonía');
   },
 
   armonia: function(ctx) {
@@ -268,21 +402,23 @@ var ACTION_HANDLERS = {
     if (!ea.dead) { ea.states = ea.states || {}; ea.states.rencor = (ea.states.rencor || 0) + 1; logCombat('💢 ' + ea.character.name + ' acumula Rencor (' + ea.states.rencor + ')'); }
     logCombat('🩸 Deuda de Sangre: ' + base + ' daño');
     if (dealt > 0) {
-      var healFromAbility = Math.min(dealt, 3);
+      // ✅ Curación FIJA de 1 si hubo daño verdadero (no el daño entero)
       var healBonus = 0;
       if (a.equipment) a.equipment.forEach(function(eqId){ var eq = CARD_DB[eqId]; if (eq && eq.effect && eq.effect.healBonus) healBonus += eq.effect.healBonus; });
-      var totalHeal = healFromAbility + healBonus;
+      var totalHeal = 1 + healBonus;
       if (totalHeal > 0) { var healed = healChar(a, totalHeal); logCombat('🩸 Deuda de Sangre: +' + healed + ' HP' + (healBonus > 0 ? ' (incluye +' + healBonus + ' de bonos)' : '')); }
     }
   },
 
   retribucionFinal: function(ctx) {
     var a = ctx.active, es = ctx.enemySide, ek = ctx.enemyKey;
+    // ✅ Obra Maestra dobla el daño base (3 → 6); el bono por Rencor extra NO se dobla
+    var baseDmg = applyObraMaestraToBase(a, ctx.ability, ctx.actionType, 3);
     var total = 0;
     es.characters.forEach(function(cs){
       if (cs.dead || !cs.states || !cs.states.rencor) return;
       var acum = cs.states.rencor;
-      var d = 3 + Math.max(0, acum - 1);
+      var d = baseDmg + Math.max(0, acum - 1);
       applyDamageWithMods(cs, d, false, ek, es.characters.indexOf(cs), a);
       cs.states.rencor = 0;
       total++;
@@ -293,6 +429,7 @@ var ACTION_HANDLERS = {
 
   degradacion: function(ctx) {
     var a = ctx.active, ea = ctx.enemyActive, es = ctx.enemySide, ek = ctx.enemyKey, side = ctx.side, who = ctx.who, at = ctx.actionType, ab = ctx.ability;
+    ctx.hadStacks = (a.manuelStacks || 0) > 0;
     var self = 2 + (a.manuelStacks || 0);
     a.hp = Math.max(0, a.hp - self);
     logCombat('🩸 Autolesión ' + self);
@@ -301,10 +438,14 @@ var ACTION_HANDLERS = {
     if (at === 'elemental' && side.alterUltBuff && side.alterUltBuff.amount > 0 && side.alterUltBuff.roundsLeft > 0 && a.id !== 'alter') {
       d += side.alterUltBuff.amount; logCombat('💥 Omnes Deam Salutate: +' + side.alterUltBuff.amount + ' daño');
     }
-    applyDamageWithMods(ea, d, predictPiercing(a, ab), ek, es.activeIndex, a);
+    var dealt = applyDamageWithMods(ea, d, predictPiercing(a, ab), ek, es.activeIndex, a);
     if (!ea.dead) triggerMarkOrResonance(ea, 'redencion', who, ek, es.activeIndex);
     a.manuelStacks = 0;
     es.characters.forEach(function(c){ csRemoveMark(c, 'redencion'); });
+    if (ea.dead && a.id === 'manuel' && dealt > 0 && !a.dead) {
+      var healed = healChar(a, dealt);
+      logCombat('🩸 Tributo Vital: +' + healed + ' HP por derrotar a ' + ea.character.name);
+    }
   },
 
   decadencia: function(ctx) {
@@ -338,7 +479,11 @@ var ACTION_HANDLERS = {
     var d = 3 + (isAc ? 2 : 0);
     d = applyGenericDamageMods(a, d);
     if (a.pendingBuff) ctx.pendingBuffConsumed = true;
-    if (side.obraMaestraTurns > 0) { d *= 2; logCombat('💥 Obra Maestra: daño x2'); }
+    // ✅ Instinto se considera ataque normal: recibe buff de Portátil, NO de Obra Maestra
+    if (side.structures && side.structures.some(function(st){ return st.kind === 'optimizacion'; })) {
+      var obI = getOptimizationBonus(side);
+      if (obI > 0) { d += obI; logCombat('🏛️ Portátil: +' + obI); }
+    }
     applyDamageWithMods(ea, d, predictPiercing(a, ab), ek, es.activeIndex, a);
     if (isAc && !ea.dead) triggerMarkOrResonance(ea, 'transformacion', who, ek, es.activeIndex);
   },
@@ -396,7 +541,7 @@ var ACTION_HANDLERS = {
     var existing = null;
     for (var i = 0; i < side.structures.length; i++) { if (side.structures[i].kind === 'optimizacion') { existing = side.structures[i]; break; } }
     if (existing) { existing.duration = Math.min(3, existing.duration + 1); logCombat('🏛️ Optimización extendida a ' + existing.duration + ' rondas'); }
-    else { side.structures.push({ kind:'optimizacion', duration:2 }); logCombat('🏛️ Optimización colocada (2 rondas)'); }
+    else { side.structures.push({ kind:'optimizacion', duration:2, initialDuration:2 }); logCombat('🏛️ Optimización colocada (2 rondas)'); }
   },
 
   obraMaestra: function(ctx) {
@@ -404,7 +549,7 @@ var ACTION_HANDLERS = {
     var has = side.structures && side.structures.some(function(st){ return st.kind === 'optimizacion'; });
     if (!has) { logCombat('❌ Obra Maestra requiere la estructura de Optimización en el campo'); ctx.shouldEndTurn = false; return; }
     side.obraMaestraTurns = 2;
-    logCombat('💥 Obra Maestra activa durante 2 rondas: definitivas x2 daño');
+    logCombat('💥 Obra Maestra activa durante 2 rondas: definitivas doblan su daño base');
   },
 
   ojoPorOjo: function(ctx) {
@@ -429,9 +574,11 @@ var ACTION_HANDLERS = {
     var countB = destroyAllCruzMadera('bot');
     var total = countP + countB;
     logCombat('💥 Dios te ampare: ' + total + ' Cruz(es) de Madera destruida(s)');
+    // ✅ Obra Maestra dobla el daño base (total)
+    var baseDmg = applyObraMaestraToBase(a, ctx.ability, ctx.actionType, total);
     var reserva = es.characters.filter(function(c, i){ return !c.dead && i !== es.activeIndex; });
-    reserva.forEach(function(c){ applyDamageWithMods(c, total, false, ek, es.characters.indexOf(c), a); });
-    if (reserva.length) logCombat('💥 ' + total + ' daño adicional a ' + reserva.length + ' enemigo(s) en reserva');
+    reserva.forEach(function(c){ applyDamageWithMods(c, baseDmg, false, ek, es.characters.indexOf(c), a); });
+    if (reserva.length) logCombat('💥 ' + baseDmg + ' daño adicional a ' + reserva.length + ' enemigo(s) en reserva');
   },
 
   ex: function(ctx) {
@@ -469,7 +616,9 @@ var ACTION_HANDLERS = {
       a.hp = Math.min(5, a.maxHp);
       logCombat('💥 Mis Modales en el Suelo: Adela se marca y pasa a ' + a.hp + ' HP');
     } else if (marks.indexOf('transformacion') !== -1) {
-      var d = 4 + adelaEffectBonus(a);
+      // ✅ Obra Maestra dobla el daño base (4 → 8); adelaEffectBonus es bono
+      var baseDmg = applyObraMaestraToBase(a, ctx.ability, ctx.actionType, 4);
+      var d = baseDmg + adelaEffectBonus(a);
       applyDamageWithMods(ea, d, predictPiercing(a, ab), ek, es.activeIndex, a);
     } else {
       a.hp = 0;
@@ -505,7 +654,9 @@ var ACTION_HANDLERS = {
       var before = a.hp; a.hp = a.maxHp;
       logCombat('💥 Mi cordura: Hunger se marca y se cura ' + (a.hp - before) + ' HP (total ' + a.hp + '/' + a.maxHp + ')');
     } else {
-      var d = 4 * hungerMarkMultiplier(a);
+      // ✅ Obra Maestra dobla el daño base (4); el multiplicador por marca se aplica después
+      var baseDmg = applyObraMaestraToBase(a, ctx.ability, ctx.actionType, 4);
+      var d = baseDmg * hungerMarkMultiplier(a);
       applyDamageWithMods(ea, d, predictPiercing(a, ab), ek, es.activeIndex, a);
     }
   },
@@ -522,7 +673,9 @@ var ACTION_HANDLERS = {
   faseDeLimpieza: function(ctx) {
     var a = ctx.active, es = ctx.enemySide, ek = ctx.enemyKey, who = ctx.who, ab = ctx.ability;
     var mult = (a.id === 'internet' && a.exActive && a.hp <= 2) ? 2 : 1;
-    var d = 2 * mult;
+    // ✅ Obra Maestra dobla el daño base (2); el ×2 por EX Internet se aplica después
+    var baseDmg = applyObraMaestraToBase(a, ctx.ability, ctx.actionType, 2);
+    var d = baseDmg * mult;
     var activeDead = false;
     es.characters.forEach(function(c, i){
       if (c.dead) return;
@@ -577,13 +730,11 @@ var ACTION_HANDLERS = {
   cosecha: function(ctx) {
     var a = ctx.active, ea = ctx.enemyActive, es = ctx.enemySide, ek = ctx.enemyKey, side = ctx.side, at = ctx.actionType, ab = ctx.ability;
     var counter = (a.states && a.states.cosechaCounter) || 0;
-    // Daño 1 (siempre)
     var cDmg = 1;
     cDmg = applyGenericDamageMods(a, cDmg);
     if (a.pendingBuff) ctx.pendingBuffConsumed = true;
     if (at === 'normal') { var ob = getOptimizationBonus(side); if (ob > 0) { cDmg += ob; logCombat('🏛️ Optimización: +' + ob); } }
     applyDamageWithMods(ea, cDmg, predictPiercing(a, ab), ek, es.activeIndex, a);
-    // Repetición (2ª+ vez en la ronda): también cura 1 HP al aliado con menos vida (sin contarse a sí misma)
     if (counter >= 1) {
       var cTarget = getMariaTarget(side, a);
       if (cTarget >= 0) {
@@ -601,14 +752,12 @@ var ACTION_HANDLERS = {
   caricia: function(ctx) {
     var a = ctx.active, side = ctx.side, who = ctx.who, ea = ctx.enemyActive, es = ctx.enemySide, ek = ctx.enemyKey;
     var carTarget = getMariaTarget(side, a);
-    // "Sin nadie a quien curar" = no hay objetivo válido O el objetivo ya está al máximo de HP
     var noOneToHeal = (carTarget < 0) || (side.characters[carTarget].hp >= side.characters[carTarget].maxHp);
     if (!noOneToHeal) {
       var carCs = side.characters[carTarget];
       healChar(carCs, 3);
       logCombat('🌻 Caricia: ' + carCs.character.name + ' +3 HP');
     } else {
-      // María se cura 2 y marca al enemigo activo con Aceptación
       healChar(a, 2);
       logCombat('🌻 Caricia: no hay aliados a los que curar → María se cura 2 HP');
       if (!ea.dead) {
@@ -620,7 +769,6 @@ var ACTION_HANDLERS = {
 
   amor: function(ctx) {
     var a = ctx.active, side = ctx.side, who = ctx.who;
-    // Si hay caído, revivir con 3 HP (cap 5).
     var fallenA = null;
     if (side.lastDeadAlly) {
       fallenA = side.characters.find(function(c){ return c.id === side.lastDeadAlly && c.dead; });
@@ -635,7 +783,6 @@ var ACTION_HANDLERS = {
     } else {
       logCombat('🌻 Amor: no hay aliado derrotado, solo se establece/refresca el entorno');
     }
-    // Coloca/refresca Campo de Girasoles (2 rondas) SIEMPRE
     setEnvironment('campo_girasoles', a, who);
     logCombat('🌻 Amor: Campo de Girasoles colocado/refrescado (2 rondas)');
   },
@@ -707,7 +854,6 @@ var ACTION_HANDLERS = {
       var dSide = sideOfChar(a);
       dealDamageToChar(a, 1, { targetSide: dSide.side, targetSideKey: dSide.key, targetIdx: dSide.side.characters.indexOf(a) });
       logCombat('🎯 Interpretación: NC se inflige 1 daño (tenía Podrida)');
-      // Si su HP bajó → daño verdadero → +2 escudo
       if (a.hp < beforeHp && !a.dead) {
         addOrRefreshShield(a, 'nc_interpretacion', 2);
         logCombat('🎯 Interpretación: daño verdadero recibido → +2 escudo');
@@ -720,26 +866,25 @@ var ACTION_HANDLERS = {
 
   sobreExageracion: function(ctx) {
     var a = ctx.active, ea = ctx.enemyActive, es = ctx.enemySide, ek = ctx.enemyKey, side = ctx.side, who = ctx.who;
-    // Flag para la ronda: Podrida afecta a todos
     side.podridaHitsAll = true;
     logCombat('🎯 Sobre-exageración: Podrida afectará a todos los enemigos esta ronda');
 
+    // ✅ Obra Maestra dobla el daño base (1 → 2)
+    var baseDmg = applyObraMaestraToBase(a, ctx.ability, ctx.actionType, 1);
+
     if (csHasState(a, 'podrida')) {
-      // Rama: tenía Podrida → 1 pierce a todos + marcar + autodaño 1
       es.characters.forEach(function(c, i){
         if (c.dead) return;
-        applyDamageWithMods(c, 1, true, ek, i, a);
+        applyDamageWithMods(c, baseDmg, true, ek, i, a);
         if (!c.dead) triggerMarkOrResonance(c, 'proteccion', who, ek, i);
       });
-      logCombat('🎯 Sobre-exageración: 1 daño penetrante a todos los enemigos');
-      // Autodaño 1 (normal, shields aplican)
+      logCombat('🎯 Sobre-exageración: ' + baseDmg + ' daño penetrante a todos los enemigos');
       var dSide = sideOfChar(a);
       dealDamageToChar(a, 1, { targetSide: dSide.side, targetSideKey: dSide.key, targetIdx: dSide.side.characters.indexOf(a) });
       logCombat('🎯 Sobre-exageración: NC se inflige 1 daño');
     } else {
-      // Rama: no tenía Podrida → 1 pierce al activo + heal 3 (ignorando pasiva) + aplicar Podrida
-      applyDamageWithMods(ea, 1, true, ek, es.activeIndex, a);
-      logCombat('🎯 Sobre-exageración: 1 daño penetrante a ' + ea.character.name);
+      applyDamageWithMods(ea, baseDmg, true, ek, es.activeIndex, a);
+      logCombat('🎯 Sobre-exageración: ' + baseDmg + ' daño penetrante a ' + ea.character.name);
       healChar(a, 3, { ignoreNC: true });
       csSetState(a, 'podrida', true);
       logCombat('🎯 Sobre-exageración: NC aplica Podrida y recibe 3 HP');
@@ -752,11 +897,9 @@ var ACTION_HANDLERS = {
 
   android: function(ctx) {
     var a = ctx.active, ea = ctx.enemyActive, es = ctx.enemySide, ek = ctx.enemyKey, side = ctx.side, ab = ctx.ability;
-    // 1 daño penetrante al activo
     var dmg = ab.damage || 1;
     applyDamageWithMods(ea, dmg, true, ek, es.activeIndex, a);
     logCombat('🔍 Android: 1 daño penetrante a ' + ea.character.name);
-    // Colocar / reestablecer la estructura Android
     if (!side.structures) side.structures = [];
     var existing = side.structures.find(function(st){ return st.kind === 'android'; });
     if (existing) {
@@ -770,10 +913,8 @@ var ACTION_HANDLERS = {
 
   descansoMental: function(ctx) {
     var a = ctx.active, side = ctx.side;
-    // Curar 2 HP a todos los aliados (incluye a Google)
     side.characters.forEach(function(c){ if (!c.dead) healChar(c, 2); });
     logCombat('🔍 Descanso Mental: aliados +2 HP');
-    // Limpiar estados/marcas/bonos de Google
     a.states = { internetEnergyGranted: false };
     a.marks = {};
     a.pendingBuff = 0;
@@ -801,13 +942,13 @@ var ACTION_HANDLERS = {
   pilarFundamental: function(ctx) {
     var a = ctx.active, ea = ctx.enemyActive, es = ctx.enemySide, ek = ctx.enemyKey, side = ctx.side, ab = ctx.ability, at = ctx.actionType;
     var dmg = ab.damage || 3;
+    // ✅ Obra Maestra dobla SOLO el daño base (3 → 6); se elimina el doblado manual antiguo
+    dmg = applyObraMaestraToBase(a, ab, at, dmg);
     dmg = applyGenericDamageMods(a, dmg, at === 'elemental');
     if (a.pendingBuff) ctx.pendingBuffConsumed = true;
-    if (side.obraMaestraTurns > 0) { dmg *= 2; logCombat('💥 Obra Maestra: daño x2'); }
     applyDamageWithMods(ea, dmg, predictPiercing(a, ab), ek, es.activeIndex, a);
     logCombat('📘 Pilar Fundamental: ' + dmg + ' daño a ' + ea.character.name);
 
-    // Colocar Meta Quest si no estaba
     if (!side.structures) side.structures = [];
     var existing = side.structures.find(function(s){ return s.kind === 'metaQuest'; });
     if (existing) {
@@ -815,6 +956,45 @@ var ACTION_HANDLERS = {
     } else {
       side.structures.push({ kind:'metaQuest', duration:2 });
       logCombat('📘 Meta Quest: colocada (2 rondas)');
+    }
+  },
+
+  suelaALaCara: function(ctx) {
+    executeSuelaALaCaraDamage(ctx.active, ctx.enemyActive, ctx.enemySide, ctx.enemyKey, ctx.side, ctx.who, 0, ctx);
+  },
+
+  irisAdvertencia: function(ctx) {
+    var a = ctx.active, side = ctx.side, who = ctx.who;
+    addOrRefreshShield(a, 'iris_advertencia', 3);
+    csSetState(a, 'advertenciaShieldActive', true);
+    logCombat('🛡️ Advertencia: Iris +3 escudo (se desvanece al fin de ronda si no se destruye)');
+    csSetState(a, 'advertenciaActive', true);
+    logCombat('⚔️ Advertencia: durante el resto de la ronda, los ataques a aliados se redirigen a Iris (+1 daño)');
+    // Cambia al siguiente aliado activo
+    var nx = getNextAliveIndex(side, side.activeIndex);
+    if (nx >= 0 && nx !== side.activeIndex) {
+      side.activeIndex = nx;
+      logCombat('🔄 Advertencia: ' + side.characters[nx].character.name + ' pasa a activo');
+      if (typeof triggerKillerTunesDamage === 'function') triggerKillerTunesDamage(who);
+    }
+  },
+
+  liderPunoHierro: function(ctx) {
+    var a = ctx.active, ea = ctx.enemyActive, es = ctx.enemySide, ek = ctx.enemyKey, side = ctx.side, who = ctx.who;
+    var hasCharges = ea && ea.states && ea.states.advertido > 0;
+    if (hasCharges) {
+      logCombat('💥 Líder de Puño de Hierro: ataca con Suela a la Cara (+2 daño base fijo)');
+      executeSuelaALaCaraDamage(a, ea, es, ek, side, who, 2, ctx);
+    } else {
+      logCombat('💥 Líder de Puño de Hierro: sin cargas → reparte Buen Recaudo y +2 escudo a Iris');
+      side.characters.forEach(function(c){
+        if (c !== a && !c.dead) {
+          csSetState(c, 'buenRecaudo', true);
+          logCombat('🛡️ ' + c.character.name + ' recibe Buen Recaudo');
+        }
+      });
+      addOrRefreshShield(a, 'iris_definitiva', 2);
+      logCombat('🛡️ Iris +2 escudo');
     }
   },
 
