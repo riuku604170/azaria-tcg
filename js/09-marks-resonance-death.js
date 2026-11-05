@@ -103,6 +103,15 @@ function triggerKillerTunesDamage(sideKey) {
 
 /* ═══ MARKS / RESONANCE ═══ */
 function triggerMarkOrResonance(targetCs, newEl, who, targetSideKey, targetIdx) {
+  // ✅ EX Ren (Espejismo): los aliados de Ren no pueden ser marcados con Ilusión
+  if (newEl === 'ilusion' && combatState) {
+    var tSide = (combatState.player.characters.indexOf(targetCs) >= 0) ? combatState.player : combatState.bot;
+    var renEx = tSide.characters.find(function(c){ return c.id === 'ren' && c.exActive && !c.dead; });
+    if (renEx) {
+      logCombat('🌟 EX Ren: ' + targetCs.character.name + ' no puede ser marcado con Ilusión');
+      return;
+    }
+  }
   var existing = csAllMarks(targetCs);
   if (existing.length > 0) {
     var oldEl = existing[0];
@@ -200,6 +209,7 @@ function handleDeath(who, index) {
 function dealDamageToChar(targetCs, rawDamage, opts) {
   opts = opts || {};
   if (targetCs.dead) return 0;
+  var hadProteccionMark = csHasMark(targetCs, 'proteccion');   // ✅ EX Noah
   rawDamage = exHookModifyIncomingDamage(targetCs, rawDamage, opts.attackerCs);
 
   // ✅ EX-María: reduce el daño A 1 y difiere el resto al final de la ronda
@@ -218,8 +228,17 @@ function dealDamageToChar(targetCs, rawDamage, opts) {
   if (csHasState(targetCs, 'vuelo') && rawDamage >= 0) logCombat('🦅 Vuelo: -2 daño');
   var vulnRed = 0;
   if (csHasState(targetCs, 'vulnerable') && rawDamage > 0) {
-    vulnRed = 1; csSetState(targetCs, 'vulnerable', false);
-    if (opts.attackerCs) csSetState(opts.attackerCs, 'amenaza', true);
+    vulnRed = 1;
+    csSetState(targetCs, 'vulnerable', false);
+    if (opts.attackerCs) {
+      var wasAlreadyAmenaza = csHasState(opts.attackerCs, 'amenaza');
+      csSetState(opts.attackerCs, 'amenaza', true);
+      // ✅ Q5: si el atacante YA era Amenaza y golpea a un Vulnerable → se marca con Protección.
+      if (wasAlreadyAmenaza) {
+        triggerMarkOrResonance(opts.attackerCs, 'proteccion', undefined, undefined, undefined);
+        logCombat('⚠️ Amenaza → atacó a Vulnerable: ' + opts.attackerCs.character.name + ' marcado con Protección');
+      }
+    }
   }
   rawDamage = Math.max(0, rawDamage - vulnRed);
   var defensaReduction = 0;
@@ -229,6 +248,19 @@ function dealDamageToChar(targetCs, rawDamage, opts) {
     csSetState(targetCs, 'defensaActiva', false);
     logCombat('💠 Defensa Activa: -1 daño');
   }
+  // ✅ EX Óliver (Perfeccionamiento Absoluto): dobla el daño FINAL de las definitivas
+  if (opts.attackerCs && combatState && combatState._currentActionType === 'ultimate') {
+    var atkSide = (combatState.player.characters.indexOf(opts.attackerCs) >= 0) ? combatState.player : combatState.bot;
+    if (atkSide.obraMaestraTurns > 0) {
+      var hasPortatil = atkSide.structures && atkSide.structures.some(function(st){ return st.kind === 'optimizacion'; });
+      var oliverEx = atkSide.characters.find(function(c){ return c.id === 'oliver' && c.exActive && !c.dead; });
+      if (hasPortatil && oliverEx) {
+        rawDamage *= 2;
+        logCombat('🌟 EX Óliver: daño final ×2');
+      }
+    }
+  }
+
   var res = absorbWithShields(targetCs, rawDamage, !!opts.piercing);
   if (res.absorbed > 0) {
     logCombat('🛡️ Escudo absorbe ' + res.absorbed + (totalShield(targetCs) > 0 ? ' (queda ' + totalShield(targetCs) + ')' : ' ¡roto!'));
@@ -297,14 +329,11 @@ function dealDamageToChar(targetCs, rawDamage, opts) {
       csSetState(targetCs, 'vuelo', false);
       logCombat('🦅 Vuelo perdido: +3 daño, +1 energía · HP: ' + targetCs.hp + '/' + targetCs.maxHp);
     }
-    if (targetCs.id === 'alaya' && csHasState(targetCs, 'castigada') && targetCs.hp > 0) {
-      targetCs.states.condena = (targetCs.states.condena || 0) + 1;
-      logCombat('💀 Alaya gana 1 condena · Total: ' + targetCs.states.condena);
-    }
-    if (targetCs.id === 'eevee' && !targetCs.dead && targetCs.hp > 0) {
+    if (targetCs.id === 'eevee' && !targetCs.dead && targetCs.hp > 0 && opts.attackerCs) {
+      // ✅ Furia se activa al recibir daño verdadero (no cualquier golpe)
       csSetState(targetCs, 'furia', true);
-      if (opts.attackerCs) csSetState(targetCs, 'furiaTarget', opts.attackerCs.id);
-      logCombat('🔥 Eevee entra en Furia contra ' + (opts.attackerCs ? opts.attackerCs.character.name : 'el atacante'));
+      csSetState(targetCs, 'furiaTarget', opts.attackerCs.id);
+      logCombat('🔥 Eevee entra en Furia contra ' + opts.attackerCs.character.name);
     }
     if (res.overflow > 0 && targetCs.id !== 'orath' && sideKey) {
       var orathAlly = combatState[sideKey].characters.find(function(c){ return c.id === 'orath' && !c.dead; });
@@ -318,14 +347,32 @@ function dealDamageToChar(targetCs, rawDamage, opts) {
       }
     }
   }
+  // ✅ EX Noah (Vibración Compasiva): al golpear a un enemigo con Protección, cura 1 HP a aliados no Sintonizados
+  if (opts.attackerCs && opts.attackerCs.id === 'noah' && opts.attackerCs.exActive && hadProteccionMark) {
+    var noahSide = (combatState.player.characters.indexOf(opts.attackerCs) >= 0) ? combatState.player : combatState.bot;
+    var healedNoah = 0;
+    noahSide.characters.forEach(function(c){
+      if (c.dead || csHasState(c, 'sintonia')) return;
+      var h = healChar(c, 1);
+      if (h > 0) healedNoah++;
+    });
+    if (healedNoah > 0) logCombat('🌟 EX Noah: enemigo con Protección → ' + healedNoah + ' aliado(s) +1 HP');
+  }
   if (defensaReduction > 0 && opts.attackerCs && !opts.attackerCs.dead && combatState) {
     var attCs = opts.attackerCs;
     var attKey2 = (combatState.player.characters.indexOf(attCs) >= 0) ? 'player' : 'bot';
     var attSide2 = combatState[attKey2];
+    var attIdx2 = attSide2.characters.indexOf(attCs);
+    var eeveeEx = targetCs.exActive;   // capturado antes del setTimeout
     setTimeout(function() {
       if (!combatState || !attCs || attCs.dead) return;
-      dealDamageToChar(attCs, 2, { attackerCs: targetCs, targetSide: attSide2, targetSideKey: attKey2, targetIdx: attSide2.characters.indexOf(attCs) });
+      dealDamageToChar(attCs, 2, { attackerCs: targetCs, targetSide: attSide2, targetSideKey: attKey2, targetIdx: attIdx2 });
       logCombat('⚡ Eevee contraataca a ' + attCs.character.name);
+      // ✅ EX Eevee (Territorial): el contraataque marca con Protección
+      if (eeveeEx && !attCs.dead) {
+        triggerMarkOrResonance(attCs, 'proteccion', attKey2, attKey2, attIdx2);
+        logCombat('🌟 EX Eevee: contraataque marca con Protección');
+      }
     }, 120);
   }
   return res.overflow;
@@ -364,6 +411,10 @@ function healChar(cs, amount, opts) {
     var sideKey = (combatState.player.characters.indexOf(cs) >= 0) ? 'player' : 'bot';
     var side = combatState[sideKey];
     var idx = side.characters.indexOf(cs);
+    // 1 punto de condena por cada punto de curación convertido
+    var condenaGain = amount;
+    cs.states.condena = (cs.states.condena || 0) + condenaGain;
+    logCombat('💀 Alaya gana ' + condenaGain + ' condena (total: ' + cs.states.condena + ')');
     dealDamageToChar(cs, amount, { piercing:true, targetSide:side, targetSideKey:sideKey, targetIdx:idx });
     return -amount;
   }
