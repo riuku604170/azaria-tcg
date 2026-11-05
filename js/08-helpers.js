@@ -143,7 +143,16 @@ function getReflectDamage(side) {
 }
 function getOptimizationBonus(side) {
   if (!side || !side.structures) return 0;
-  for (var i = 0; i < side.structures.length; i++) if (side.structures[i].kind === 'optimizacion') return 2;
+  for (var i = 0; i < side.structures.length; i++) {
+    var st = side.structures[i];
+    if (st.kind === 'optimizacion') {
+      // Portátil: buff a partir de la ronda 2 de vida de la estructura.
+      // Se considera que "ronda 2" es cuando su duración restante sea menor que la inicial (2).
+      // st.durationInicial = 2; si st.duration < 2 → ya ha pasado 1 ronda → activo.
+      if (st.duration <= 1) return 2;
+      return 0;
+    }
+  }
   return 0;
 }
 function sideOfChar(cs) {
