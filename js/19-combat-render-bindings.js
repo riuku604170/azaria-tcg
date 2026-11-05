@@ -86,6 +86,10 @@ function renderTeamCards(who) {
       if (cs.states.podrida) badges.push('<span class="ccc-badge" data-status="podrida" style="--bc: 200,150,60;" title="Podrida: al final de la ronda, 1 daño al enemigo activo">🦠 Podrida</span>');
       if (cs.states.googleEndDamage) badges.push('<span class="ccc-badge" style="--bc: 100,200,255;" title="Al final de la ronda, 1 daño verdadero">⏳ −1 HP</span>');
       if (cs.nextCardDiscount > 0) badges.push('<span class="ccc-badge" style="--bc: 240,200,96;" title="-1 dado a la siguiente carta jugada">📘 Carta −' + cs.nextCardDiscount + '</span>');
+      // ✅ Iris
+      if (cs.states.advertido > 0) badges.push('<span class="ccc-badge" data-status="advertido" data-value="' + cs.states.advertido + '" style="--bc: 255,140,60;">⚠️ Advertido ' + cs.states.advertido + '</span>');
+      if (cs.states.buenRecaudo) badges.push('<span class="ccc-badge" data-status="buenRecaudo" style="--bc: 100,200,255;">🛡️ Buen Recaudo</span>');
+      if (cs.id === 'iris' && cs.states.advertenciaActive) badges.push('<span class="ccc-badge" data-status="advertenciaActive" style="--bc: 140,180,230;">⚔️ Advertencia</span>');
     }
     if (cs.manuelStacks > 0) badges.push('<span class="ccc-badge" data-status="manuelStacks" data-value="' + cs.manuelStacks + '" style="--bc: 200,150,60;">📈 +' + cs.manuelStacks + '</span>');
     if (side.obraMaestraTurns > 0 && isActive) badges.push('<span class="ccc-badge" data-status="obraMaestra" data-value="' + side.obraMaestraTurns + '" style="--bc: 240,200,96;">💥 Obra Maestra (' + side.obraMaestraTurns + ')</span>');
