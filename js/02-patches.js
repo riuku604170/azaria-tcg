@@ -3,6 +3,19 @@
 // ═══════════ NOVEDADES (parches) ═══════════
 var PATCHES = [
 {
+  version: 'BETA 1.4',
+  date: '2026-11-05',
+  type: 'mayor',
+  title: 'Nuevo personaje y novedades en los usuarios',
+  changes: [
+    'Añadida Iris (Eriks).',
+    'Reescritura y rebalanceo de los sets de los 12 usuarios actuales.',
+    'Display de información de los usuarios más cómodo.',
+    'Arreglos en las habilidades de algunos usuarios.',
+    'Añadidas EX de todos los personajes jugables restantes.'
+  ]  
+},
+{
   version: 'BETA 1.3',
   date: '2026-11-04',
   type: 'minor',
@@ -46,15 +59,39 @@ var PATCHES = [
 // Cada anuncio necesita un `id` único. El más reciente debe ir PRIMERO.
 // Al añadir uno nuevo arriba, el badge ! aparecerá automáticamente.
 var ANNOUNCEMENTS = [
-
+{
+  id: 'ann_2026_11_05_1',
+  date: '2026-11-05',
+  icon: '🎂',
+  title: '¡Japi Berdei Vicky!',
+  body: [
+    '-Bueno bueno Manolo, ¿pero qué está pasando aquí? Madre mía...',
+    '-Bueno Antonio, lo veo y no lo creo, que le han metido esteroides al menú, no me lo puedo creer.',
+    '-A ver Manolo, yo creo que estás exagerango un poco, ¿eh? Pero vamos, que ahora los personajes son más cómodos de ver.',
+    '-¡Sin lugar a duda, Antonio! Además, me han dicho que por ahí ha habido un rebalanceo curioso...',
+    '-Pues yo creo que Manuel se tendría que haber quedado como estaba, Manolo, ¿para qué te voy a mentir? Las cosas como son...',
+    '-Yo era main Abla, Antonio.',
+    '-Joder, pobrecito... Imagínate yo que dependía de Noah y parece que le han descuartizado la elemental, Manolo.',
+    '-A ver si el impresentable este es más benevolente con nosotros en la próxima actualización...',
+    '-Claro que sí... ¿Ya viste las EX funcionando y sus nombres? Farmean aura, no me digas que no.',
+    '-La verdad es que ni me va ni me viene, yo voy a probar al nuevo personaje...',
+    '-¿¡CÓMO!?',
+    '-Que sí, que sí, que han metido a la buenorra de Iris al juego, Antonio, te lo juro.',
+    '-Es cierto... ¿Y por qué Iris?',
+    '-¡Pues me están diciendo por el pinganillo que es el cumpleaños de una fan!',
+    '-¡Aguaa! Pues desde aquí le deseamos muchas felicidades a la cumpleañera, ¿verdad Manolo?',
+    '-Como siempre, Antonio, y que cumpla muchos más... Nos vemos en la siguiente actualización.',
+    '-Con Paco y Manolo.',
+    '-Que tú te llamas Antonio, gilipollas...',
+    '-Lleva razón.'
+  ]
+},
 {
   id: 'ann_2026_11_04_3',
   date: '2026-11-04',
   icon: '🔥',
   title: 'Fuck DeepSeek',
-  body: [
-    'Agárrense el culito mis pequeños, se viene cambio gordo en el menú de personajes y rebalanceo de los mismos. Voy primero con los Usuarios (mis 12 peones, ¡¡OUH YEAH!!).'
-  ]
+  body: 'Agárrense el culito mis pequeños, se viene cambio gordo en el menú de personajes y rebalanceo de los mismos. Voy primero con los Usuarios (mis 12 peones, ¡¡OUH YEAH!!).'
 },
 {
   id: 'ann_2026_11_04_2',
@@ -166,13 +203,22 @@ function buildAnnouncementsHTML() {
   }
   return ANNOUNCEMENTS.map(function(a, i) {
     var isLatest = i === 0;
+    // body puede ser string (una línea) o array (varias líneas)
+    var bodyHtml = '';
+    if (Array.isArray(a.body)) {
+      bodyHtml = a.body.map(function(line){
+        return '<div class="announcement-line">' + line + '</div>';
+      }).join('');
+    } else {
+      bodyHtml = '<div class="announcement-line">' + (a.body || '') + '</div>';
+    }
     return '<div class="announcement-entry' + (isLatest ? ' latest' : '') + '">' +
       '<div class="announcement-entry-head">' +
         (a.icon ? '<span class="announcement-icon">' + a.icon + '</span>' : '') +
         '<span class="announcement-title">' + (a.title || '') + '</span>' +
         '<span class="announcement-date">' + (a.date || '') + '</span>' +
       '</div>' +
-      '<p class="announcement-body">' + (a.body || '') + '</p>' +
+      '<div class="announcement-body">' + bodyHtml + '</div>' +
     '</div>';
   }).join('');
 }
