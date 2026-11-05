@@ -20,6 +20,26 @@ function adjustCardCostForPassives(card, side) {
       }
     }
   }
+  // ✅ EX Josemi (Arquitectura Creativa): cartas de apoyo cuestan 1 dado menos
+  if (card.category === 'apoyo') {
+    var josemiEx = side.characters.find(function(c){ return c.id === 'josemi' && c.exActive && !c.dead; });
+    if (josemiEx) {
+      if (adjusted.any && adjusted.any > 0) adjusted.any = Math.max(0, adjusted.any - 1);
+      else if (adjusted.same && adjusted.same > 0) adjusted.same = Math.max(0, adjusted.same - 1);
+      else {
+        var _jk = Object.keys(adjusted);
+        for (var _ji = 0; _ji < _jk.length; _ji++) {
+          var _jk2 = _jk[_ji];
+          if (_jk2 === 'any' || _jk2 === 'same') continue;
+          adjusted[_jk2] = Math.max(0, adjusted[_jk2] - 1);
+          if (adjusted[_jk2] === 0) delete adjusted[_jk2];
+          break;
+        }
+      }
+      if (adjusted.any === 0) delete adjusted.any;
+      if (adjusted.same === 0) delete adjusted.same;
+    }
+  }
   return adjusted;
 }
 function applyCardEffect(card) {
