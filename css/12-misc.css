@@ -731,10 +731,18 @@ footer span {
   letter-spacing: 0.03em;
 }
 .announcement-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.announcement-line {
   font-size: 0.88rem;
   line-height: 1.6;
   color: var(--text);
   opacity: 0.92;
+}
+.announcement-line:first-child {
+  margin-top: 0;
 }
 
 @media (max-width: 700px) {
