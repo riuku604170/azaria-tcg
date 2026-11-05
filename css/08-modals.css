@@ -585,3 +585,144 @@
 .modal-toggle-view:active {
   transform: translateY(0);
 }
+
+/* ═══ Descripciones con términos clicables ═══ */
+.ability-description {
+  color: var(--muted);
+  font-size: 0.93rem;
+  line-height: 1.7;
+  margin-bottom: 0.6rem;
+}
+.ability-description .clickable-term {
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-color: rgba(240, 200, 96, 0.75);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  transition: text-decoration-color 0.2s, color 0.2s;
+}
+.ability-description .clickable-term:hover {
+  color: var(--accent);
+  text-decoration-color: var(--accent);
+}
+
+/* Botón "Atributos" */
+.ability-attributes-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 8px;
+  background: rgba(240, 200, 96, 0.12);
+  border: 1px solid rgba(240, 200, 96, 0.5);
+  color: var(--accent);
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 0.5rem;
+}
+.ability-attributes-btn:hover {
+  background: rgba(240, 200, 96, 0.28);
+  transform: translateY(-1px);
+}
+
+/* ═══ Popup compartido para términos/atributos ═══ */
+.stat-popup {
+  position: fixed;
+  z-index: 3600;
+  width: min(360px, calc(100vw - 24px));
+  padding: 1rem 1.15rem;
+  background: rgba(10, 6, 20, 0.98);
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.85), 0 0 30px rgba(var(--pop, 240, 200, 96), 0.25);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(6px) scale(0.98);
+  transition: opacity 0.2s ease, transform 0.25s cubic-bezier(0.34, 1.2, 0.64, 1);
+  overflow: hidden;
+}
+.stat-popup.show {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+
+/* Estilo TÉRMINO (descriptivo) */
+.stat-popup.term {
+  --pop: 240, 200, 96;
+  border: 1px solid rgba(var(--pop), 0.55);
+}
+.stat-popup.term .sp-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.55rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgb(var(--pop));
+}
+.stat-popup.term .sp-title {
+  font-size: 1.1rem;
+  font-weight: 900;
+  color: #fff;
+  margin-bottom: 0.6rem;
+  letter-spacing: -0.01em;
+}
+.stat-popup.term .sp-body {
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.6;
+}
+
+/* Estilo ATRIBUTOS (técnico) */
+.stat-popup.attributes {
+  --pop: 165, 131, 255;
+  border: 1px solid rgba(var(--pop), 0.55);
+  background: rgba(8, 5, 16, 0.99);
+}
+.stat-popup.attributes .sp-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.7rem;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgb(var(--pop));
+  border-bottom: 1px solid rgba(var(--pop), 0.25);
+  padding-bottom: 0.5rem;
+}
+.stat-popup.attributes .sp-attr-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.stat-popup.attributes .sp-attr-list li {
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: var(--text);
+  padding-left: 1rem;
+  position: relative;
+  font-variant-numeric: tabular-nums;
+}
+.stat-popup.attributes .sp-attr-list li::before {
+  content: '▸';
+  position: absolute;
+  left: 0;
+  color: rgb(var(--pop));
+  font-weight: 900;
+}
