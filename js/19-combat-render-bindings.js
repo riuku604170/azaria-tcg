@@ -62,7 +62,7 @@ function renderTeamCards(who) {
     if (!cs.equipment) cs.equipment = [];
     var shT = totalShield(cs);
     var html = '<div class="' + cls + '" data-team="' + actualWho + '" data-index="' + i + '" style="--el: ' + col + ';">';
-    if (isActive && !isDead) html += '<span class="ccc-active-star">⭐</span>';
+    if (cs.exActive) html += '<span class="ccc-ex-star" title="Este personaje tiene EX activa">🌟</span>';
     html += '<div class="ccc-top"><span class="ccc-el-badge">' + ELEMENT_EMOJI[cs.character.element] + '</span><span class="ccc-top-badge' + (ultReady ? ' ult-ready' : '') + '">⚡ ' + cs.energy + '/' + cs.maxEnergy + '</span></div>';
     html += '<div class="ccc-portrait" data-fallback="' + cs.character.emoji + '"><img src="img/' + cs.id + '.png" alt="' + cs.character.name + '" onerror="this.style.display=\'none\';"></div>';
     html += '<div class="ccc-name">' + cs.character.name + '</div>';
@@ -240,7 +240,12 @@ function renderCombat() {
   if (typeof updateEnvironmentVisuals === 'function') updateEnvironmentVisuals();
 }
 
-[{ btnId:'normalBtn', type:'normal' }, { btnId:'elementalBtn', type:'elemental' }, { btnId:'ultimateBtn', type:'ultimate' }].forEach(function(item){ var b = document.getElementById(item.btnId); if (!b) return; b.addEventListener('mouseenter', function(){ showAbilityTooltip(b, item.type); }); b.addEventListener('mouseleave', hideTooltip); });
+[{ btnId:'normalBtn', type:'normal' }, { btnId:'elementalBtn', type:'elemental' }, { btnId:'ultimateBtn', type:'ultimate' }].forEach(function(item){
+  var b = document.getElementById(item.btnId);
+  if (!b) return;
+  b.addEventListener('mouseenter', function(){ showAbilityTooltip(b, item.type); });
+  b.addEventListener('mouseleave', function(){ scheduleHideTooltip(200); });
+});
 // ✅ Tooltip de personajes: SOLO para tus propios personajes (playerTeam)
 (function(){
   var el = document.getElementById('playerTeam');
