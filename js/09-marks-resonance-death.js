@@ -78,8 +78,7 @@ function destroyCruzSangre(whoKey) {
     if (rev && rev.dead) {
       rev.dead = false;
       rev.hp = 1;
-      if (!rev.shields) rev.shields = [];
-      rev.shields.push({ source:'cruzSangre', hp:2, maxHp:2 });
+      addOrRefreshShield(rev, 'cruzSangre', 2);
       if (rev.id === 'hunger') {
         rev.hp = rev.maxHp;
         logCombat('👹 Hunger revive y se cura al máximo (' + rev.hp + '/' + rev.maxHp + ')');
