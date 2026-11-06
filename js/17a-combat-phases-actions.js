@@ -2030,6 +2030,12 @@ function buildPreviewBodyHTML(preview) {
 function showActionConfirmation(actionType, ability, onConfirm) {
   var ov = document.getElementById('confirmOverlay'), content = document.getElementById('confirmContent'); if (!ov || !content) return;
   hideTooltip();
+  // ✅ Doble seguridad: por si algún listener o timer aún quedaba pendiente
+  cancelHideTooltip();
+  if (hoverTooltip) {
+    hoverTooltip.classList.remove('show');
+    hoverTooltip.classList.remove('interactive');
+  }
   var side = getTurnSide(); if (!side) return;
   var active = side.characters[side.activeIndex];
   var effCost = getEffectiveCostFull(active, ability);
