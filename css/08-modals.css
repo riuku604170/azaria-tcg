@@ -1,197 +1,728 @@
-function normalize(s){ return String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(); }
-function sumCost(cost){ var t = 0; for (var k in cost) if (Object.prototype.hasOwnProperty.call(cost,k)) t += cost[k]; return t; }
-function uid(){ return Math.random().toString(36).slice(2) + Date.now().toString(36); }
-function shuffleArray(arr){ var a = arr.slice(); for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
-function setSize(o){ return Object.keys(o).length; }
-function toggleFilterKey(o, k){ if (o[k]) { delete o[k]; return false; } o[k] = true; return true; }
-
-/* ═══ HELPERS DE TURNO / LADO ═══ */
-function getActiveSide(){
-  if (!combatState) return null;
-  if (combatState.pvp) return combatState[combatState.turn];
-  return combatState.player;
-}
-function getTurnKey(){
-  if (!combatState) return 'player';
-  if (combatState.pvp) return combatState.turn;
-  return 'player';
-}
-function getTurnSide(){ return combatState ? combatState[getTurnKey()] : null; }
-function getEnemyKey(){ return getTurnKey() === 'player' ? 'bot' : 'player'; }
-function getEnemySide(){ return combatState ? combatState[getEnemyKey()] : null; }
-function isTurnDone(){
-  var tk = getTurnKey();
-  if (!combatState) return false;
-  return tk === 'player' ? combatState.playerDone : combatState.botDone;
-}
-function isPlayerTurn(){
-  if (!combatState) return false;
-  if (combatState.phase !== 'playing') return false;
-  return combatState.turn === 'player';
-}
-function canHumanControlCurrentTurn() {
-  if (!combatState) return false;
-  if (combatState.mode === 'auto') return false;
-  if (combatState.phase !== 'playing') return false;
-  if (combatState.roundStarting) return false;
-  if (combatState.roundEnding) return false;
-  if (combatState._resolvingAbility) return false;   // ✅ NUEVO: bloquea input mientras se resuelve una habilidad
-  if (isTurnDone()) return false;
-  if (combatState.pvp) return true;
-  return combatState.turn === 'player';
-}
-function isOnline(){ return false; }
-function isOnlineHost(){ return false; }
-function isOnlineGuest(){ return false; }
-function myStateKey(){ return 'player'; }
-function sideKeyForUI(uiWho){ return uiWho; }
-function getMySide(){ if (!combatState) return null; return combatState[combatState.turn] || combatState.player; }
-function isMyTurn(){ if (!combatState) return false; return combatState.turn === 'player'; }
-
-/* ═══ HELPERS DE MAZO / DAÑO / ESCUDO / EQUIPO ═══ */
-function generateRandomDeck() {
-  var d = [];
-  var events = CARD_ORDER.filter(function(id){ return CARD_DB[id].category === 'evento'; });
-  var equipos = CARD_ORDER.filter(function(id){ return CARD_DB[id].category === 'equipo'; });
-  var apoyos = CARD_ORDER.filter(function(id){ return CARD_DB[id].category === 'apoyo'; });
-  shuffleArray(events).slice(0, Math.min(14, events.length)).forEach(function(id){ d.push(id); });
-  shuffleArray(equipos).slice(0, Math.min(10, equipos.length)).forEach(function(id){ d.push(id); });
-  shuffleArray(apoyos).slice(0, Math.min(6, apoyos.length)).forEach(function(id){ d.push(id); });
-  var pool = shuffleArray(d.slice());
-  var safety = 0;
-  while (d.length < 30 && safety < 200) {
-    var p = pool[Math.floor(Math.random() * pool.length)];
-    var cnt = d.filter(function(x){ return x === p; }).length;
-    if (cnt < 2) d.push(p);
-    safety++;
-  }
-  return d;
-}
-function getNextAliveIndex(side, fromIndex) {
-  var n = side.characters.length;
-  for (var k = 1; k <= n; k++) {
-    var idx = (fromIndex + k) % n;
-    if (!side.characters[idx].dead) return idx;
-  }
-  return -1;
-}
-function totalShield(cs){ if (!cs.shields || !cs.shields.length) return 0; return cs.shields.reduce(function(s,sh){ return s + Math.max(0, sh.hp); }, 0); }
-function addOrRefreshShield(cs, source, amount) {
-  if (!cs.shields) cs.shields = [];
-  var ex = null;
-  for (var i = 0; i < cs.shields.length; i++) if (cs.shields[i].source === source) { ex = cs.shields[i]; break; }
-  if (ex) { ex.maxHp = Math.max(ex.maxHp, amount); ex.hp = ex.maxHp; }
-  else cs.shields.push({ source:source, hp:amount, maxHp:amount });
-}
-function absorbWithShields(cs, amount, piercing) {
-  if (piercing) return { absorbed:0, overflow:amount };
-  if (!cs.shields) cs.shields = [];
-  var remaining = amount, absorbed = 0;
-  cs.shields.sort(function(a,b){ return a.hp - b.hp; });
-  for (var i = 0; i < cs.shields.length && remaining > 0; i++) {
-    var sh = cs.shields[i]; if (sh.hp <= 0) continue;
-    var take = Math.min(sh.hp, remaining); sh.hp -= take; absorbed += take; remaining -= take;
-  }
-  cs.shields = cs.shields.filter(function(sh){ return sh.hp > 0; });
-  return { absorbed:absorbed, overflow:remaining };
-}
-function healShieldBy(cs, amount) {
-  if (!cs.shields || !cs.shields.length) return 0;
-  var sh = cs.shields[0]; var before = sh.hp;
-  sh.hp = Math.min(sh.maxHp, sh.hp + amount);
-  return sh.hp - before;
-}
-function getEquipmentAttackBonus(cs) {
-  var bonus = 0, piercing = false;
-  if (cs && cs.equipment) cs.equipment.forEach(function(eqId){
-    var eq = CARD_DB[eqId]; if (!eq || !eq.effect) return;
-    if (eq.effect.attackBonus) bonus += eq.effect.attackBonus;
-    if (eq.effect.piercing) piercing = true;
-  });
-  return { bonus:bonus, piercing:piercing };
-}
-function getSupportAttackBonus(side) {
-  var bonus = 0;
-  if (side && side.supports) side.supports.forEach(function(sp){
-    if (!sp) return;
-    var spCard = CARD_DB[sp.cardId]; if (!spCard || !spCard.effect) return;
-    if (spCard.effect.attackBonus) bonus += spCard.effect.attackBonus;
-    if (spCard.effect.teamAttackBonus) bonus += spCard.effect.teamAttackBonus;
-  });
-  return bonus;
-}
-function getDamageReduction(cs, side) {
-  var red = 0;
-  if (cs && cs.equipment) cs.equipment.forEach(function(eqId){
-    var eq = CARD_DB[eqId]; if (eq && eq.effect && eq.effect.damageReduction) red += eq.effect.damageReduction;
-  });
-  if (side && side.supports) side.supports.forEach(function(sp){
-    if (!sp) return;
-    var c = CARD_DB[sp.cardId]; if (!c || !c.effect) return;
-    if (c.effect.damageReduction) red += c.effect.damageReduction;
-    if (c.effect.teamDamageReduction) red += c.effect.teamDamageReduction;
-  });
-  return red;
-}
-function getReflectDamage(side) {
-  var r = 0;
-  if (side && side.supports) side.supports.forEach(function(sp){
-    if (!sp) return;
-    var c = CARD_DB[sp.cardId];
-    if (c && c.effect && c.effect.reflectDamage) r += c.effect.reflectDamage;
-  });
-  return r;
-}
-function getOptimizationBonus(side) {
-  if (!side || !side.structures) return 0;
-  for (var i = 0; i < side.structures.length; i++) {
-    var st = side.structures[i];
-    if (st.kind === 'optimizacion') {
-      // Portátil: buff a partir de la ronda 2 de vida de la estructura.
-      // Se considera que "ronda 2" es cuando su duración restante sea menor que la inicial (2).
-      // st.durationInicial = 2; si st.duration < 2 → ya ha pasado 1 ronda → activo.
-      if (st.duration <= 1) return 2;
-      return 0;
-    }
-  }
-  return 0;
-}
-function sideOfChar(cs) {
-  if (!combatState || !cs) return null;
-  if (combatState.player.characters.indexOf(cs) >= 0) return { key:'player', side:combatState.player };
-  if (combatState.bot.characters.indexOf(cs) >= 0) return { key:'bot', side:combatState.bot };
-  return null;
-}
-function getEnemyActiveOf(whoKey) {
-  var ek = whoKey === 'player' ? 'bot' : 'player';
-  var es = combatState[ek];
-  return { side:es, key:ek, active:es.characters[es.activeIndex] };
+.card-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s;
 }
 
-/* ═══ Feedback visual de efectos ═══ */
-function flashCombatElement(target, text, color) {
-  var el = typeof target === 'string' ? document.querySelector(target) : target;
-  if (!el) return;
-  el.classList.remove('effect-flash');
-  void el.offsetWidth;
-  el.classList.add('effect-flash');
-  setTimeout(function(){ el.classList.remove('effect-flash'); }, 700);
+.card-modal.open {
+  opacity: 1;
+  pointer-events: auto;
+}
 
-  if (text) {
-    var rect = el.getBoundingClientRect();
-    var span = document.createElement('div');
-    span.className = 'effect-float';
-    span.textContent = text;
-    span.style.left = (rect.left + rect.width / 2) + 'px';
-    span.style.top  = (rect.top - 4) + 'px';
-    span.style.transform = 'translateX(-50%)';
-    span.style.color = color || '#f0c860';
-    document.body.appendChild(span);
-    setTimeout(function(){ span.remove(); }, 1100);
+.card-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(5, 3, 12, 0.88);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.card-modal-content {
+  --el: 240, 200, 96;
+  position: relative;
+  width: min(1000px, 100%);
+  max-height: 92vh;
+  background: linear-gradient(165deg, #140a24 0%, #0a0614 100%);
+  border: 1px solid rgba(var(--el), 0.4);
+  border-radius: 24px;
+  box-shadow: 0 30px 100px rgba(var(--el), 0.25), 0 0 60px rgba(var(--el), 0.1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transform: scale(0.94) translateY(24px);
+  transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.card-modal.open .card-modal-content {
+  transform: scale(1) translateY(0);
+  animation: borderPulse 4s ease infinite;
+}
+
+@keyframes borderPulse {
+  0%, 100% {
+    border-color: rgba(var(--el), 0.4);
+  }
+  50% {
+    border-color: rgba(var(--el), 0.7);
   }
 }
 
-function flashCharCard(who, idx, text, color) {
-  var sel = '.combat-char-card[data-team="' + who + '"][data-index="' + idx + '"]';
-  flashCombatElement(sel, text, color);
+.modal-header {
+  display: flex;
+  gap: 2rem;
+  padding: 2rem;
+  background: linear-gradient(135deg, rgba(var(--el), 0.28), rgba(var(--el), 0.04));
+  border-bottom: 1px solid rgba(var(--el), 0.3);
+  align-items: center;
+  position: relative;
+  flex-wrap: wrap;
+}
+
+.modal-portrait {
+  width: 140px;
+  flex-shrink: 0;
+  aspect-ratio: 5/7;
+  border-radius: 16px;
+  background: linear-gradient(165deg, rgba(var(--el), 0.55) 0%, rgba(var(--el), 0.15) 50%, rgba(10, 6, 20, 0.95) 100%);
+  border: 2px solid rgba(var(--el), 0.7);
+  display: grid;
+  place-items: center;
+  font-size: 4.5rem;
+  position: relative;
+  box-shadow: inset 0 0 40px rgba(var(--el), 0.2);
+  overflow: hidden;
+}
+
+.modal-portrait::before {
+  content: attr(data-fallback);
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 4.5rem;
+  z-index: 0;
+  pointer-events: none;
+  filter: drop-shadow(0 8px 30px rgba(var(--el), 0.6));
+}
+
+.modal-portrait .portrait-img {
+  border-radius: 14px;
+}
+
+.modal-hp-badge {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.85);
+  padding: 0.25rem 0.8rem;
+  border-radius: 20px;
+  font-weight: 800;
+  font-size: 0.8rem;
+  color: rgb(var(--el));
+  border: 1px solid rgba(var(--el), 0.6);
+  white-space: nowrap;
+  letter-spacing: 0.05em;
+  z-index: 3;
+}
+
+.modal-info {
+  flex: 1;
+  min-width: 220px;
+}
+
+.modal-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgb(var(--el));
+  margin-bottom: 0.6rem;
+}
+
+.el-badge-lg {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(var(--el), 0.25);
+  border: 1px solid rgba(var(--el), 0.6);
+  font-size: 0.95rem;
+  filter: drop-shadow(0 0 8px rgba(var(--el), 0.6));
+}
+
+.modal-title {
+  font-size: clamp(1.9rem, 4.5vw, 3rem);
+  font-weight: 900;
+  line-height: 1.05;
+  margin-bottom: 0.6rem;
+  background: linear-gradient(90deg, #fff 0%, rgb(var(--el)) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.02em;
+}
+
+.modal-concept {
+  color: var(--muted);
+  font-style: italic;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  max-width: 540px;
+  border-left: 2px solid rgba(var(--el), 0.4);
+  padding-left: 0.8rem;
+}
+
+.modal-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(var(--el), 0.4);
+  color: #fff;
+  cursor: pointer;
+  font-size: 1.5rem;
+  line-height: 1;
+  transition: all 0.25s;
+  display: grid;
+  place-items: center;
+  font-family: inherit;
+  z-index: 5;
+}
+
+.modal-close:hover {
+  background: rgba(var(--el), 0.35);
+  transform: rotate(90deg);
+}
+
+.modal-body {
+  overflow-y: auto;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--el), 0.4) transparent;
+}
+
+.modal-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modal-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.modal-body::-webkit-scrollbar-thumb {
+  background: rgba(var(--el), 0.35);
+  border-radius: 4px;
+}
+
+.obtain-box {
+  background: rgba(var(--el), 0.06);
+  border: 1px solid rgba(var(--el), 0.2);
+  border-radius: 12px;
+  padding: 1rem 1.2rem;
+}
+
+.obtain-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgb(var(--el));
+  margin-bottom: 0.4rem;
+}
+
+.obtain-text {
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.abilities {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.ability {
+  --abc: 150, 150, 170;
+  padding: 1.2rem 1.4rem;
+  border-radius: 14px;
+  border-left: 4px solid rgb(var(--abc));
+  background: linear-gradient(90deg, rgba(var(--abc), 0.09), rgba(255, 255, 255, 0.015));
+  position: relative;
+  opacity: 0;
+}
+
+.ability-normal {
+  --abc: 150, 150, 170;
+}
+
+.ability-ultimate {
+  --abc: 240, 200, 96;
+}
+
+.ability-passive {
+  --abc: 165, 131, 255;
+}
+
+.ability-ex {
+  --abc: 255, 220, 100;
+  background: linear-gradient(90deg, rgba(255, 220, 100, 0.15), rgba(255, 220, 100, 0.03));
+  box-shadow: 0 0 30px rgba(255, 220, 100, 0.12);
+}
+
+.card-modal.open .ability {
+  animation: abilityIn 0.45s ease forwards;
+}
+
+.card-modal.open .ability:nth-child(1) {
+  animation-delay: 0.12s;
+}
+
+.card-modal.open .ability:nth-child(2) {
+  animation-delay: 0.20s;
+}
+
+.card-modal.open .ability:nth-child(3) {
+  animation-delay: 0.28s;
+}
+
+.card-modal.open .ability:nth-child(4) {
+  animation-delay: 0.36s;
+}
+
+.card-modal.open .ability:nth-child(5) {
+  animation-delay: 0.44s;
+}
+
+@keyframes abilityIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ability-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgb(var(--abc));
+}
+
+.ability-name {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 0.7rem;
+}
+
+.ability-cost {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.8rem;
+}
+
+.die {
+  --dc: 150, 150, 170;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  background: rgba(var(--dc), 0.15);
+  border: 1px solid rgba(var(--dc), 0.45);
+  border-radius: 20px;
+  font-size: 0.82rem;
+  color: rgb(var(--dc));
+  white-space: nowrap;
+}
+
+.die b {
+  color: #fff;
+  margin-left: 2px;
+  font-weight: 800;
+}
+
+.die-any {
+  --dc: 180, 180, 200;
+}
+
+.die-energy {
+  --dc: 240, 200, 96;
+}
+
+.ability-effect {
+  color: var(--muted);
+  font-size: 0.93rem;
+  line-height: 1.68;
+}
+
+.hover-tooltip {
+  position: fixed;
+  z-index: 3500;
+  width: 320px;
+  max-width: calc(100vw - 24px);
+  padding: 1rem 1.1rem;
+  background: rgba(10, 6, 20, 0.98);
+  border: 1px solid rgba(240, 200, 96, 0.55);
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(240, 200, 96, 0.25);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(6px) scale(0.98);
+  transition: opacity 0.2s ease, transform 0.25s cubic-bezier(0.34, 1.2, 0.64, 1);
+  overflow: hidden;
+}
+
+.hover-tooltip.show {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.ht-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 0.35rem;
+}
+
+.ht-name {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 0.55rem;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.ht-sub {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  margin-bottom: 0.7rem;
+  font-weight: 600;
+}
+
+.ht-cost {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.65rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ht-effect {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.ht-ab-item {
+  padding: 0.6rem 0.75rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-left: 3px solid rgba(240, 200, 96, 0.5);
+  border-radius: 8px;
+  margin-bottom: 0.45rem;
+}
+
+.ht-ab-item:last-child {
+  margin-bottom: 0;
+}
+
+.ht-ab-type {
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 0.15rem;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.ht-ab-name {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 0.35rem;
+  line-height: 1.2;
+}
+
+.ht-ab-item .ht-cost {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.ht-ab-item .ht-cost .die {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+}
+
+/* ═══ Diálogo de info de carta ═══ */
+.card-info-dialog {
+  position: fixed; inset: 0; z-index: 2950;
+  background: rgba(5, 3, 12, 0.88); backdrop-filter: blur(10px);
+  display: none; align-items: center; justify-content: center;
+  padding: 1.5rem;
+}
+.card-info-dialog.show { display: flex; animation: fadeIn 0.25s ease; }
+.card-info-content {
+  --dc: 240, 200, 96;
+  position: relative;
+  width: min(360px, 100%);
+  padding: 1.6rem 1.4rem 1.2rem;
+  border-radius: 18px;
+  background: linear-gradient(165deg, rgba(var(--dc), 0.22), rgba(var(--dc), 0.05) 60%, rgba(10, 6, 20, 0.98) 100%);
+  border: 1.5px solid rgba(var(--dc), 0.7);
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.85), 0 0 40px rgba(var(--dc), 0.3);
+  text-align: center;
+  animation: confirmIn 0.3s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+.card-info-emoji { font-size: 3rem; margin-bottom: 0.4rem; filter: drop-shadow(0 4px 15px rgba(var(--dc), 0.7)); }
+.card-info-name { font-size: 1.3rem; font-weight: 900; color: #fff; margin-bottom: 0.3rem; line-height: 1.2; }
+.card-info-cat {
+  --cat: 165, 131, 255;
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgb(var(--cat));
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+  background: rgba(var(--cat), 0.15);
+  border: 1px solid rgba(var(--cat), 0.4);
+  margin-bottom: 0.7rem;
+}
+.card-info-cost {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--muted);
+  margin-bottom: 0.8rem;
+}
+.card-info-effect {
+  font-size: 0.88rem;
+  color: var(--text);
+  line-height: 1.6;
+  padding: 0.8rem 1rem;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 10px;
+  border: 1px solid rgba(var(--dc), 0.2);
+  text-align: left;
+}
+.card-info-close {
+  position: absolute;
+  top: 0.7rem;
+  right: 0.7rem;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(var(--dc), 0.5);
+  color: #fff;
+  cursor: pointer;
+  font-size: 1rem;
+  font-family: inherit;
+  display: grid;
+  place-items: center;
+  transition: all 0.2s;
+}
+.card-info-close:hover {
+  background: rgba(var(--dc), 0.4);
+  transform: rotate(90deg);
+}
+
+/* === Botón de añadir al equipo en el modal === */
+.modal-team-action { display: flex; justify-content: center; padding: 0.5rem 0 1rem; }
+.modal-team-btn { min-width: 220px; padding: 0.9rem 1.6rem; font-size: 0.95rem; }
+.modal-team-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ═══ Modal de personaje por encima del preview ═══ */
+.card-modal { z-index: 2900 !important; }
+
+/* === Botón para alternar Adela <-> Hunger en el modal === */
+.modal-toggle-view {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 1rem;
+  padding: 0.45rem 1rem;
+  border-radius: 50px;
+  background: linear-gradient(135deg, rgba(255,120,60,0.18), rgba(165,131,255,0.12));
+  border: 1px solid rgba(255,120,60,0.55);
+  color: #ffb08a;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 0.2s;
+  align-self: flex-start;
+}
+.modal-toggle-view:hover {
+  background: linear-gradient(135deg, rgba(255,120,60,0.32), rgba(165,131,255,0.22));
+  border-color: #ff7840;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(255,120,60,0.35);
+}
+.modal-toggle-view:active {
+  transform: translateY(0);
+}
+
+/* ═══ Descripciones con términos clicables ═══ */
+.ability-description {
+  color: var(--muted);
+  font-size: 0.93rem;
+  line-height: 1.7;
+  margin-bottom: 0.6rem;
+}
+.ability-description .clickable-term {
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-color: rgba(240, 200, 96, 0.75);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  transition: text-decoration-color 0.2s, color 0.2s;
+}
+.ability-description .clickable-term:hover {
+  color: var(--accent);
+  text-decoration-color: var(--accent);
+}
+
+/* Botón "Atributos" */
+.ability-attributes-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 8px;
+  background: rgba(240, 200, 96, 0.12);
+  border: 1px solid rgba(240, 200, 96, 0.5);
+  color: var(--accent);
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 0.5rem;
+}
+.ability-attributes-btn:hover {
+  background: rgba(240, 200, 96, 0.28);
+  transform: translateY(-1px);
+}
+
+/* ═══ Popup compartido para términos/atributos ═══ */
+.stat-popup {
+  position: fixed;
+  z-index: 3600;
+  width: min(360px, calc(100vw - 24px));
+  padding: 1rem 1.15rem;
+  background: rgba(10, 6, 20, 0.98);
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.85), 0 0 30px rgba(var(--pop, 240, 200, 96), 0.25);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(6px) scale(0.98);
+  transition: opacity 0.2s ease, transform 0.25s cubic-bezier(0.34, 1.2, 0.64, 1);
+  overflow: hidden;
+}
+.stat-popup.show {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+
+/* Estilo TÉRMINO (descriptivo) */
+.stat-popup.term {
+  --pop: 240, 200, 96;
+  border: 1px solid rgba(var(--pop), 0.55);
+}
+.stat-popup.term .sp-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.55rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgb(var(--pop));
+}
+.stat-popup.term .sp-title {
+  font-size: 1.1rem;
+  font-weight: 900;
+  color: #fff;
+  margin-bottom: 0.6rem;
+  letter-spacing: -0.01em;
+}
+.stat-popup.term .sp-body {
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.6;
+}
+
+/* Estilo ATRIBUTOS (técnico) */
+.stat-popup.attributes {
+  --pop: 165, 131, 255;
+  border: 1px solid rgba(var(--pop), 0.55);
+  background: rgba(8, 5, 16, 0.99);
+}
+.stat-popup.attributes .sp-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.7rem;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgb(var(--pop));
+  border-bottom: 1px solid rgba(var(--pop), 0.25);
+  padding-bottom: 0.5rem;
+}
+.stat-popup.attributes .sp-attr-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.stat-popup.attributes .sp-attr-list li {
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: var(--text);
+  padding-left: 1rem;
+  position: relative;
+  font-variant-numeric: tabular-nums;
+}
+.stat-popup.attributes .sp-attr-list li::before {
+  content: '▸';
+  position: absolute;
+  left: 0;
+  color: rgb(var(--pop));
+  font-weight: 900;
 }
