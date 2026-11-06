@@ -276,24 +276,43 @@ function showSelectDetail(idx) {
   var c = document.getElementById('selectOptions'), d = document.getElementById('selectDetail'); if (!c || !d) return;
   c.style.display = 'none';
   var cd = CHARACTERS[cs.id]; if (!cd) return;
-  var col = ELEMENT_COLORS[cd.element], vis = ['normal','elemental','ultimate'], abh = '';
-  cd.abilities.forEach(function(ab){
-    if (vis.indexOf(ab.type) === -1) return;
-    var ic = ab.type === 'normal' ? '⚔️' : (ab.type === 'elemental' ? '🔮' : '💥');
-    var nm = ab.type === 'normal' ? 'Ataque Normal' : (ab.type === 'elemental' ? 'Habilidad Elemental' : 'Habilidad Definitiva');
-    var brd = ab.type === 'ultimate' ? 'rgba(240,200,96,0.9)' : 'rgba(' + col + ', 0.6)';
-    abh += '<div class="ht-ab-item" style="border-left-color: ' + brd + '; background: rgba(255,255,255,0.04); padding: 0.8rem 1rem; margin-bottom: 0.7rem; border-radius: 10px;"><div class="ht-ab-type" style="color: rgb(' + col + '); margin-bottom: 0.3rem; font-size: 0.65rem;">' + ic + ' ' + nm + '</div><div class="ht-ab-name" style="font-size: 1rem; margin-bottom: 0.4rem;">' + ab.name + '</div>';
-    if (ab.cost) abh += '<div style="margin-bottom: 0.4rem;">' + renderCost(ab.cost) + '</div>';
-    abh += '<div style="color: var(--muted); font-size: 0.82rem; line-height: 1.5;">' + ab.effect + '</div></div>';
+  var col = ELEMENT_COLORS[cd.element];
+  // ✅ Incluir también pasiva y EX
+  var vis = ['normal','elemental','ultimate','passive','ex'];
+  var abh = '';
+
+  // Orden visual: normal → elemental → ultimate → pasiva → EX
+  var order = { normal:0, elemental:1, ultimate:2, passive:3, ex:4 };
+  var sorted = cd.abilities.slice().sort(function(a, b){
+    return (order[a.type] || 99) - (order[b.type] || 99);
   });
+
+  sorted.forEach(function(ab){
+    if (vis.indexOf(ab.type) === -1) return;
+    var brd;
+    if (ab.type === 'ultimate')      brd = 'rgba(240,200,96,0.9)';    // dorado
+    else if (ab.type === 'passive')  brd = 'rgba(165,131,255,0.85)';  // violeta
+    else if (ab.type === 'ex')       brd = 'rgba(240,200,96,1)';      // dorado brillante
+    else                             brd = 'rgba(' + col + ', 0.6)';  // color elemental
+    abh += '<div class="ht-ab-item" style="border-left-color: ' + brd + '; background: rgba(255,255,255,0.04); padding: 0.8rem 1rem; margin-bottom: 0.7rem; border-radius: 10px;">';
+    abh += buildAbilityInfoHTML(cs.id, ab);
+    abh += '</div>';
+  });
+
   var html = '<div class="select-detail-inner" style="--el: ' + col + ';">';
   html += '<div class="select-detail-portrait" data-fallback="' + cd.emoji + '"><img src="img/' + cs.id + '.png" alt="' + cd.name + '" style="width:100%; height:100%; object-fit:cover; border-radius:14px;" onerror="this.style.display=\'none\';"><div style="position:absolute; bottom:10px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.85); padding: 0.25rem 0.8rem; border-radius: 20px; font-weight: 800; font-size: 0.8rem; color: rgb(' + col + '); border: 1px solid rgba(' + col + ', 0.6); white-space: nowrap; z-index: 3;">❤️ ' + cs.hp + '/' + cs.maxHp + ' HP</div></div>';
   html += '<div class="select-detail-info"><div style="font-size: 0.75rem; font-weight: 800; letter-spacing: 0.18em; text-transform: uppercase; color: rgb(' + col + '); margin-bottom: 0.6rem;">' + ELEMENT_EMOJI[cd.element] + ' ' + ELEMENT_NAMES[cd.element] + ' · ' + cd.set + '</div>';
   html += '<h2 style="font-size: 2rem; font-weight: 900; margin-bottom: 0.5rem; background: linear-gradient(90deg, #fff, rgb(' + col + ')); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: -0.02em;">' + cd.name + '</h2>';
   html += '<p style="color: var(--muted); font-style: italic; font-size: 0.88rem; line-height: 1.6; margin-bottom: 1.2rem; border-left: 2px solid rgba(' + col + ', 0.4); padding-left: 0.8rem;">"' + cd.concept + '"</p>';
-  html += '<div style="max-height: 280px; overflow-y: auto; padding-right: 0.4rem; scrollbar-width: thin;">' + abh + '</div></div></div>';
+  // ✅ Más alto porque ahora hay 5 bloques (normal + elemental + ult + pasiva + EX)
+  html += '<div style="max-height: 440px; overflow-y: auto; padding-right: 0.4rem; scrollbar-width: thin;">' + abh + '</div></div></div>';
   html += '<div style="display: flex; gap: 1rem; margin-top: 1.5rem; justify-content: center; flex-wrap: wrap;"><button class="btn btn-outline" id="selectBackBtn" style="padding: 0.8rem 2rem;">← Volver</button><button class="btn" id="selectConfirmBtn" style="padding: 0.8rem 2.5rem;">✓ Comenzar con ' + cd.name + '</button></div>';
-  d.innerHTML = html; d.classList.add('show');
+  d.innerHTML = html;
+  d.classList.add('show');
+
+  // ✅ Términos clicables para los 12 usuarios
+  attachAbilityTermListeners(d, cs.id);
+
   document.getElementById('selectBackBtn').addEventListener('click', function(){ hideSelectDetail(); playSound('deselect'); });
   document.getElementById('selectConfirmBtn').addEventListener('click', function(){
     hideTooltip();
@@ -304,11 +323,8 @@ function showSelectDetail(idx) {
     logCombat('🦋 ' + (who ? who + ' empieza' : 'Empiezas') + ' con ' + cs.character.name);
     hideSelectOverlay(); renderCombat();
 
-    // PvP: el flujo lo controla runPvpSetupStep/advancePvpSetup (que ahora
-    // pondrá a cada jugador a elegir → tirar → robar en ese orden).
     if (combatState.pvp && pvpSetupPhase) { advancePvpSetup(); return; }
 
-    // No-PvP: ahora toca lanzar dados.
     combatState.starterChosen = true;
     logCombat('▶️ Ronda 1 · Lanza tus dados');
     rollDiceForSide('player', true);
@@ -2040,9 +2056,12 @@ function showActionConfirmation(actionType, ability, onConfirm) {
       html += '<div class="confirm-dice-picker"><div class="confirm-dice-label"><span>Selecciona dados</span><span class="confirm-dice-count' + (isFull ? ' is-complete' : '') + '">' + sc + ' / ' + totalCost + '</span></div><div class="confirm-dice-pool">' + dh + '</div></div>';
       if (!isComplete) html += '<div class="confirm-valid-msg error">Selecciona ' + (totalCost - sc) + ' dado(s) más</div>';
     }
+    // ✅ Descripción + atributos + términos de la habilidad
+    html += '<div class="confirm-ability-info">' + buildAbilityInfoHTML(active.id, actionType) + '</div>';
     if (preview) html += buildPreviewBodyHTML(preview);
     html += '<div class="confirm-buttons"><button class="confirm-btn confirm-cancel" id="confirmCancelBtn">Cancelar</button><button class="confirm-btn confirm-accept" id="confirmAcceptBtn"' + (!isComplete ? ' disabled' : '') + '>Ejecutar</button></div>';
     content.innerHTML = html;
+    attachAbilityTermListeners(content, active.id);
     var picker = content.querySelector('.confirm-dice-pool');
     if (picker) picker.addEventListener('click', function(e){ var de = e.target.closest('.confirm-die'); if (!de || de.classList.contains('locked')) return; var id = de.dataset.dieId; if (selectedIds[id]) { delete selectedIds[id]; playSound('deselect'); } else { if (Object.keys(selectedIds).length >= totalCost) { playSound('error'); return; } selectedIds[id] = true; playSound('select'); } build(); });
     document.getElementById('confirmCancelBtn').addEventListener('click', function(){ hideConfirmation(); playSound('deselect'); });
