@@ -1,3 +1,21 @@
+/* ═══ Número de daño flotante ═══ */
+function showDamageNumber(who, idx, amount, opts) {
+  opts = opts || {};
+  if (!amount || amount <= 0) return;
+  var sel = '.combat-char-card[data-team="' + who + '"][data-index="' + idx + '"]';
+  var card = document.querySelector(sel);
+  if (!card) return;
+  var rect = card.getBoundingClientRect();
+  var span = document.createElement('div');
+  span.className = 'damage-float' + (opts.piercing ? ' piercing' : '');
+  span.textContent = '−' + amount;
+  span.style.left = (rect.left + rect.width / 2) + 'px';
+  span.style.top  = (rect.top + rect.height * 0.35) + 'px';
+  span.style.setProperty('--dx', (Math.random() * 40 - 20) + 'px');
+  document.body.appendChild(span);
+  setTimeout(function(){ if (span.parentNode) span.remove(); }, 1250);
+}
+
 /* ═══ CRUZ DE MADERA / SANGRE (Orath) ═══ */
 function countCruzMadera(side) {
   if (!side || !side.structures) return 0;
@@ -247,6 +265,11 @@ function dealDamageToChar(targetCs, rawDamage, opts) {
     rawDamage = Math.max(0, rawDamage - 1);
     csSetState(targetCs, 'defensaActiva', false);
     logCombat('💠 Defensa Activa: -1 daño');
+  }
+
+  // ✅ Número flotante con el DAÑO FINAL (tras reducciones, ANTES de escudos)
+  if (rawDamage > 0) {
+    showDamageNumber(sideKey, idx, rawDamage, { piercing: !!opts.piercing });
   }
   // ✅ EX Óliver (Perfeccionamiento Absoluto): dobla el daño FINAL de las definitivas
   if (opts.attackerCs && combatState && combatState._currentActionType === 'ultimate') {
