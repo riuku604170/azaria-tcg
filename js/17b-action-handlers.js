@@ -998,4 +998,54 @@ var ACTION_HANDLERS = {
     }
   },
 
+  // ═══════════════════════════════════════════════════════════════
+  // ✅ VITTORIA
+  // ═══════════════════════════════════════════════════════════════
+
+  vittoriaNormal: function(ctx) {
+    var a = ctx.active, ea = ctx.enemyActive, es = ctx.enemySide, ek = ctx.enemyKey, side = ctx.side, ab = ctx.ability;
+    var dmg = ab.damage || 1;
+    dmg = applyGenericDamageMods(a, dmg);
+    if (a.pendingBuff) ctx.pendingBuffConsumed = true;
+    var ob = getOptimizationBonus(side);
+    if (ob > 0) { dmg += ob; logCombat('🏛️ Optimización: +' + ob); }
+    applyDamageWithMods(ea, dmg, false, ek, es.activeIndex, a);
+    // ✅ Reembolso de dados si el enemigo muere por este ataque
+    if (ea.dead && ctx._preSpentDice && ctx._preSpentDice.length > 0) {
+      ctx._preSpentDice.forEach(function(d){ d.justAdded = false; side.dice.push(d); });
+      logCombat('🎲 Habilidad normal: enemigo derrotado → +' + ctx._preSpentDice.length + ' dado(s) recuperado(s)');
+    }
+  },
+
+  vittoriaAceptacion: function(ctx) {
+    var a = ctx.active, ea = ctx.enemyActive, es = ctx.enemySide, ek = ctx.enemyKey, side = ctx.side, who = ctx.who;
+    if (csHasMark(ea, 'aceptacion')) {
+      // Enemigo marcado → Vittoria cura 2
+      var healed = healChar(a, 2);
+      logCombat('🌿 Aceptación: enemigo marcado → Vittoria +' + healed + ' HP');
+    } else {
+      // Enemigo sin marcar → 1 daño penetrante + marca
+      applyDamageWithMods(ea, 1, true, ek, es.activeIndex, a);
+      logCombat('🌿 Aceptación: 1 daño penetrante a ' + ea.character.name);
+      if (!ea.dead) {
+        triggerMarkOrResonance(ea, 'aceptacion', who, ek, es.activeIndex);
+      }
+    }
+  },
+
+  vistoUltimate: function(ctx) {
+    var a = ctx.active, ea = ctx.enemyActive, side = ctx.side;
+    // Aplicar "visto" a los otros aliados (no a Vittoria)
+    side.characters.forEach(function(c){
+      if (c === a || c.dead) return;
+      csSetState(c, 'visto', true);
+      logCombat('👁️ ' + c.character.name + ' recibe "Visto"');
+    });
+    // Y al enemigo activo en ese momento
+    if (ea && !ea.dead) {
+      csSetState(ea, 'visto', true);
+      logCombat('👁️ ' + ea.character.name + ' recibe "Visto"');
+    }
+  },
+
 };
