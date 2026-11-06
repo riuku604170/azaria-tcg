@@ -144,13 +144,21 @@ function showAbilityTooltip(btn, type) {
   if (!combatState || combatState.phase !== 'playing') return;
   var side = getActiveSide(); if (!side) return;
   var active = side.characters[side.activeIndex]; if (!active) return;
-  var ab = getFullAbilityText(active.id, type); if (!ab) return;
-  var icon = type === 'normal' ? '⚔️' : (type === 'elemental' ? '🔮' : '💥');
-  var name = type === 'normal' ? 'Ataque Normal' : (type === 'elemental' ? 'Habilidad Elemental' : 'Habilidad Definitiva');
-  var html = '<div class="ht-header">' + icon + ' ' + name + '</div><div class="ht-name">' + ab.name + '</div>';
-  if (ab.cost) html += '<div class="ht-cost">' + renderCost(ab.cost) + '</div>';
-  html += '<div class="ht-effect">' + ab.effect + '</div>';
-  hoverTooltip.innerHTML = html; hoverTooltip.classList.add('show'); positionTooltip(hoverTooltip, btn.getBoundingClientRect(), 'left');
+
+  var html = buildAbilityInfoHTML(active.id, type);
+  hoverTooltip.innerHTML = html;
+  hoverTooltip.classList.add('show');
+  cancelHideTooltip();
+
+  // ✅ Si contiene términos clicables, activar modo interactivo
+  if (html.indexOf('clickable-term') !== -1) {
+    hoverTooltip.classList.add('interactive');
+    attachAbilityTermListeners(hoverTooltip, active.id);
+  } else {
+    hoverTooltip.classList.remove('interactive');
+  }
+
+  positionTooltip(hoverTooltip, btn.getBoundingClientRect(), 'left');
 }
 function showCharTooltip(card, cs) {
   if (!cs) return;
@@ -165,10 +173,24 @@ function showCharTooltip(card, cs) {
     var name = ab.type === 'normal' ? 'Ataque Normal' : (ab.type === 'elemental' ? 'Habilidad Elemental' : 'Habilidad Definitiva');
     var brd = ab.type === 'ultimate' ? 'rgba(240,200,96,0.9)' : 'rgba(' + col + ', 0.6)';
     html += '<div class="ht-ab-item" style="border-left-color: ' + brd + ';"><div class="ht-ab-type" style="color: rgb(' + col + ');">' + icon + ' ' + name + '</div><div class="ht-ab-name">' + ab.name + '</div>';
-    if (ab.cost) html += '<div class="ht-cost">' + renderCost(ab.cost) + '</div>';
+
+    // ✅ Coste: preferir ab.cost (personajes no migrados); si no, extraerlo de ab.attributes (migrados)
+    var costToRender = ab.cost;
+    if (!costToRender && ab.attributes && ab.attributes.length) {
+      for (var ai = 0; ai < ab.attributes.length; ai++) {
+        if (/^\s*Coste\s*:/i.test(ab.attributes[ai])) { costToRender = ab.attributes[ai]; break; }
+      }
+    }
+    if (costToRender) {
+      var costHtml = renderCost(costToRender);
+      if (costHtml) html += '<div class="ht-cost">' + costHtml + '</div>';
+    }
+
     html += '</div>';
   });
-  hoverTooltip.innerHTML = html; hoverTooltip.classList.add('show'); positionTooltip(hoverTooltip, card.getBoundingClientRect(), 'above');
+  hoverTooltip.innerHTML = html;
+  hoverTooltip.classList.add('show');
+  positionTooltip(hoverTooltip, card.getBoundingClientRect(), 'above');
 }
 function showEquipmentTooltip(anchor, cs) {
   if (!cs) return;
@@ -212,4 +234,30 @@ function showShieldTooltip(anchor, cs) {
   else cs.shields.forEach(function(sh){ html += '<div class="ht-ab-item" style="border-left-color:#7ac8ff;"><div class="ht-ab-name">🛡️ ' + sh.hp + ' / ' + sh.maxHp + '</div><div class="ht-effect" style="font-size:0.72rem;">Fuente: ' + sh.source + '</div></div>'; });
   hoverTooltip.innerHTML = html; hoverTooltip.classList.add('show'); positionTooltip(hoverTooltip, anchor.getBoundingClientRect(), 'above');
 }
-function hideTooltip(){ if (hoverTooltip) hoverTooltip.classList.remove('show'); }
+/* ═══ Tooltip interactivo: delay al salir + persistencia dentro del tooltip ═══ */
+var _tooltipHideTimer = null;
+
+function cancelHideTooltip() {
+  if (_tooltipHideTimer) { clearTimeout(_tooltipHideTimer); _tooltipHideTimer = null; }
+}
+
+function scheduleHideTooltip(delay) {
+  cancelHideTooltip();
+  _tooltipHideTimer = setTimeout(function(){
+    if (hoverTooltip) hoverTooltip.classList.remove('show');
+    _tooltipHideTimer = null;
+  }, delay || 200);
+}
+
+function hideTooltip() {
+  cancelHideTooltip();
+  if (hoverTooltip) hoverTooltip.classList.remove('show');
+}
+
+/* Listeners del propio tooltip (una sola vez al cargar):
+   - mouseenter → cancela el hide programado
+   - mouseleave → programa el hide (por si el usuario sale fuera y no vuelve al botón) */
+if (hoverTooltip) {
+  hoverTooltip.addEventListener('mouseenter', function(){ cancelHideTooltip(); });
+  hoverTooltip.addEventListener('mouseleave', function(){ scheduleHideTooltip(200); });
+}
