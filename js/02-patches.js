@@ -6,12 +6,14 @@ var PATCHES = [
   version: 'BETA 1.5',
   date: '2026-11-06',
   type: 'minor',
-  title: 'Nuevo personaje y mejoras visuales',
+  title: 'Nuevo personaje, ajustes en combate y mejoras visuales',
   changes: [
     'Añadida Vittoria (Eriks).',
     'Añadidos números flotantes y pop-ups de las habilidades en combate.',
     'Facilitado el acceso a la información de las habilidades durante el combate.',
-    'Mejorado el aspecto de selección de personaje y EX durante el combate.'
+    'Mejorado el aspecto de selección de personaje y EX durante el combate.',
+    'Solucionados problemas con el uso de habilidades',
+    'Establecido límite de escudos y origen de cada uno.'
   ]  
 },
 {
