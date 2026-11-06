@@ -229,10 +229,22 @@ function showStructureTooltip(anchor, st) {
 }
 function showShieldTooltip(anchor, cs) {
   if (!cs) return;
-  var html = '<div class="ht-header">🛡️ Escudos</div><div class="ht-name">' + cs.character.name + '</div>';
-  if (!cs.shields || !cs.shields.length) html += '<div class="ht-effect">Sin escudos.</div>';
-  else cs.shields.forEach(function(sh){ html += '<div class="ht-ab-item" style="border-left-color:#7ac8ff;"><div class="ht-ab-name">🛡️ ' + sh.hp + ' / ' + sh.maxHp + '</div><div class="ht-effect" style="font-size:0.72rem;">Fuente: ' + sh.source + '</div></div>'; });
-  hoverTooltip.innerHTML = html; hoverTooltip.classList.add('show'); positionTooltip(hoverTooltip, anchor.getBoundingClientRect(), 'above');
+  var count = cs.shields ? cs.shields.length : 0;
+  var html = '<div class="ht-header">🛡️ Escudos (' + count + '/3)</div><div class="ht-name">' + cs.character.name + '</div>';
+  if (!cs.shields || !cs.shields.length) {
+    html += '<div class="ht-effect">Sin escudos.</div>';
+  } else {
+    cs.shields.forEach(function(sh){
+      var label = getShieldSourceLabel(sh.source);
+      html += '<div class="ht-ab-item" style="border-left-color:#7ac8ff;"><div class="ht-ab-name">🛡️ ' + sh.hp + ' / ' + sh.maxHp + '</div><div class="ht-effect" style="font-size:0.72rem;">Fuente: ' + label + '</div></div>';
+    });
+    if (cs.shields.length >= 3) {
+      html += '<div class="ht-sub" style="margin-top:0.4rem; font-size:0.7rem; color:var(--accent);">Máximo alcanzado — el siguiente escudo elimina el de menor vida.</div>';
+    }
+  }
+  hoverTooltip.innerHTML = html;
+  hoverTooltip.classList.add('show');
+  positionTooltip(hoverTooltip, anchor.getBoundingClientRect(), 'above');
 }
 /* ═══ Tooltip interactivo: delay al salir + persistencia dentro del tooltip ═══ */
 var _tooltipHideTimer = null;
@@ -244,14 +256,20 @@ function cancelHideTooltip() {
 function scheduleHideTooltip(delay) {
   cancelHideTooltip();
   _tooltipHideTimer = setTimeout(function(){
-    if (hoverTooltip) hoverTooltip.classList.remove('show');
+    if (hoverTooltip) {
+      hoverTooltip.classList.remove('show');
+      hoverTooltip.classList.remove('interactive');
+    }
     _tooltipHideTimer = null;
   }, delay || 200);
 }
 
 function hideTooltip() {
   cancelHideTooltip();
-  if (hoverTooltip) hoverTooltip.classList.remove('show');
+  if (hoverTooltip) {
+    hoverTooltip.classList.remove('show');
+    hoverTooltip.classList.remove('interactive');   // ✅ recupera pointer-events: none
+  }
 }
 
 /* Listeners del propio tooltip (una sola vez al cargar):
