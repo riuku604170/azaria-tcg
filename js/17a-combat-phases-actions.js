@@ -4,7 +4,18 @@
 // pero ya no bloquea la Ilusión.
 function rollDiceForSide(who, first){
   var s = combatState[who];
-  s.dice = rollCombatDice(8);
+  var baseCount = 8;
+  // ✅ Vittoria: pasiva + EX modifican el número de dados
+  var vittoriaCs = s.characters.find(function(c){ return c.id === 'vittoria'; });
+  if (vittoriaCs) {
+    var deadAllies = s.characters.filter(function(c){ return c !== vittoriaCs && c.dead; }).length;
+    var mods = [];
+    if (deadAllies >= 2) { baseCount -= 3; mods.push('-3 (pasiva ambos aliados)'); }
+    else if (deadAllies === 1) { baseCount -= 1; mods.push('-1 (pasiva 1 aliado)'); }
+    if (!vittoriaCs.dead && vittoriaCs.exActive) { baseCount += 1; mods.push('+1 (EX)'); }
+    if (mods.length) logCombat('👑 Vittoria: ' + mods.join(' · ') + ' → ' + Math.max(1, baseCount) + ' dados');
+  }
+  s.dice = rollCombatDice(Math.max(1, baseCount));
   applyIlusion(s, who);
 }
 function applyIlusion(side, who) {
@@ -629,6 +640,46 @@ function predictHeal(ability, active) {
 function predictShieldGain(ability) { if (ability.kind === 'hipotesisSolida') return 2; if (ability.shieldSelf) return ability.shieldSelf; return 0; }
 function getGenericBonuses(attackerCs) { var b = { pendingBuff:0, cardBonus:0, equipBonus:0 }; if (attackerCs.pendingBuff) b.pendingBuff = attackerCs.pendingBuff; if (attackerCs.cardNextAttackBonus) b.cardBonus = attackerCs.cardNextAttackBonus; var eq = getEquipmentAttackBonus(attackerCs); b.equipBonus = eq.bonus; return b; }
 
+/* ═══ Vittoria: modificador de coste por pasiva ═══ */
+function applyVittoriaCostModifier(cs, baseCost, ability) {
+  if (cs.id !== 'vittoria') return baseCost;
+  var sInfo = sideOfChar(cs);
+  if (!sInfo) return baseCost;
+  var deadAllies = sInfo.side.characters.filter(function(c){ return c !== cs && c.dead; }).length;
+  var isUltimate = ability && ability.kind === 'vistoUltimate';
+
+  if (deadAllies >= 2) {
+    // Coste fijo 1 dado del elemento (excepto definitiva)
+    if (isUltimate) return baseCost;
+    var elem = cs.character.element;
+    var newCost = {};
+    newCost[elem] = 1;
+    return newCost;
+  }
+  if (deadAllies === 1) {
+    // -1 dado total (incluye definitiva)
+    var total = sumCost(baseCost);
+    if (total <= 0) return baseCost;
+    var result = {};
+    Object.keys(baseCost).forEach(function(k){ result[k] = baseCost[k]; });
+    var rem = 1;
+    if (result.any && result.any > 0) { result.any -= 1; rem = 0; if (result.any === 0) delete result.any; }
+    if (rem > 0 && result.same && result.same > 0) { result.same -= 1; rem = 0; if (result.same === 0) delete result.same; }
+    if (rem > 0) {
+      var keys = Object.keys(result);
+      for (var i = 0; i < keys.length && rem > 0; i++) {
+        var k = keys[i];
+        if (k === 'any' || k === 'same') continue;
+        result[k] -= 1;
+        rem = 0;
+        if (result[k] <= 0) delete result[k];
+      }
+    }
+    return result;
+  }
+  return baseCost;
+}
+
 function getEffectiveCostFull(active, ability) {
   var base = getEffectiveAbilityCost(active, ability.cost);
   if (active.id === 'manuel' && ability.kind === 'degradacion' && active.manuelStacks > 0) {
@@ -835,7 +886,15 @@ function executeAction(who, actionType, preSpentDice) {
   var effCost = getEffectiveCostFull(active, ability);
   var effEnergyCost = active.cardNextAbilityFree ? 0 : (ability.energyCost || 0);
   if (effEnergyCost && active.energy < effEnergyCost) return;
-  if (!preSpentDice && sumCost(effCost) > 0) { var res = trySpendDice(side.dice, effCost); if (!res.ok) return; side.dice = res.remaining; }
+  var diceSpentThisAction = [];
+  if (!preSpentDice && sumCost(effCost) > 0) {
+    var res = trySpendDice(side.dice, effCost);
+    if (!res.ok) return;
+    diceSpentThisAction = res.spent || [];
+    side.dice = res.remaining;
+  } else if (preSpentDice) {
+    diceSpentThisAction = preSpentDice;
+  }
   if (effEnergyCost > 0) { active.energy -= effEnergyCost; logCombat('⚡ ' + active.character.name + ' gasta ' + effEnergyCost + ' energía'); }
   var label = who === 'player' ? (combatState.pvp ? '🦋 J1' : '🦋 Tú') : (combatState.pvp ? '🦋 J2' : '📖 El rival');
   if (actionType === 'ultimate') { logCombat('💥 ¡' + label + ' desata ' + ability.name + '!'); playSound('ult'); flashUlt(); }
@@ -866,7 +925,8 @@ function executeAction(who, actionType, preSpentDice) {
     actionType: actionType,
     shouldEndTurn: true,
     pendingBuffConsumed: false,
-    hadStacks: false          // ✅ EX Manuel: marca si Degradación resuelve acumulación
+    hadStacks: false,          // ✅ EX Manuel: marca si Degradación resuelve acumulación
+    _preSpentDice: diceSpentThisAction
   };
 
   // ✅ EX Óliver: identifica la acción actual para doblar el daño FINAL de las definitivas
@@ -1295,6 +1355,58 @@ function endRound() {
       logCombat('🌟 EX Abla: ' + c.character.name + ' con Rencor recibe 1 daño');
     });
   });
+
+  // ═══ Vittoria: resolución de "Visto" ═══
+  (function resolveVisto() {
+    var vittoriaSideKey = null, vittoriaCs = null;
+    ['player','bot'].forEach(function(wk){
+      var vc = combatState[wk].characters.find(function(c){ return c.id === 'vittoria'; });
+      if (vc) { vittoriaSideKey = wk; vittoriaCs = vc; }
+    });
+    if (!vittoriaCs) return;
+
+    // Recopilar todos los personajes VIVOS con "visto"
+    var affected = [];
+    ['player','bot'].forEach(function(wk){
+      combatState[wk].characters.forEach(function(c){
+        if (!c.dead && c.states && c.states.visto) affected.push({ cs: c, sideKey: wk });
+      });
+    });
+    if (affected.length === 0) return;
+
+    var teamWiped = combatState[vittoriaSideKey].characters.every(function(c){ return c.dead; });
+    // Si Vittoria murió y su equipo está wipeado (fue la última en morir), no aplica
+    if (vittoriaCs.dead && teamWiped) {
+      affected.forEach(function(a){ csSetState(a.cs, 'visto', false); });
+      logCombat('👁️ Visto: Vittoria fue la última en morir → no se resuelve');
+      return;
+    }
+
+    var totalDmg = vittoriaCs.dead ? 12 : 6;
+    var n = affected.length;
+    var base = Math.floor(totalDmg / n);
+    var remainder = totalDmg % n;
+    logCombat('👁️ Visto: ' + totalDmg + ' daño penetrante repartido entre ' + n + (vittoriaCs.dead ? ' (Vittoria ha muerto)' : ''));
+
+    affected.forEach(function(a, idx){
+      var dmg = base + (idx < remainder ? 1 : 0);
+      if (dmg > 0) {
+        var tSide = combatState[a.sideKey];
+        dealDamageToChar(a.cs, dmg, { piercing: true, targetSide: tSide, targetSideKey: a.sideKey, targetIdx: tSide.characters.indexOf(a.cs) });
+      }
+      csSetState(a.cs, 'visto', false);
+      logCombat('  → ' + a.cs.character.name + ' recibe ' + dmg + ' daño penetrante');
+    });
+
+    // Revivir Vittoria si estaba muerta
+    if (vittoriaCs.dead) {
+      vittoriaCs.dead = false;
+      vittoriaCs.hp = 1;
+      logCombat('👑 Vittoria revive con 1 HP');
+      var vs = combatState[vittoriaSideKey];
+      if (vs.activeIndex === -1 || vs.characters[vs.activeIndex].dead) vs.activeIndex = vs.characters.indexOf(vittoriaCs);
+    }
+  })();
 
   ['player','bot'].forEach(function(wk){ var sd = combatState[wk]; if (sd.hand) sd.hand = sd.hand.filter(function(cid){ return !PAINT_CARDS[cid]; }); });
   var pdead = processDeathsAtRoundEnd('player'), bdead = processDeathsAtRoundEnd('bot');
