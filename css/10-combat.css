@@ -409,27 +409,6 @@
   }
 }
 
-.ccc-active-star {
-  position: absolute;
-  top: -0.5rem;
-  right: -0.5rem;
-  font-size: 1.2rem;
-  filter: drop-shadow(0 0 10px rgba(240, 200, 96, 1));
-  z-index: 10;
-  animation: starPulse 1.5s ease infinite;
-}
-
-@keyframes starPulse {
-  0%, 100% {
-    transform: scale(1);
-    filter: drop-shadow(0 0 10px rgba(240, 200, 96, 0.8));
-  }
-  50% {
-    transform: scale(1.15);
-    filter: drop-shadow(0 0 20px rgba(240, 200, 96, 1));
-  }
-}
-
 .ccc-top {
   display: flex;
   justify-content: space-between;
@@ -1563,15 +1542,15 @@
 .select-detail-inner {
   display: flex;
   gap: 2rem;
-  align-items: flex-start;
+  align-items: stretch;
   flex-wrap: wrap;
   text-align: left;
   justify-content: center;
 }
 
 .select-detail-portrait {
-  width: 220px;
-  aspect-ratio: 5/7;
+  width: 320px;
+  min-height: 440px;
   border-radius: 16px;
   background: linear-gradient(165deg, rgba(var(--el), 0.55) 0%, rgba(var(--el), 0.15) 50%, rgba(10, 6, 20, 0.95) 100%);
   border: 2px solid rgba(var(--el), 0.7);
@@ -2541,4 +2520,27 @@
 @keyframes abilityUltPulseEnemy {
   from { box-shadow: 0 12px 40px rgba(0, 0, 0, 0.85), 0 0 25px rgba(255, 40, 60, 0.5); }
   to   { box-shadow: 0 12px 40px rgba(0, 0, 0, 0.85), 0 0 55px rgba(255, 40, 60, 1); }
+}
+
+/* ═══ Marcador de EX activa en la carta de combate ═══ */
+.ccc-ex-star {
+  position: absolute;
+  top: -0.5rem;
+  left: -0.5rem;
+  font-size: 1.15rem;
+  color: #d4b5ff;
+  filter: drop-shadow(0 0 10px rgba(165, 131, 255, 1)) drop-shadow(0 0 20px rgba(165, 131, 255, 0.6));
+  z-index: 10;
+  animation: exStarPulse 2s ease infinite;
+  pointer-events: none;
+}
+@keyframes exStarPulse {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+    filter: drop-shadow(0 0 10px rgba(165, 131, 255, 0.85)) drop-shadow(0 0 20px rgba(165, 131, 255, 0.45));
+  }
+  50% {
+    transform: scale(1.15) rotate(15deg);
+    filter: drop-shadow(0 0 16px rgba(165, 131, 255, 1)) drop-shadow(0 0 30px rgba(165, 131, 255, 0.8));
+  }
 }
