@@ -101,4 +101,10 @@ var COMBAT_CHARS = {
     ultimate: { name:'Líder de Puño de Hierro', cost:{proteccion:4}, energyCost:2, target:'enemy', kind:'liderPunoHierro' },
     ex: { name:'EX · Lealtad Insaciable', kind:'ex', target:'self' }
   }},
+  vittoria: { name:'Vittoria', element:'aceptacion', emoji:'👑', hp:10, abilities: {
+    normal: { name:'Habilidad normal', cost:{aceptacion:3}, target:'enemy', kind:'vittoriaNormal', damage:1, energy:1 },
+    elemental: { name:'Aceptación', cost:{aceptacion:3}, target:'enemy', kind:'vittoriaAceptacion', energy:1 },
+    ultimate: { name:'DEJA DE MIRARME CON ESOS OJOS', cost:{aceptacion:4}, energyCost:3, target:'self', kind:'vistoUltimate' },
+    ex: { name:'EX · GRACIAS', kind:'ex', target:'self' }
+  }},
 };
