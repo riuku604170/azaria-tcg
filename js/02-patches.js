@@ -9,7 +9,9 @@ var PATCHES = [
   title: 'Nuevo personaje y mejoras visuales',
   changes: [
     'Añadida Vittoria (Eriks).',
-    'Añadidos números flotantes y pop-ups de las habilidades en combate.'
+    'Añadidos números flotantes y pop-ups de las habilidades en combate.',
+    'Facilitado el acceso a la información de las habilidades durante el combate.',
+    'Mejorado el aspecto de selección de personaje y EX durante el combate.'
   ]  
 },
 {
