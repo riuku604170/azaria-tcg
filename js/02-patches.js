@@ -6,9 +6,10 @@ var PATCHES = [
   version: 'BETA 1.5',
   date: '2026-11-06',
   type: 'minor',
-  title: 'Nuevo personaje',
+  title: 'Nuevo personaje y mejoras visuales',
   changes: [
-    'Añadida Vittoria (Eriks).'
+    'Añadida Vittoria (Eriks).',
+    'Añadidos números flotantes y pop-ups de las habilidades en combate.'
   ]  
 },
 {
