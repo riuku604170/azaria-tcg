@@ -76,12 +76,87 @@ function getNextAliveIndex(side, fromIndex) {
   return -1;
 }
 function totalShield(cs){ if (!cs.shields || !cs.shields.length) return 0; return cs.shields.reduce(function(s,sh){ return s + Math.max(0, sh.hp); }, 0); }
+
+/* ═══ Nombres legibles para las fuentes de escudo ═══ */
+var SHIELD_SOURCE_NAMES = {
+  'resonancia': 'Fortaleza (Resonancia)',
+  'consonance_proteccion': 'Consonancia · Protección',
+  'eloy_hipotesis': 'Firewall',
+  'eloy_conclusion': 'Conclusión',
+  'tenshi_ultimate': 'Suficiente',
+  'erik_paint_azul': 'Pintura Azul',
+  'internet_daga': 'Daga de Ola',
+  'nc_interpretacion': 'Interpretación',
+  'orath_minuto': 'Minuto de Silencio',
+  'neon_passive': 'Frecuencia Constante',
+  'google_ex': 'Infraestructura Conectada',
+  'facebook_protocolo': 'Protocolo de Seguridad',
+  'iris_advertencia': 'Advertencia',
+  'iris_definitiva': 'Líder de Puño de Hierro',
+  'cruzSangre': 'Cruz de Sangre',
+  'resurreccion': 'Resurrección'
+};
+
+function getShieldSourceLabel(source) {
+  if (!source) return 'Desconocido';
+  // 1) Lookup directa
+  if (SHIELD_SOURCE_NAMES[source]) return SHIELD_SOURCE_NAMES[source];
+  // 2) "support_XXX" → nombre de la carta de apoyo
+  if (source.indexOf('support_') === 0) {
+    var sid = source.slice(8);
+    var sc = CARD_DB[sid] || (typeof SUPPORT_CARDS !== 'undefined' && SUPPORT_CARDS[sid]);
+    return sc ? sc.name : source;
+  }
+  // 3) "eq_XXX" → nombre de la equipación
+  if (source.indexOf('eq_') === 0) {
+    var eid = source.slice(3);
+    var ec = CARD_DB[eid] || (typeof EQUIPMENT_CARDS !== 'undefined' && EQUIPMENT_CARDS[eid]);
+    return ec ? ec.name : source;
+  }
+  // 4) "card_XXX" → nombre de la carta de evento
+  if (source.indexOf('card_') === 0) {
+    var cid = source.slice(5);
+    var cc = CARD_DB[cid];
+    return cc ? cc.name : source;
+  }
+  // 5) "canon_XXX_uid" → nombre de la carta + prefijo Canon
+  if (source.indexOf('canon_') === 0) {
+    var cardPart = source.slice(6);
+    var keys = Object.keys(CARD_DB).sort(function(a, b){ return b.length - a.length; });
+    for (var i = 0; i < keys.length; i++) {
+      if (cardPart.indexOf(keys[i]) === 0) {
+        return 'Canon: ' + CARD_DB[keys[i]].name;
+      }
+    }
+    return 'Canon';
+  }
+  // Fallback
+  return source;
+}
+
 function addOrRefreshShield(cs, source, amount) {
   if (!cs.shields) cs.shields = [];
+  // 1) ¿Ya existe un escudo con esta fuente? → refrescar
   var ex = null;
   for (var i = 0; i < cs.shields.length; i++) if (cs.shields[i].source === source) { ex = cs.shields[i]; break; }
-  if (ex) { ex.maxHp = Math.max(ex.maxHp, amount); ex.hp = ex.maxHp; }
-  else cs.shields.push({ source:source, hp:amount, maxHp:amount });
+  if (ex) {
+    ex.maxHp = Math.max(ex.maxHp, amount);
+    ex.hp = ex.maxHp;
+    return;
+  }
+  // 2) ¿Ya hay 3 escudos? → eliminar el de menor HP
+  if (cs.shields.length >= 3) {
+    var minIdx = 0;
+    for (var j = 1; j < cs.shields.length; j++) {
+      if (cs.shields[j].hp < cs.shields[minIdx].hp) minIdx = j;
+    }
+    var removed = cs.shields.splice(minIdx, 1)[0];
+    if (typeof logCombat === 'function' && combatState) {
+      logCombat('🛡️ Límite de escudos (3): se elimina "' + getShieldSourceLabel(removed.source) + '" (' + removed.hp + ' HP) por el nuevo escudo');
+    }
+  }
+  // 3) Añadir el nuevo
+  cs.shields.push({ source: source, hp: amount, maxHp: amount });
 }
 function absorbWithShields(cs, amount, piercing) {
   if (piercing) return { absorbed:0, overflow:amount };
