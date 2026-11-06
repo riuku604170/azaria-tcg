@@ -29,6 +29,7 @@ var STATUS_DESCRIPTIONS = {
   advertido: { name:'⚠️ Advertido', text:'Cargas acumuladas sobre un enemigo de Iris. Máximo 3 cargas sin EX, 1 con EX. Cuando el enemigo está al máximo y recibe otra carga, en su lugar se le marca con Protección. Se consumen con el ataque normal de Iris cuando tiene EX activa.' },
   buenRecaudo: { name:'🛡️ Buen Recaudo', text:'Mientras dure, si este aliado es atacado, el daño es redirigido a Iris y el atacante gana 1 carga de Advertido. Se consume tras redirigir 1 ataque o al final de la ronda.' },
   advertenciaActive: { name:'⚔️ Advertencia', text:'Iris ha activado Advertencia: durante el resto de la ronda, los ataques dirigidos al activo de su equipo se redirigen a Iris con +1 de daño y otorgan 1 carga de Advertido al atacante.' },
+  visto: { name:'👁️ Visto', text:'Al final de la ronda, todos los personajes con este efecto se reparten 6 de daño penetrante (a partes iguales) si Vittoria sigue viva, o 12 si ha muerto (reviviendo ella con 1 HP). Si Vittoria es la última en morir, no se aplica. El efecto se pierde tras resolverse.' },
 };
 
 var PHILOSOPHIES = {
