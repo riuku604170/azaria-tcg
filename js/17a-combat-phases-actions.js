@@ -915,78 +915,88 @@ function executeAction(who, actionType, preSpentDice) {
   }
 
   var ctx = {
-    who: who,
-    side: side,
-    active: active,
-    enemyKey: enemyKey,
-    enemySide: enemySide,
-    enemyActive: enemyActive,
-    ability: ability,
-    actionType: actionType,
+    who: who, side: side, active: active,
+    enemyKey: enemyKey, enemySide: enemySide, enemyActive: enemyActive,
+    ability: ability, actionType: actionType,
     shouldEndTurn: true,
     pendingBuffConsumed: false,
-    hadStacks: false,          // ✅ EX Manuel: marca si Degradación resuelve acumulación
+    hadStacks: false,
     _preSpentDice: diceSpentThisAction
   };
 
-  // ✅ EX Óliver: identifica la acción actual para doblar el daño FINAL de las definitivas
-  combatState._currentActionType = actionType;
-  combatState._currentAbilityKind = ability.kind;
-  try {
-    var handler = ACTION_HANDLERS[ability.kind];
-    if (handler) handler(ctx);
-    else logCombat('⚠️ Habilidad sin implementar: ' + ability.name);
-  } finally {
-    combatState._currentActionType = null;
-    combatState._currentAbilityKind = null;
-  }
+  // ✅ Popup con el nombre de la habilidad, antes de ejecutarla
+  var activeIdx = side.activeIndex;
+  showAbilityNamePopup(who, activeIdx, ability.name, actionType);
 
-  // ✅ Meta Quest: cura 1 HP al activo cada vez que usa su ataque normal
-  if (actionType === 'normal' && !active.dead && side.structures) {
-    var metaQ = side.structures.find(function(s){ return s.kind === 'metaQuest'; });
-    if (metaQ) {
-      healChar(active, 1);
-      logCombat('📘 Meta Quest: ' + active.character.name + ' +1 HP (ataque normal)');
-    }
-  }
+  // ✅ Bloquear input mientras se resuelve
+  combatState._resolvingAbility = true;
 
-  if (ability.energy && ability.energy > 0 && !active.dead) {
-    var energyGain = ability.energy;
-    // ✅ EX Manuel (Caos Acelerado): Degradación otorga 2 energía
-    // Base Manuel: si resuelve stacks (post-Decadencia), no genera energía
-    if (active.id === 'manuel' && ability.kind === 'degradacion') {
-      if (active.exActive) {
-        energyGain = 2;
-        logCombat('🌟 EX Manuel: Degradación otorga 2 energía');
-      } else if (ctx.hadStacks) {
-        energyGain = 0;
-        logCombat('📈 Manuel: Degradación resuelve acumulación → 0 energía');
+  setTimeout(function() {
+    try {
+      if (!combatState || combatState.phase === 'ended') return;
+
+      combatState._currentActionType = actionType;
+      combatState._currentAbilityKind = ability.kind;
+      try {
+        var handler = ACTION_HANDLERS[ability.kind];
+        if (handler) handler(ctx);
+        else logCombat('⚠️ Habilidad sin implementar: ' + ability.name);
+      } finally {
+        combatState._currentActionType = null;
+        combatState._currentAbilityKind = null;
       }
-    }
-    // ✅ EX-María no gana energía con sus propias habilidades
-    if (active.id === 'exmaria') {
-      logCombat('🌻 EX-María no gana energía de sus propias habilidades');
-    } else if (energyGain > 0) {
-      var p = active.energy; active.energy = Math.min(active.maxEnergy, active.energy + energyGain);
-      if (active.energy > p) logCombat('⚡ +' + (active.energy - p) + ' energía');
-    }
-  }
-  if (!active.dead) {
-    active.cardNextAbilityDiscount = 0; active.cardNextAbilityFree = false;
-    active.cardNextAttackBonus = 0; active.cardNextAttackPiercing = false; active.cardNextAttackDouble = false;
-    if (!(active.id === 'jose' && ability.kind === 'impulso')) {
-      if (ctx.pendingBuffConsumed || active.id !== 'jose') active.pendingBuff = 0;
-    }
-  }
-  if (active.id === 'jose' && !active.dead) {
-    csSetState(active, 'acelerado', false);
-  }
 
-  renderCombat();
-  if (enemySide.characters.every(function(c){ return c.dead; })) { setTimeout(function(){ endCombat(who); }, 400); return; }
-  if (side.characters.every(function(c){ return c.dead; })) { setTimeout(function(){ endCombat(who === 'player' ? 'bot' : 'player'); }, 400); return; }
-  if (ctx.shouldEndTurn === false) return;
-  setTimeout(nextTurn, 400);
+      // ✅ Meta Quest
+      if (actionType === 'normal' && !active.dead && side.structures) {
+        var metaQ = side.structures.find(function(s){ return s.kind === 'metaQuest'; });
+        if (metaQ) {
+          healChar(active, 1);
+          logCombat('📘 Meta Quest: ' + active.character.name + ' +1 HP (ataque normal)');
+        }
+      }
+
+      // ✅ Ganancia de energía
+      if (ability.energy && ability.energy > 0 && !active.dead) {
+        var energyGain = ability.energy;
+        if (active.id === 'manuel' && ability.kind === 'degradacion') {
+          if (active.exActive) {
+            energyGain = 2;
+            logCombat('🌟 EX Manuel: Degradación otorga 2 energía');
+          } else if (ctx.hadStacks) {
+            energyGain = 0;
+            logCombat('📈 Manuel: Degradación resuelve acumulación → 0 energía');
+          }
+        }
+        if (active.id === 'exmaria') {
+          logCombat('🌻 EX-María no gana energía de sus propias habilidades');
+        } else if (energyGain > 0) {
+          var p = active.energy; active.energy = Math.min(active.maxEnergy, active.energy + energyGain);
+          if (active.energy > p) logCombat('⚡ +' + (active.energy - p) + ' energía');
+        }
+      }
+
+      // ✅ Reset de bonos
+      if (!active.dead) {
+        active.cardNextAbilityDiscount = 0; active.cardNextAbilityFree = false;
+        active.cardNextAttackBonus = 0; active.cardNextAttackPiercing = false; active.cardNextAttackDouble = false;
+        if (!(active.id === 'jose' && ability.kind === 'impulso')) {
+          if (ctx.pendingBuffConsumed || active.id !== 'jose') active.pendingBuff = 0;
+        }
+      }
+      if (active.id === 'jose' && !active.dead) {
+        csSetState(active, 'acelerado', false);
+      }
+
+      renderCombat();
+
+      if (enemySide.characters.every(function(c){ return c.dead; })) { setTimeout(function(){ endCombat(who); }, 400); return; }
+      if (side.characters.every(function(c){ return c.dead; })) { setTimeout(function(){ endCombat(who === 'player' ? 'bot' : 'player'); }, 400); return; }
+      if (ctx.shouldEndTurn === false) return;
+      setTimeout(nextTurn, 400);
+    } finally {
+      if (combatState) combatState._resolvingAbility = false;
+    }
+  }, 700);
 }
 
 function processDeathsAtRoundEnd(who) {
@@ -1535,6 +1545,50 @@ function endCombat(winner) {
   setTimeout(function(){ ov.classList.add('open'); }, 400);
 }
 function flashUlt(){ var c = document.getElementById('combatContent'); if (!c) return; c.classList.add('ult-cast'); setTimeout(function(){ c.classList.remove('ult-cast'); }, 800); }
+
+/* ═══ Popup con el nombre de la habilidad, junto al personaje que la usa ═══ */
+function showAbilityNamePopup(who, idx, name, actionType) {
+  var sel = '.combat-char-card[data-team="' + who + '"][data-index="' + idx + '"]';
+  var card = document.querySelector(sel);
+  if (!card) return;
+  var rect = card.getBoundingClientRect();
+  var isEnemy = (who === 'bot');
+
+  var popup = document.createElement('div');
+  popup.className = 'ability-name-popup';
+  if (isEnemy) popup.classList.add('enemy');
+  if (actionType === 'ultimate') popup.classList.add('ultimate');
+  else if (actionType === 'elemental') popup.classList.add('elemental');
+
+  var icon = actionType === 'normal' ? '⚔️' : (actionType === 'elemental' ? '🔮' : '💥');
+  popup.innerHTML = '<span class="anp-icon">' + icon + '</span><span class="anp-name">' + name + '</span>';
+
+  var preferAbove = rect.top > 120;
+  var left = rect.left + rect.width / 2;
+  var top = preferAbove ? (rect.top - 8) : (rect.bottom + 8);
+
+  popup.style.left = left + 'px';
+  popup.style.top = top + 'px';
+  popup.style.transform = preferAbove
+    ? 'translate(-50%, -100%) scale(0.6)'
+    : 'translate(-50%, 0) scale(0.6)';
+  document.body.appendChild(popup);
+
+  requestAnimationFrame(function() {
+    popup.classList.add('show');
+    popup.style.transform = preferAbove
+      ? 'translate(-50%, -100%) scale(1)'
+      : 'translate(-50%, 0) scale(1)';
+  });
+
+  setTimeout(function() {
+    popup.classList.remove('show');
+    popup.style.transform = preferAbove
+      ? 'translate(-50%, -100%) scale(0.6)'
+      : 'translate(-50%, 0) scale(0.6)';
+    setTimeout(function(){ if (popup.parentNode) popup.remove(); }, 400);
+  }, 1400);
+}
 
 /* ═══ MARÍA / EX-MARÍA: helpers ═══ */
 function getMariaTarget(side, mariaCs) {
