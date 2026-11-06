@@ -90,6 +90,7 @@ function renderTeamCards(who) {
       if (cs.states.advertido > 0) badges.push('<span class="ccc-badge" data-status="advertido" data-value="' + cs.states.advertido + '" style="--bc: 255,140,60;">⚠️ Advertido ' + cs.states.advertido + '</span>');
       if (cs.states.buenRecaudo) badges.push('<span class="ccc-badge" data-status="buenRecaudo" style="--bc: 100,200,255;">🛡️ Buen Recaudo</span>');
       if (cs.id === 'iris' && cs.states.advertenciaActive) badges.push('<span class="ccc-badge" data-status="advertenciaActive" style="--bc: 140,180,230;">⚔️ Advertencia</span>');
+      if (cs.states.visto) badges.push('<span class="ccc-badge" data-status="visto" style="--bc: 130,220,140;">👁️ Visto</span>');
     }
     if (cs.manuelStacks > 0) badges.push('<span class="ccc-badge" data-status="manuelStacks" data-value="' + cs.manuelStacks + '" style="--bc: 200,150,60;">📈 +' + cs.manuelStacks + '</span>');
     if (side.obraMaestraTurns > 0 && isActive) badges.push('<span class="ccc-badge" data-status="obraMaestra" data-value="' + side.obraMaestraTurns + '" style="--bc: 240,200,96;">💥 Obra Maestra (' + side.obraMaestraTurns + ')</span>');
