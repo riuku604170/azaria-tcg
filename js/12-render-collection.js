@@ -415,3 +415,79 @@ document.addEventListener('keydown', function(e){
 });
 window.addEventListener('scroll', hideStatPopup, true);
 window.addEventListener('resize', hideStatPopup);
+
+/* ═══ Helper común: bloque de información de una habilidad ═══
+   Devuelve HTML con:
+     - Header (icono + tipo)
+     - Nombre
+     - Coste (si lo tiene)
+     - Descripción (con términos clicables marcados)
+     - Atributos (si los tiene)
+   Acepta:
+     - charId + type ('normal'|'elemental'|'ultimate') → busca en CHARACTERS
+     - charId + objeto de habilidad (de CHARACTERS o COMBAT_CHARS)
+*/
+function buildAbilityInfoHTML(charId, typeOrAbility) {
+  var menuChar = CHARACTERS[charId];
+  var ab = null;
+
+  if (typeof typeOrAbility === 'string' && menuChar) {
+    ab = menuChar.abilities.find(function(a){ return a.type === typeOrAbility; });
+  } else if (typeOrAbility && typeof typeOrAbility === 'object') {
+    if (typeOrAbility.type && menuChar) {
+      var found = menuChar.abilities.find(function(a){ return a.type === typeOrAbility.type; });
+      if (found) ab = found;
+    }
+    if (!ab) ab = typeOrAbility;
+  }
+
+  if (!ab) return '';
+  ab = normalizeAbility(ab);
+
+  var typeLabel = ABILITY_TYPES[ab.type] || '';
+  var icon = ab.icon || ({ normal:'⚔️', elemental:'🔮', ultimate:'💥', passive:'🛡️', ex:'🌟' }[ab.type] || '⚔️');
+  var terms = (menuChar && menuChar.terms) || [];
+
+  var html = '';
+  html += '<div class="ht-header">' + icon + ' ' + typeLabel + '</div>';
+  html += '<div class="ht-name">' + ab.name + '</div>';
+
+  if (ab.cost) {
+    var costHtml = renderCost(ab.cost);
+    if (costHtml) html += '<div class="ht-cost">' + costHtml + '</div>';
+  }
+
+  if (ab.description) {
+    html += '<div class="ht-effect ability-desc-with-terms">' + renderAbilityDescription(ab.description, terms) + '</div>';
+  } else if (ab.effect) {
+    html += '<div class="ht-effect">' + ab.effect + '</div>';
+  }
+
+  if (ab.attributes && ab.attributes.length) {
+    var list = ab.attributes.map(function(a){ return '<li>' + a + '</li>'; }).join('');
+    html += '<div class="ht-attrs">' +
+      '<div class="ht-attrs-title">📊 Atributos</div>' +
+      '<ul class="ht-attrs-list">' + list + '</ul>' +
+    '</div>';
+  }
+
+  return html;
+}
+
+/* Engancha los listeners de términos clicables dentro de un contenedor
+   que contenga HTML generado por buildAbilityInfoHTML. */
+function attachAbilityTermListeners(container, charId) {
+  if (!container) return;
+  var menuChar = CHARACTERS[charId];
+  var terms = (menuChar && menuChar.terms) || [];
+  if (!terms.length) return;
+  container.querySelectorAll('.clickable-term').forEach(function(span){
+    span.addEventListener('click', function(e){
+      e.stopPropagation();
+      var key = span.dataset.termKey;
+      var term = null;
+      for (var i = 0; i < terms.length; i++) if (terms[i].key === key) { term = terms[i]; break; }
+      if (term) showTermPopup(span, term);
+    });
+  });
+}
