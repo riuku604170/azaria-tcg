@@ -245,6 +245,8 @@ function renderCombat() {
   if (!b) return;
   b.addEventListener('mouseenter', function(){ showAbilityTooltip(b, item.type); });
   b.addEventListener('mouseleave', function(){ scheduleHideTooltip(200); });
+  // ✅ Al pulsar, forzar cierre total del tooltip (no debe interceptar clics del modal)
+  b.addEventListener('click', function(){ hideTooltip(); });
 });
 // ✅ Tooltip de personajes: SOLO para tus propios personajes (playerTeam)
 (function(){
