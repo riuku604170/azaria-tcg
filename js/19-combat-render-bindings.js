@@ -241,12 +241,29 @@ function renderCombat() {
 }
 
 [{ btnId:'normalBtn', type:'normal' }, { btnId:'elementalBtn', type:'elemental' }, { btnId:'ultimateBtn', type:'ultimate' }].forEach(function(item){ var b = document.getElementById(item.btnId); if (!b) return; b.addEventListener('mouseenter', function(){ showAbilityTooltip(b, item.type); }); b.addEventListener('mouseleave', hideTooltip); });
-['playerTeam','botTeam'].forEach(function(teamId){
-  var el = document.getElementById(teamId);
+// ✅ Tooltip de personajes: SOLO para tus propios personajes (playerTeam)
+(function(){
+  var el = document.getElementById('playerTeam');
   if (!el) return;
-  el.addEventListener('mouseover', function(e){ var card = e.target.closest('.combat-char-card'); if (!card || card.classList.contains('dead')) return; if (e.relatedTarget && card.contains(e.relatedTarget)) return; if (!combatState || combatState.phase === 'ended') return; if (e.target.closest('.ccc-badge')) return; var sideKey = card.dataset.team; var idx = parseInt(card.dataset.index, 10); if (idx === combatState[sideKey].activeIndex) return; showCharTooltip(card, combatState[sideKey].characters[idx]); });
-  el.addEventListener('mouseout', function(e){ var card = e.target.closest('.combat-char-card'); if (!card) return; if (e.relatedTarget && card.contains(e.relatedTarget)) return; if (e.target.closest('.ccc-badge')) return; hideTooltip(); });
-});
+  el.addEventListener('mouseover', function(e){
+    var card = e.target.closest('.combat-char-card');
+    if (!card || card.classList.contains('dead')) return;
+    if (e.relatedTarget && card.contains(e.relatedTarget)) return;
+    if (!combatState || combatState.phase === 'ended') return;
+    if (e.target.closest('.ccc-badge')) return;
+    var sideKey = card.dataset.team;
+    var idx = parseInt(card.dataset.index, 10);
+    if (idx === combatState[sideKey].activeIndex) return;
+    showCharTooltip(card, combatState[sideKey].characters[idx]);
+  });
+  el.addEventListener('mouseout', function(e){
+    var card = e.target.closest('.combat-char-card');
+    if (!card) return;
+    if (e.relatedTarget && card.contains(e.relatedTarget)) return;
+    if (e.target.closest('.ccc-badge')) return;
+    hideTooltip();
+  });
+})();
 
 function bindOpenCombat(id, mode) {
   var b = document.getElementById(id);
