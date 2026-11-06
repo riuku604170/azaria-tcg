@@ -92,8 +92,7 @@ function applyCardEffect(card) {
       if (targetRev.id === 'artemis') { logCombat('❌ Artemis no puede ser revivida'); playSound('error'); break; }
       targetRev.dead = false;
       targetRev.hp = Math.min(card.value || 2, targetRev.maxHp);
-      if (!targetRev.shields) targetRev.shields = [];
-      targetRev.shields.push({ source:'resurreccion', hp:1, maxHp:1 });
+      addOrRefreshShield(targetRev, 'resurreccion', 1);
       // Si es Adela y tiene marca, se transforma en Hunger
       if (targetRev.id === 'adela' && hasAnyMark(targetRev)) {
         transformAdelaToHunger(targetRev);
