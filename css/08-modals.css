@@ -387,6 +387,18 @@
   transform: translateY(0) scale(1);
 }
 
+/* ═══ Tooltip de habilidad: modo interactivo (para pulsar términos) ═══ */
+.hover-tooltip.interactive {
+  pointer-events: auto;
+}
+.hover-tooltip.interactive .clickable-term {
+  cursor: pointer;
+}
+.hover-tooltip.interactive .clickable-term:hover {
+  color: var(--accent);
+  text-decoration-color: var(--accent);
+}
+
 .ht-header {
   display: flex;
   align-items: center;
@@ -725,4 +737,92 @@
   left: 0;
   color: rgb(var(--pop));
   font-weight: 900;
+}
+
+/* ═══ Atributos dentro de tooltips/modales de combate ═══ */
+.ht-attrs {
+  margin-top: 0.6rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.ht-attrs-title {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 0.35rem;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.ht-attrs-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.ht-attrs-list li {
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--text);
+  padding-left: 0.85rem;
+  position: relative;
+  font-variant-numeric: tabular-nums;
+}
+.ht-attrs-list li::before {
+  content: '▸';
+  position: absolute;
+  left: 0;
+  color: var(--accent);
+  font-weight: 900;
+  font-size: 0.7rem;
+}
+
+/* ═══ Términos subrayados dentro del tooltip (no clicables) ═══ */
+.ht-effect.ability-desc-with-terms .clickable-term {
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-color: rgba(240, 200, 96, 0.75);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+  cursor: help;
+}
+
+/* ═══ Bloque de información de habilidad dentro del modal de confirmación ═══ */
+.confirm-ability-info {
+  margin: 0.8rem 0;
+  padding: 0.85rem 1rem;
+  background: rgba(0, 0, 0, 0.32);
+  border-radius: 10px;
+  border: 1px solid rgba(240, 200, 96, 0.2);
+}
+.confirm-ability-info .ht-header {
+  margin-bottom: 0.4rem;
+}
+.confirm-ability-info .ht-name {
+  margin-bottom: 0.55rem;
+  font-size: 1.05rem;
+}
+.confirm-ability-info .ht-effect {
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--muted);
+}
+.confirm-ability-info .clickable-term {
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-color: rgba(240, 200, 96, 0.85);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  transition: color 0.2s, text-decoration-color 0.2s;
+}
+.confirm-ability-info .clickable-term:hover {
+  color: var(--accent);
+  text-decoration-color: var(--accent);
 }
