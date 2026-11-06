@@ -3,6 +3,15 @@
 // ═══════════ NOVEDADES (parches) ═══════════
 var PATCHES = [
 {
+  version: 'BETA 1.5',
+  date: '2026-11-06',
+  type: 'minor',
+  title: 'Nuevo personaje',
+  changes: [
+    'Añadida Vittoria (Eriks).'
+  ]  
+},
+{
   version: 'BETA 1.4',
   date: '2026-11-05',
   type: 'mayor',
