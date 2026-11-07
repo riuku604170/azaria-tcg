@@ -8,8 +8,9 @@ var CARD_TAG_COLORS = { 'Ataque':'200,45,60','Curación':'78,194,107','Defensa':
 var CARD_CATEGORY_META = { equipo:{label:'Equipo',icon:'⚔️',color:'200,45,60'}, apoyo:{label:'Apoyo',icon:'📜',color:'130,220,140'}, evento:{label:'Evento',icon:'✨',color:'165,131,255'}, pintura:{label:'Pintura',icon:'🎨',color:'255,130,190'} };
 
 var STATUS_DESCRIPTIONS = {
-  castigada: { name:'🩸 Castigada', text:'Cuando Alaya tiene este efecto, toda curación que reciba se convierte en daño verdadero (penetrante). Cada vez que Alaya recibe curación mientras está Castigada, gana 1 punto de Condena por cada punto de curación transformado en daño verdadero.' },
-  condena: { name:'💀 Condena', text:'Recurso acumulado por Alaya mientras está Castigada y recibe curación. Su habilidad definitiva lo consume íntegramente como daño penetrante al enemigo.' },
+  castigada: { name:'🩸 Castigada', text:'Mientras tenga este efecto, toda curación que reciba se convierte en daño verdadero (penetrante) en lugar de curarla.' },
+  condena: { name:'💀 Condena', text:'Recurso que Alaya acumula al recibir daño verdadero de fuentes que no son enemigas (ella misma, aliados, equipamientos, efectos propios, entorno, etc.). Su habilidad definitiva lo consume íntegramente como daño penetrante.' },
+  martir: { name:'🩸 Mártir Afligida', text:'Pasiva de Alaya: siempre que reciba daño verdadero de una fuente que no sea enemiga, gana 1 punto de Condena por cada punto de HP perdido. Con el efecto Castigada, la curación se convierte en daño verdadero y, por tanto, también genera Condena.' },
   vulnerable: { name:'💔 Vulnerable', text:'Aplica una reducción de daño verdadero. Al recibir daño verdadero, el enemigo causante de dicho daño pasa a considerarse como Amenaza, y se elimina el efecto de Vulnerable.' },
   amenaza: { name:'🚨 Amenaza', text:'Al infligir daño a un enemigo considerado como Vulnerable estando ya marcado como Amenaza, se marca a sí mismo con Protección. La habilidad definitiva de Tenshi (Suficiente) explota esta condición infligiendo daño penetrante extra.' },
   furia: { name:'🔥 Furia', text:'Aumenta el daño infligido con el ataque normal en 1 punto. El estado se elimina al final de la ronda. No es acumulable. Se activa cuando Eevee recibe daño verdadero.' },
