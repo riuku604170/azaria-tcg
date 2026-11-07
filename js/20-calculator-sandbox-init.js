@@ -856,7 +856,8 @@ var initFns = [
   ['setupDamageCalculator', setupDamageCalculator],
   ['renderTemplateSlots', renderTemplateSlots],
   ['initPatches', initPatches],
-  ['initSandbox', initSandbox]
+  ['initSandbox', initSandbox],
+  ['checkTemplateIntegrity', checkTemplateIntegrity]
 ];
 initFns.forEach(function(p){ try { p[1](); } catch (e) { console.error('Init error in ' + p[0] + ':', e); } });
 
@@ -910,6 +911,41 @@ function initSandbox() {
 setTimeout(function(){ var rv = document.querySelectorAll('.reveal'); for (var i = 0; i < rv.length; i++) if (!rv[i].classList.contains('visible')) rv[i].classList.add('visible'); }, 2000);
 
 console.log('Azaria TCG — init completado');
+
+/* ═══ Diagnóstico de almacenamiento (aviso al usuario si el navegador bloquea localStorage) ═══ */
+(function storageHealthCheck(){
+  var issues = [];
+  try {
+    if (typeof window !== 'undefined' && window.location && window.location.protocol === 'file:') {
+      issues.push('file://');
+    }
+    var probe = '__azaria_probe_' + Date.now();
+    localStorage.setItem(probe, '1');
+    var check = localStorage.getItem(probe);
+    localStorage.removeItem(probe);
+    if (check !== '1') issues.push('write-fail');
+  } catch (e) {
+    if (e && (e.name === 'QuotaExceededError' || e.code === 22)) issues.push('quota');
+    else issues.push('storage-blocked');
+  }
+
+  if (issues.length > 0) {
+    console.warn('[Azaria] Problemas de almacenamiento detectados:', issues);
+    setTimeout(function(){
+      if (typeof showTeamMissingToast !== 'function') return;
+      var msg = '⚠️ Tu navegador puede estar borrando los datos guardados. ';
+      if (issues.indexOf('file://') !== -1) {
+        msg += 'Estás abriendo el juego como archivo local. Sírvelo con un servidor (ej: "python -m http.server") para que las plantillas se guarden. ';
+      } else if (issues.indexOf('storage-blocked') !== -1 || issues.indexOf('write-fail') !== -1) {
+        msg += 'Comprueba que no estés en modo incógnito ni con extensiones que bloqueen el almacenamiento. ';
+      } else if (issues.indexOf('quota') !== -1) {
+        msg += 'El almacenamiento está lleno. Borra combates guardados antiguos. ';
+      }
+      msg += 'Usa "📥 Exportar plantillas" para hacer copia de seguridad.';
+      showTeamMissingToast(msg);
+    }, 3000);
+  }
+})();
 
 var canvas = document.getElementById('stars'), ctx = canvas ? canvas.getContext('2d') : null;
 var stars = [], W, H;
