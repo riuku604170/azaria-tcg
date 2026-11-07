@@ -576,6 +576,8 @@ function resumeCombatFromSlot(s) {
   if (typeof combatState.player.mulliganUsed === 'undefined') combatState.player.mulliganUsed = false;
   // ✅ Evitar bloqueo residual si la partida se guardó a mitad de un round-start
   combatState.roundStarting = false;
+  combatState._resolvingAbility = false;
+  combatState.roundEnding = false;
   pendingPvpMode = !!combatState.pvp;
   hideSlotSelectionDialog();
   var m = document.getElementById('combatModal'); m.classList.add('open'); document.body.style.overflow = 'hidden';
