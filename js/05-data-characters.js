@@ -17,7 +17,7 @@ var CHARACTERS = {
         attributes: ['Coste: 1 dado de Redención + 1 dado cualquiera','Daño propio (penetrante): 1'] },
       { type:'elemental', icon:'🔮', name:'Penitencia',
         description:'Elimina todos los efectos sobre sí misma y se aplica el efecto **Castigada**.',
-        attributes: ['Coste: 2 dados de Redención'] },
+        attributes: ['Coste: 3 dados de Redención'] },
       { type:'ultimate', icon:'💥', name:'El Fin del Comienzo',
         description:'Alaya consume todos sus puntos de **Condena** e inflige al enemigo un daño equivalente. Si el enemigo no muere con esta habilidad, Alaya se suicida, marcando con Redención a todos los enemigos.',
         attributes: ['Coste: 3 dados de Redención + 3 puntos de energía','Daño por punto de Condena: 1'] },
@@ -29,7 +29,7 @@ var CHARACTERS = {
         attributes: null }
     ]},
 
-  oliver: { name:'Óliver', element:'comprension', set:'Refinamiento', category:'Usuarios', hp:11, emoji:'🧠', img:'img/oliver.png',
+  oliver: { name:'Óliver', element:'comprension', set:'Refinamiento', category:'Usuarios', hp:10, emoji:'🧠', img:'img/oliver.png',
     concept:'Su función es servir como soporte ofensivo potenciando a sus aliados.',
     terms: [
       { key:'portatil', name:'Portátil', definition:'Estructura de Óliver. Inflige 1 de daño al enemigo al final de la ronda, marcándolo con Comprensión. A partir de la segunda ronda de su duración, los ataques normales y habilidades elementales de los aliados reciben un aumento de daño. Volver a usar la habilidad elemental extiende su tiempo de vida.' }
@@ -62,7 +62,7 @@ var CHARACTERS = {
     abilities: [
       { type:'normal', icon:'⚔️', name:'Trazo Vivo',
         description:'Golpea al enemigo e inflige daño leve, marcando al enemigo con Expresión. Si lleva equipada una carta de Pintura, no marca al enemigo, pero tendrá un efecto adicional dependiendo del color de la pintura: **Pintura Roja** aumenta el daño, **Pintura Azul** otorga un escudo y **Pintura Verde** cura.',
-        attributes: ['Coste: 2 dados de Expresión + 1 dado cualquiera','Daño base: 1','Daño adicional de Pintura Roja: 2','Escudo de Pintura Azul: 1','Curación de Pintura Verde: 2'] },
+        attributes: ['Coste: 1 dado de Expresión + 2 dados cualesquiera','Daño base: 1','Daño adicional de Pintura Roja: 2','Escudo de Pintura Azul: 1','Curación de Pintura Verde: 2'] },
       { type:'elemental', icon:'🔮', name:'Interpretación',
         description:'Se golpea a sí mismo y se inflige daño verdadero leve. Luego genera una carta de **Pintura Roja**, una de **Pintura Azul** y una de **Pintura Verde**.',
         attributes: ['Coste: 3 dados de Expresión','Vida propia perdida: 1','Cartas de pintura generadas: 3'] },
@@ -89,10 +89,10 @@ var CHARACTERS = {
         attributes: ['Coste: 2 dados de Protección + 1 dado cualquiera','Daño base: 2','Daño adicional contra Amenaza: 1'] },
       { type:'elemental', icon:'🔮', name:'Bajo mis Alas',
         description:'El aliado con menos vida pasa a ser considerado como **Vulnerable**.',
-        attributes: ['Coste: 3 dados de Protección','Reducción de daño verdadero: 1'] },
+        attributes: ['Coste: 2 dados de Protección','Reducción de daño verdadero: 1'] },
       { type:'ultimate', icon:'💥', name:'Suficiente',
         description:'Golpea a todos los enemigos considerados como **Amenaza** e inflige daño penetrante moderado. Otorga un escudo al aliado considerado como **Vulnerable**.',
-        attributes: ['Coste: 4 dados de Protección + 3 puntos de energía','Daño penetrante: 3','Escudo otorgado: 3'] },
+        attributes: ['Coste: 3 dados de Protección + 3 puntos de energía','Daño penetrante: 3','Escudo otorgado: 3'] },
       { type:'passive', icon:'🛡️', name:'Último Baluarte',
         description:'Si un aliado que es considerado como **Vulnerable** recibe un ataque mortal, quedará con 1 punto de vida y el personaje activo cambia inmediatamente a Tenshi como acción rápida, pudiendo suceder una vez por aliado. Dicho aliado además no dejará de ser considerado de tal manera, recibirá un escudo de 1 punto de vida, y el enemigo culpable será considerado como **Amenaza**.',
         attributes: null },
@@ -112,10 +112,10 @@ var CHARACTERS = {
         attributes: ['Coste: 1 dado de Comprensión + 2 dados cualesquiera','Daño base: 2'] },
       { type:'elemental', icon:'🔮', name:'Hipótesis Sólida',
         description:'Se otorga a sí mismo el escudo **Firewall**.',
-        attributes: ['Coste: 4 dados de Comprensión','Vida del escudo: 2'] },
+        attributes: ['Coste: 3 dados de Comprensión','Vida del escudo: 2'] },
       { type:'ultimate', icon:'💥', name:'Conclusión',
         description:'Otorga un escudo y energía a todos los aliados, a excepción de sí mismo.',
-        attributes: ['Coste: 3 dados de Comprensión + 3 puntos de energía','Vida del escudo: 1','Aumento de energía: 1'] },
+        attributes: ['Coste: 4 dados de Comprensión + 3 puntos de energía','Vida del escudo: 1','Aumento de energía: 1'] },
       { type:'passive', icon:'🛡️', name:'Sincronía Cognitiva',
         description:'Si un aliado usa su habilidad definitiva, Eloy obtiene 1 punto de energía. Eloy no obtiene puntos de energía con el uso del ataque normal o la habilidad elemental.',
         attributes: null },
@@ -124,7 +124,7 @@ var CHARACTERS = {
         attributes: null }
     ]},
 
-  eevee: { name:'Eevee', element:'proteccion', set:'Instinto', category:'Usuarios', hp:10, emoji:'🦊', img:'img/eevee.png',
+  eevee: { name:'Eevee', element:'proteccion', set:'Instinto', category:'Usuarios', hp:9, emoji:'🦊', img:'img/eevee.png',
     concept:'Se quita relevancia hasta que se meten con ella.',
     terms: [
       { key:'defensaActiva', name:'Defensa Activa', definition:'El daño del próximo golpe que reciba se reduce, y contraataca inmediatamente con un ataque normal. Después, el estado se elimina.' },
@@ -139,7 +139,7 @@ var CHARACTERS = {
         attributes: ['Coste: 4 dados de Protección','Reducción de daño: 1'] },
       { type:'ultimate', icon:'💥', name:'Contraofensiva',
         description:'Golpea al enemigo activo e inflige daño moderado. Si Eevee estaba en estado de **Furia**, aumenta el daño del golpe. Si el enemigo activo es el que activó su estado de **Furia**, el daño aumenta aún más y marca al enemigo con Protección.',
-        attributes: ['Coste: 3 dados de Protección + 2 puntos de energía','Daño base: 3','Daño base en estado de Furia: 5','Daño base contra el enemigo que activó su Furia: 6'] },
+        attributes: ['Coste: 4 dados de Protección + 2 puntos si energía','Daño base: 3','Daño base en estado de Furia: 5','Daño base contra el enemigo que activó su Furia: 6'] },
       { type:'passive', icon:'🛡️', name:'Instinto de Supervivencia',
         description:'Cuando Eevee recibe un golpe que le inflige daño verdadero, entra en estado de **Furia**. No es acumulable.',
         attributes: null },
@@ -148,7 +148,7 @@ var CHARACTERS = {
         attributes: null }
     ]},
 
-  ren: { name:'Ren', element:'ilusion', set:'Distorsión', category:'Usuarios', hp:10, emoji:'🌀', img:'img/ren.png',
+  ren: { name:'Ren', element:'ilusion', set:'Distorsión', category:'Usuarios', hp:9, emoji:'🌀', img:'img/ren.png',
     concept:'Pretende hacer dudar del funcionamiento, mantener la duda y confundir para poseer ventaja, jugando con las reglas.',
     terms: [],
     abilities: [
@@ -169,7 +169,7 @@ var CHARACTERS = {
         attributes: null }
     ]},
 
-  noah: { name:'Noah', element:'proteccion', set:'Resonancia', category:'Usuarios', hp:12, emoji:'⚓', img:'img/noah.png',
+  noah: { name:'Noah', element:'proteccion', set:'Resonancia', category:'Usuarios', hp:8, emoji:'⚓', img:'img/noah.png',
     concept:'Su única función es que sus compañeros estén bien…',
     terms: [
       { key:'sintonia', name:'Sintonía', definition:'La siguiente curación que reciba también la recibirán el resto de aliados en Sintonía. Una vez esto suceda, todos los aliados dejarán de considerarse en Sintonía.' }
@@ -192,7 +192,7 @@ var CHARACTERS = {
         attributes: null }
     ]},
 
-  abla: { name:'Abla', element:'redencion', set:'Venganza', category:'Usuarios', hp:10, emoji:'🗡️', img:'img/abla.png',
+  abla: { name:'Abla', element:'redencion', set:'Venganza', category:'Usuarios', hp:9, emoji:'🗡️', img:'img/abla.png',
     concept:'Su manera de jugar deja clara su sed, no se olvida del daño que recibe y lo hace pagar.',
     terms: [
       { key:'rencor', name:'Rencor', definition:'Acumulación sobre un enemigo. La habilidad definitiva de Abla inflige daño adicional por cada acumulación y las consume al golpear.' }
@@ -206,7 +206,7 @@ var CHARACTERS = {
         attributes: ['Coste: 4 dados de Redención','Daño base: 3','Curación base: 1'] },
       { type:'ultimate', icon:'💥', name:'Retribución Final',
         description:'Golpea a todos los enemigos que posean acumulaciones de **Rencor** e inflige daño moderado, eliminando todas las acumulaciones sobre los enemigos. Cada acumulación de **Rencor** adicional que posea un enemigo aumenta levemente el daño de esta habilidad sobre dicho enemigo.',
-        attributes: ['Coste: 3 dados de Redención + 3 puntos de energía','Daño base: 3','Aumento de daño por acumulación de Rencor adicional: 1'] },
+        attributes: ['Coste: 4 dados de Redención + 3 puntos de energía','Daño base: 3','Aumento de daño por acumulación de Rencor adicional: 1'] },
       { type:'passive', icon:'🛡️', name:'Agravio Eterno',
         description:'Si Abla es revivida, inflige 1 punto de daño a todos los enemigos.',
         attributes: null },
@@ -236,7 +236,7 @@ var CHARACTERS = {
         attributes: null }
     ]},
 
-  jose: { name:'Jose', element:'transformacion', set:'Inercia', category:'Usuarios', hp:10, emoji:'🦋', img:'img/jose.png',
+  jose: { name:'Jose', element:'transformacion', set:'Inercia', category:'Usuarios', hp:9, emoji:'🦋', img:'img/jose.png',
     concept:'Aprovecha el flujo del juego para entrar y salir, usando esa velocidad para mejorar el daño.',
     terms: [
       { key:'acelerado', name:'Acelerado', definition:'Se considera un ataque acelerado todo ataque normal ejecutado como primera acción tras cambiar de personaje a Jose en ese mismo turno.' }
@@ -259,7 +259,7 @@ var CHARACTERS = {
         attributes: null }
     ]},
 
-  josemi: { name:'Josemi', element:'expresion', set:'Cosmogénesis', category:'Usuarios', hp:10, emoji:'🎤', img:'img/josemi.png',
+  josemi: { name:'Josemi', element:'expresion', set:'Cosmogénesis', category:'Usuarios', hp:11, emoji:'🎤', img:'img/josemi.png',
     concept:'Busca crear un mundo ficticio en el combate, manipulando a antojo las cartas de apoyo.',
     terms: [],
     abilities: [
