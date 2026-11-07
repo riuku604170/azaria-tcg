@@ -371,7 +371,12 @@
   <div class="template-section reveal">
     <div class="template-header">
       <h3 class="template-title">📋 Plantillas de Combate</h3>
-      <p class="template-desc">Guarda combinaciones de <strong>equipo + mazo</strong> para empezar combates al instante. Hasta 3 plantillas.</p>
+      <p class="template-desc">Guarda combinaciones de <strong>equipo + mazo</strong> para empezar combates al instante. Hasta 12 plantillas.</p>
+      <div class="template-backup-actions">
+        <button class="btn btn-outline" id="exportTemplatesBtn" type="button" title="Descarga un archivo JSON con todas tus plantillas guardadas">📥 Exportar plantillas</button>
+        <button class="btn btn-outline" id="importTemplatesBtn" type="button" title="Carga un archivo de plantillas exportado previamente">📤 Importar plantillas</button>
+        <input type="file" id="importTemplatesInput" accept=".json,application/json" style="display:none;">
+      </div>
     </div>
     <div class="template-slots" id="templateSlots"></div>
   </div>
