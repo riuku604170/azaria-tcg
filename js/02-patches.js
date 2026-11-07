@@ -3,7 +3,18 @@
 // ═══════════ NOVEDADES (parches) ═══════════
 var PATCHES = [
 {
-  version: 'BETA 1.5',
+  version: 'BETA 1.4',
+  date: '2026-11-07',
+  type: 'minor',
+  title: 'Rebalanceo, bot y mejoras visuales',
+  changes: [
+    'Rebalanceo y arreglos en Alaya.',
+    'Arreglo de las plantillas de combate.',
+    'Mejorado el bot.'
+  ]  
+},
+{
+  version: 'BETA 1.3',
   date: '2026-11-06',
   type: 'minor',
   title: 'Nuevo personaje, ajustes en combate y mejoras visuales',
@@ -17,7 +28,7 @@ var PATCHES = [
   ]  
 },
 {
-  version: 'BETA 1.4',
+  version: 'BETA 1.2',
   date: '2026-11-05',
   type: 'mayor',
   title: 'Nuevo personaje y novedades en los usuarios',
@@ -30,41 +41,18 @@ var PATCHES = [
   ]  
 },
 {
-  version: 'BETA 1.3',
+  version: 'BETA 1.1',
   date: '2026-11-04',
   type: 'minor',
   title: 'Arreglos de flujo, navegación, personajes, Sandbox y mejoras visuales',
   changes: [
+    'Añadidos NC (Eriks), Google (BTC) y Facebook (BTC).',
+    'Rebalanceo y arreglos de Neón, María y NC.',
     'Arreglados todos los personajes de la categoría BTC (Internet, Google, Facebook).',
     'Flujo de combate más cómodo y sencillo de entender.',
     'Añadidos visuales a los efectos de algunas acciones pasivas.',
     'Mejorada la comodidad de navegación en el menú.',
     'EX ahora posibles en el modo Sandbox.'
-  ]
-},
-{
-  version: 'BETA 1.2',
-  date: '2026-11-04',
-  type: 'minor',
-  title: 'Nuevo Personaje',
-  changes: [ 'Añadido Facebook (BTC).' ]
-},
-{
-  version: 'BETA 1.1',
-  date: '2026-11-04',
-  type: 'minor',
-  title: 'Arreglos menores',
-  changes: [ 'Arreglos en NC, Google y Neón.' ]
-},
-{
-  version: 'BETA 1',
-  date: '2026-11-04',
-  type: 'minor',
-  title: 'Arreglos y Nuevos Personajes',
-  changes: [
-    'Rebalanceo de Neón y María.',
-    'Arreglos en María.',
-    'Añadidos NC (Eriks) y Google (BTC).'
   ]
 },
 ];
