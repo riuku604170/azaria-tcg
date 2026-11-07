@@ -6,11 +6,12 @@ var PATCHES = [
   version: 'BETA 1.4',
   date: '2026-11-07',
   type: 'minor',
-  title: 'Rebalanceo, bot y mejoras visuales',
+  title: 'Rebalanceo, bot, arreglos y mejoras visuales',
   changes: [
     'Rebalanceo y arreglos en Alaya.',
     'Arreglo de las plantillas de combate.',
-    'Mejorado el bot.'
+    'Mejorado el bot.',
+    'Arreglo en las habilidades de VIttoria.'
   ]  
 },
 {
