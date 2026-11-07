@@ -331,8 +331,20 @@ function dealDamageToChar(targetCs, rawDamage, opts) {
         return 0;
       }
     }
+    var hpBeforeAlaya = targetCs.hp;
     targetCs.hp = Math.max(0, targetCs.hp - res.overflow);
+    var trueHpLost = hpBeforeAlaya - targetCs.hp;
     logCombat('💥 Daño verdadero: ' + res.overflow + ' · HP: ' + targetCs.hp + '/' + targetCs.maxHp);
+
+    // ✅ Pasiva Mártir Afligida: daño verdadero no-enemigo → condena
+    if (targetCs.id === 'alaya' && targetCs.hp > 0 && trueHpLost > 0) {
+      var fromEnemy = opts.attackerCs && isEnemyOf(targetCs, opts.attackerCs);
+      if (!fromEnemy) {
+        targetCs.states.condena = (targetCs.states.condena || 0) + trueHpLost;
+        logCombat('🩸 Mártir Afligida: Alaya gana ' + trueHpLost + ' condena (daño no-enemigo) · Total: ' + targetCs.states.condena);
+      }
+    }
+
     // ✅ NC: +1 energía cada vez que recibe daño verdadero
     if (targetCs.id === 'nc' && !targetCs.dead) {
       var beforeEn = targetCs.energy;
@@ -433,10 +445,8 @@ function healChar(cs, amount, opts) {
     var sideKey = (combatState.player.characters.indexOf(cs) >= 0) ? 'player' : 'bot';
     var side = combatState[sideKey];
     var idx = side.characters.indexOf(cs);
-    // 1 punto de condena por cada punto de curación convertido
-    var condenaGain = amount;
-    cs.states.condena = (cs.states.condena || 0) + condenaGain;
-    logCombat('💀 Alaya gana ' + condenaGain + ' condena (total: ' + cs.states.condena + ')');
+    // ✅ El daño va sin attackerCs (no proviene de un enemigo)
+    // → la lógica en dealDamageToChar le otorgará condena automáticamente.
     dealDamageToChar(cs, amount, { piercing:true, targetSide:side, targetSideKey:sideKey, targetIdx:idx });
     return -amount;
   }
