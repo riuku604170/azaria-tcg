@@ -237,6 +237,13 @@ function sideOfChar(cs) {
   if (combatState.bot.characters.indexOf(cs) >= 0) return { key:'bot', side:combatState.bot };
   return null;
 }
+/* ═══ ¿Son enemigos entre sí? ═══ */
+function isEnemyOf(cs, other) {
+  if (!cs || !other) return false;
+  var a = sideOfChar(cs), b = sideOfChar(other);
+  if (!a || !b) return false;
+  return a.key !== b.key;
+}
 function getEnemyActiveOf(whoKey) {
   var ek = whoKey === 'player' ? 'bot' : 'player';
   var es = combatState[ek];
