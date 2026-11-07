@@ -7,12 +7,13 @@ var CHARACTERS = {
   alaya: { name:'Alaya', element:'redencion', set:'Reminiscencia', category:'Usuarios', hp:10, emoji:'🌹', img:'img/alaya.png',
     concept:'Representa el beneficio del sacrificio y del dolor, basándose en recibir daño.',
     terms: [
-      { key:'castigada', name:'Castigada', definition:'Cuando Alaya tiene este efecto, toda curación que reciba se convierte en daño verdadero (penetrante). Cada vez que Alaya recibe curación mientras está Castigada, gana 1 punto de Condena por cada punto de curación transformado en daño verdadero.' },
-      { key:'condena', name:'Condena', definition:'Recurso que Alaya acumula mientras está Castigada y recibe curación. Su habilidad definitiva lo consume íntegramente como daño penetrante contra el enemigo.' }
+      { key:'castigada', name:'Castigada', definition:'Mientras tenga este efecto, toda curación que reciba se convierte en daño verdadero (penetrante) en lugar de curarla.' },
+      { key:'condena', name:'Condena', definition:'Recurso que Alaya acumula al recibir daño verdadero de fuentes que no son enemigas. Su habilidad definitiva lo consume íntegramente como daño penetrante.' },
+      { key:'martir', name:'Mártir Afligida', definition:'Siempre que Alaya reciba daño verdadero de una fuente que no sea enemiga, gana 1 punto de Condena por cada punto de HP perdido. Con el efecto Castigada, la curación se convierte en daño verdadero y, por tanto, también genera Condena.' }
     ],
     abilities: [
       { type:'normal', icon:'⚔️', name:'Autolesión',
-        description:'Se golpea a sí misma y se inflige daño verdadero leve.',
+        description:'Se golpea a sí misma y se inflige daño verdadero leve. Como el daño proviene de sí misma, activa su pasiva **Mártir Afligida** y acumula **Condena**.',
         attributes: ['Coste: 1 dado de Redención + 1 dado cualquiera','Daño propio (penetrante): 1'] },
       { type:'elemental', icon:'🔮', name:'Penitencia',
         description:'Elimina todos los efectos sobre sí misma y se aplica el efecto **Castigada**.',
@@ -21,7 +22,7 @@ var CHARACTERS = {
         description:'Alaya consume todos sus puntos de **Condena** e inflige al enemigo un daño equivalente. Si el enemigo no muere con esta habilidad, Alaya se suicida, marcando con Redención a todos los enemigos.',
         attributes: ['Coste: 3 dados de Redención + 3 puntos de energía','Daño por punto de Condena: 1'] },
       { type:'passive', icon:'🛡️', name:'Mártir Afligida',
-        description:'Cuando Alaya tiene el efecto **Castigada**, toda curación que recibe se convierte en daño verdadero (penetrante). Cada vez que Alaya recibe curación mientras tiene el efecto **Castigada**, recibe 1 punto de **Condena** por cada punto de curación transformado en daño verdadero.',
+        description:'Siempre que Alaya recibe daño verdadero de una fuente que no sea enemiga (ella misma, aliados, equipamientos, efectos propios, entorno, etc.), gana 1 punto de **Condena** por cada punto de daño verdadero recibido. Con el efecto **Castigada**, la curación se convierte en daño verdadero y, por tanto, también genera **Condena**.',
         attributes: null },
       { type:'ex', icon:'🌟', name:'EX · Resurrección Afligida',
         description:'Si Alaya muere por su propia habilidad definitiva y en la mano del usuario hay una carta para revivir a un personaje, dicha carta y todos los dados en la mano del usuario se consumen para revivir a Alaya inmediatamente y repetir el golpe de la habilidad definitiva, volviendo a marcar con Redención a todos los enemigos. Tras ello, se suicida de nuevo, independientemente de si el enemigo es derrotado o no.',
