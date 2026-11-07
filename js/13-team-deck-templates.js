@@ -1,6 +1,16 @@
 var team = [];
 try { var stored = localStorage.getItem('azaria_team'); if (stored) { var parsed = JSON.parse(stored); if (Array.isArray(parsed)) team = parsed.filter(function(id){ return CHARACTERS[id]; }).slice(0, 3); } } catch (err) { team = []; }
-function saveTeam(){ try { localStorage.setItem('azaria_team', JSON.stringify(team)); } catch (err) {} }
+function saveTeam(){
+  try {
+    localStorage.setItem('azaria_team', JSON.stringify(team));
+    var check = localStorage.getItem('azaria_team');
+    if (!check) { console.warn('[saveTeam] setItem no persistió'); return false; }
+    return true;
+  } catch (err) {
+    console.error('[saveTeam] Error:', err);
+    return false;
+  }
+}
 function toggleTeam(id) {
   if (!CHARACTERS[id]) return;
   if (!COMBAT_CHARS[id]) return;
@@ -85,7 +95,17 @@ var searchEl = document.getElementById('charSearch'); if (searchEl) searchEl.add
 
 var deck = [];
 try { var storedDeck = localStorage.getItem('azaria_deck'); if (storedDeck) { var parsedDeck = JSON.parse(storedDeck); if (Array.isArray(parsedDeck)) { var cnts = {}; deck = parsedDeck.filter(function(id){ if (!CARD_DB[id]) return false; cnts[id] = (cnts[id]||0) + 1; return cnts[id] <= 2; }).slice(0, 30); } } } catch (err) { deck = []; }
-function saveDeck(){ try { localStorage.setItem('azaria_deck', JSON.stringify(deck)); } catch (err) {} }
+function saveDeck(){
+  try {
+    localStorage.setItem('azaria_deck', JSON.stringify(deck));
+    var check = localStorage.getItem('azaria_deck');
+    if (!check) { console.warn('[saveDeck] setItem no persistió'); return false; }
+    return true;
+  } catch (err) {
+    console.error('[saveDeck] Error:', err);
+    return false;
+  }
+}
 function deckCardCount(id){ return deck.filter(function(c){ return c === id; }).length; }
 function addDeckCard(id) { if (!CARD_DB[id]) return; initAudio(); if (deck.length >= 30 || deckCardCount(id) >= 2) { playSound('error'); return; } deck.push(id); playSound('select'); saveDeck(); renderDeckGrid(); }
 function removeDeckCard(id) { if (!CARD_DB[id]) return; initAudio(); var i = deck.indexOf(id); if (i < 0) return; deck.splice(i, 1); playSound('deselect'); saveDeck(); renderDeckGrid(); }
@@ -155,7 +175,22 @@ var deckClearBtn = document.getElementById('deckClearBtn'); if (deckClearBtn) de
 var TEMPLATE_SLOT_COUNT = 12;
 function getTemplateSlotKey(s){ return 'azaria_template_' + s; }
 function getTemplate(s){ try { var st = localStorage.getItem(getTemplateSlotKey(s)); if (!st) return null; var p = JSON.parse(st); if (!p || !Array.isArray(p.team) || !Array.isArray(p.deck)) return null; return p; } catch (e) { return null; } }
-function saveTemplate(s, t, d, name){ try { localStorage.setItem(getTemplateSlotKey(s), JSON.stringify({ team:t, deck:d, name:name || ('Ranura ' + (s + 1)), savedAt:Date.now() })); } catch (e) {} }
+function saveTemplate(s, t, d, name) {
+  var payload = { team: t, deck: d, name: name || ('Ranura ' + (s + 1)), savedAt: Date.now() };
+  try {
+    localStorage.setItem(getTemplateSlotKey(s), JSON.stringify(payload));
+    var check = localStorage.getItem(getTemplateSlotKey(s));
+    if (!check) {
+      console.error('[saveTemplate] setItem pareció funcionar pero getItem devuelve null');
+      return { ok: false, reason: 'no-persist' };
+    }
+    return { ok: true };
+  } catch (e) {
+    console.error('[saveTemplate] Error al guardar:', e);
+    if (e && (e.name === 'QuotaExceededError' || e.code === 22)) return { ok: false, reason: 'quota', error: e };
+    return { ok: false, reason: 'exception', error: e };
+  }
+}
 function clearTemplate(s){ try { localStorage.removeItem(getTemplateSlotKey(s)); } catch (e) {} }
 function renderTemplateSlots() {
   var c = document.getElementById('templateSlots'); if (!c) return;
@@ -180,8 +215,14 @@ function renderTemplateSlots() {
     var inputName = prompt('Nombre de la plantilla:', defaultName);
     if (inputName === null) return;
     if (existing) { if (!confirm('¿Sobrescribir la plantilla "' + defaultName + '"?')) return; }
-    saveTemplate(s, team.slice(), deck.slice(), (inputName || '').trim() || defaultName);
-    renderTemplateSlots(); playSound('confirm');
+    var saveResult = saveTemplate(s, team.slice(), deck.slice(), (inputName || '').trim() || defaultName);
+    if (saveResult.ok) {
+      renderTemplateSlots();
+      playSound('confirm');
+    } else {
+      showTeamMissingToast('⚠️ Error al guardar la plantilla (<strong>' + saveResult.reason + '</strong>). Puede que el navegador esté bloqueando el almacenamiento.');
+      playSound('error');
+    }
   }); });
   c.querySelectorAll('.template-load-btn').forEach(function(btn){ btn.addEventListener('click', function(){
     var s = parseInt(btn.dataset.slot, 10);
@@ -385,4 +426,95 @@ function showTemplatePickerForCombat(playerLabel, onSelect) {
       }
     });
   });
+}
+
+/* ═══ Export / Import de plantillas ═══ */
+function exportTemplates() {
+  var data = { app: 'azaria-tcg', version: 1, exportedAt: new Date().toISOString(), templates: [] };
+  for (var i = 0; i < TEMPLATE_SLOT_COUNT; i++) {
+    var t = getTemplate(i);
+    if (t) data.templates.push({ slot: i, team: t.team, deck: t.deck, name: t.name, savedAt: t.savedAt });
+  }
+  if (data.templates.length === 0) {
+    showTeamMissingToast('⚠️ No hay plantillas que exportar.');
+    playSound('error');
+    return;
+  }
+  var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'azaria-plantillas-' + new Date().toISOString().slice(0, 10) + '.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+  showTeamMissingToast('✅ ' + data.templates.length + ' plantilla(s) exportada(s).');
+  playSound('confirm');
+}
+function importTemplatesFromFile(file) {
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function() {
+    try {
+      var data = JSON.parse(reader.result);
+      if (!data || !Array.isArray(data.templates)) throw new Error('El archivo no tiene el formato esperado.');
+      var imported = 0, failed = 0;
+      data.templates.forEach(function(tpl) {
+        if (typeof tpl.slot !== 'number' || tpl.slot < 0 || tpl.slot >= TEMPLATE_SLOT_COUNT) { failed++; return; }
+        if (!Array.isArray(tpl.team) || !Array.isArray(tpl.deck)) { failed++; return; }
+        var r = saveTemplate(tpl.slot, tpl.team, tpl.deck, tpl.name);
+        if (r.ok) imported++; else failed++;
+      });
+      renderTemplateSlots();
+      if (imported > 0) {
+        showTeamMissingToast('✅ ' + imported + ' plantilla(s) importada(s)' + (failed > 0 ? ' · ⚠️ ' + failed + ' con errores' : '') + '.');
+        playSound('confirm');
+      } else {
+        showTeamMissingToast('⚠️ No se pudo importar ninguna plantilla.');
+        playSound('error');
+      }
+    } catch (e) {
+      console.error('[importTemplates] Error:', e);
+      showTeamMissingToast('⚠️ Error al leer el archivo: ' + e.message);
+      playSound('error');
+    }
+  };
+  reader.onerror = function() {
+    showTeamMissingToast('⚠️ Error al leer el archivo.');
+    playSound('error');
+  };
+  reader.readAsText(file);
+}
+(function wireBackupButtons(){
+  var expBtn = document.getElementById('exportTemplatesBtn');
+  if (expBtn) expBtn.addEventListener('click', exportTemplates);
+  var impBtn = document.getElementById('importTemplatesBtn');
+  var impInput = document.getElementById('importTemplatesInput');
+  if (impBtn && impInput) {
+    impBtn.addEventListener('click', function(){ impInput.value = ''; impInput.click(); });
+    impInput.addEventListener('change', function(){ if (impInput.files && impInput.files[0]) importTemplatesFromFile(impInput.files[0]); });
+  }
+})();
+
+/* ═══ Detección de plantillas con IDs rotos (por si cambiaron nombres/IDs) ═══ */
+function checkTemplateIntegrity() {
+  var broken = [];
+  for (var i = 0; i < TEMPLATE_SLOT_COUNT; i++) {
+    var t = getTemplate(i);
+    if (!t) continue;
+    var missingChars = (t.team || []).filter(function(id){
+      return !CHARACTERS[id] && id !== 'hunger' && id !== 'exmaria';
+    });
+    var missingCards = (t.deck || []).filter(function(id){
+      return !CARD_DB[id] && !PAINT_CARDS[id];
+    });
+    if (missingChars.length > 0 || missingCards.length > 0) {
+      broken.push({ slot: i, name: t.name, missingChars: missingChars, missingCards: missingCards });
+    }
+  }
+  if (broken.length > 0) {
+    console.warn('[Azaria] Plantillas con IDs que ya no existen en el juego:', broken);
+  }
+  return broken;
 }
