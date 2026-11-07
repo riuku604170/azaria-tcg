@@ -165,6 +165,8 @@ function playCardRequest(cardId) {
 function finalizeCardPlay(cardId) {
   var card = CARD_DB[cardId] || PAINT_CARDS[cardId]; if (!card) return;
   var player = getActiveSide(); if (!player) return;
+  // ✅ Popup del nombre de la carta que se acaba de jugar
+  showCardNamePopup(getTurnKey(), player.activeIndex, card);
   // ✅ Facebook: consumir el descuento de carta
   var actDisc = player.characters[player.activeIndex];
   if (actDisc && actDisc.nextCardDiscount > 0) {
