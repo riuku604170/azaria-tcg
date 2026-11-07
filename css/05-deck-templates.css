@@ -431,3 +431,15 @@
   z-index: 2;
   position: relative;
 }
+
+.template-backup-actions {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 0.8rem;
+}
+.template-backup-actions .btn {
+  padding: 0.55rem 1.2rem;
+  font-size: 0.82rem;
+}
