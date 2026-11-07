@@ -107,10 +107,10 @@ var ACTION_HANDLERS = {
 
   autolesion: function(ctx) {
     var a = ctx.active, side = ctx.side, who = ctx.who, ab = ctx.ability;
-    a.hp = Math.max(0, a.hp - (ab.selfDamage || 1));
-    logCombat('🩸 ' + a.character.name + ' se autolesiona ' + (ab.selfDamage || 1));
-    if (a.hp <= 0) { handleDeath(who, side.activeIndex); }
-    else if (a.id === 'alaya' && csHasState(a, 'castigada')) { a.states.condena = (a.states.condena || 0) + 1; logCombat('💀 Alaya gana 1 condena · Total: ' + a.states.condena); }
+    var selfDmg = ab.selfDamage || 1;
+    logCombat('🩸 ' + a.character.name + ' se autolesiona ' + selfDmg);
+    // ✅ Sin attackerCs → cuenta como fuente no-enemiga (activa Mártir Afligida de Alaya)
+    dealDamageToChar(a, selfDmg, { targetSide: side, targetSideKey: who, targetIdx: side.activeIndex });
     playSound('impact');
   },
 
