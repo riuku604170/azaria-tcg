@@ -1066,9 +1066,338 @@ function tryChangeCharacter(who, targetIndex) {
   return rules.quick ? 'quick' : true;
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   BOT AI v2 — Cerebro con scoring, cartas, cambios y burbuja "pensando"
+   ═══════════════════════════════════════════════════════════════════ */
+
+var BOT_PERSONALITY = {
+  proteccion:     { offense: 0.85, defense: 1.4, healing: 1.3, switching: 0.9 },
+  comprension:    { offense: 1.0,  defense: 1.05, healing: 1.2, switching: 1.1 },
+  expresion:      { offense: 1.15, defense: 0.9, healing: 1.0, switching: 1.1 },
+  transformacion: { offense: 1.05, defense: 0.85, healing: 0.9, switching: 1.7 },
+  aceptacion:     { offense: 1.0,  defense: 1.1, healing: 1.25, switching: 1.0 },
+  redencion:      { offense: 1.5,  defense: 0.75, healing: 0.9, switching: 1.0 },
+  ilusion:        { offense: 1.1,  defense: 1.0, healing: 0.9, switching: 1.2 }
+};
+var BOT_THINK_MIN_MS = 700;
+var BOT_THINK_MAX_MS = 1600;
+var BOT_MAX_CARDS_PER_TURN = 2;
+
+function canBotAct() {
+  if (!combatState) return false;
+  if (combatState.pvp) return false;
+  if (combatState.phase !== 'playing') return false;
+  if (combatState.botDone) return false;
+  if (combatState.turn !== 'bot') return false;
+  if (combatState.roundStarting) return false;
+  if (combatState._resolvingAbility) return false;
+  return true;
+}
+
+/* ─── Burbuja "pensando" ─── */
+function clearBotThinkBubble() {
+  var b = document.getElementById('botThinkBubble');
+  if (b) b.remove();
+}
+function showBotThinkBubble(html) {
+  clearBotThinkBubble();
+  if (!combatState || !combatState.bot) return;
+  var card = document.querySelector('.combat-char-card[data-team="bot"][data-index="' + combatState.bot.activeIndex + '"]');
+  if (!card) return;
+  var bubble = document.createElement('div');
+  bubble.className = 'bot-think-bubble';
+  bubble.id = 'botThinkBubble';
+  bubble.innerHTML = html;
+  card.appendChild(bubble);
+}
+function updateBotThinkBubble(html) {
+  var b = document.getElementById('botThinkBubble');
+  if (b) b.innerHTML = html;
+  else showBotThinkBubble(html);
+}
+
+/* ─── Mood / adaptación de ronda ─── */
+function updateBotMood() {
+  if (!combatState) return;
+  var bot = combatState.bot, player = combatState.player;
+  var botHp = bot.characters.filter(function(c){ return !c.dead; }).reduce(function(a,c){ return a + c.hp; }, 0);
+  var playerHp = player.characters.filter(function(c){ return !c.dead; }).reduce(function(a,c){ return a + c.hp; }, 0);
+  var botMaxHp = bot.characters.reduce(function(a,c){ return a + c.maxHp; }, 0);
+  var playerMaxHp = player.characters.reduce(function(a,c){ return a + c.maxHp; }, 0);
+  if (botMaxHp === 0 || playerMaxHp === 0) return;
+  var diff = (botHp / botMaxHp) - (playerHp / playerMaxHp);
+  var prev = combatState.botMood || 'neutral';
+  if (diff > 0.15) combatState.botMood = 'aggressive';
+  else if (diff < -0.15) combatState.botMood = 'defensive';
+  else combatState.botMood = 'neutral';
+  if (prev !== combatState.botMood && combatState.botMood !== 'neutral') {
+    var emoji = combatState.botMood === 'aggressive' ? '⚔️' : '🛡️';
+    logCombat(emoji + ' El rival cambia de actitud: ' + (combatState.botMood === 'aggressive' ? 'AGRESIVO' : 'DEFENSIVO'));
+  }
+}
+
+/* ─── Estimaciones ─── */
+function botEstimateEffectiveDamage(active, ability, actionType) {
+  var baseDmg = computeBaseDamageForAbility(active, ability, actionType);
+  if (baseDmg <= 0) return { damage: 0, trueDmg: 0, piercing: false, kill: false };
+  var enemyActive = combatState.player.characters[combatState.player.activeIndex];
+  if (!enemyActive) {
+    enemyActive = combatState.player.characters.find(function(c){ return !c.dead; });
+    if (!enemyActive) return { damage: 0, trueDmg: 0, piercing: false, kill: false };
+  }
+  var piercing = predictPiercing(active, ability);
+  var est = baseDmg;
+  if (active.pendingBuff) est += active.pendingBuff;
+  if (active.cardNextAttackBonus) est += active.cardNextAttackBonus;
+  var eq = getEquipmentAttackBonus(active);
+  est += eq.bonus;
+  if (eq.piercing) piercing = true;
+  est += getSupportAttackBonus(combatState.bot);
+  if (actionType === 'normal' || actionType === 'elemental') est += getOptimizationBonus(combatState.bot);
+  if (active.id === 'erik') est += applyErikPassive(active);
+  if (actionType === 'ultimate') est = applyObraMaestraToBase(active, ability, actionType, est);
+  est = Math.max(0, est - getDamageReduction(enemyActive, combatState.player));
+  if (csHasState(enemyActive, 'vulnerable') && est > 0) est -= 1;
+  var shield = totalShield(enemyActive);
+  var trueDmg = piercing ? est : Math.max(0, est - shield);
+  return { damage: est, trueDmg: trueDmg, piercing: piercing, kill: trueDmg >= enemyActive.hp };
+}
+
+function botScoreStateValue(ability, active, enemyActive) {
+  var v = 0;
+  switch (ability.kind) {
+    case 'penitencia': v = (active.states && active.states.castigada) ? 2 : 8; break;
+    case 'bajoAlas': v = 6; break;
+    case 'hipotesisSolida': v = 7; break;
+    case 'defensaActiva': v = 6; break;
+    case 'optimizacion': {
+      var hasPort = combatState.bot.structures && combatState.bot.structures.some(function(s){ return s.kind === 'optimizacion'; });
+      v = hasPort ? 3 : 10;
+      break;
+    }
+    case 'obraMaestra': v = 12; break;
+    case 'decadencia': v = (active.manuelStacks || 0) >= 2 ? 1 : 6; break;
+    case 'impulso': v = 5; break;
+    case 'ecoVital': v = 7; break;
+    case 'armonia': v = 6; break;
+    case 'conclusion': v = 8; break;
+    case 'carrerilla': v = 5; break;
+    case 'conversionPsicologica': v = 6; break;
+    case 'omnesDeam': v = 9; break;
+    case 'reescritura': v = 4; break;
+    case 'canon': v = 6; break;
+    case 'remix': {
+      var hasMesa = combatState.bot.structures && combatState.bot.structures.some(function(s){ return s.kind === 'mesaDJ'; });
+      v = hasMesa ? 3 : 6;
+      break;
+    }
+    case 'killerTunes': v = 7; break;
+    case 'interpretacion': v = 5; break;
+    case 'lienzoSangre': {
+      var pr = (combatState.bot.hand || []).filter(function(id){ return id === 'paint_roja'; }).length;
+      var pa = (combatState.bot.hand || []).filter(function(id){ return id === 'paint_azul'; }).length;
+      var pv = (combatState.bot.hand || []).filter(function(id){ return id === 'paint_verde'; }).length;
+      v = (pr + pa + pv) * 4;
+      break;
+    }
+    case 'suficiente': {
+      var amz = combatState.player.characters.filter(function(c){ return !c.dead && csHasState(c, 'amenaza'); });
+      v = amz.length * 5;
+      break;
+    }
+    case 'retribucionFinal': {
+      var conRencor = combatState.player.characters.filter(function(c){ return !c.dead && c.states && c.states.rencor > 0; });
+      v = conRencor.reduce(function(a, c){ return a + (c.states.rencor * 3); }, 0);
+      break;
+    }
+    case 'muereElemental': v = 3; break;
+    case 'diosTeAmpare': {
+      var cruces = countCruzMadera(combatState.bot) + countCruzMadera(combatState.player);
+      v = cruces * 2;
+      break;
+    }
+    case 'protocoloSeguridad': v = 5; break;
+    case 'pilarFundamental': v = 4; break;
+    case 'vistoUltimate': v = 8; break;
+    case 'irisAdvertencia': v = 7; break;
+    case 'liderPunoHierro': {
+      var hasAdv = enemyActive && enemyActive.states && enemyActive.states.advertido > 0;
+      v = hasAdv ? 0 : 6;
+      break;
+    }
+    case 'miCordura': {
+      var hasMark = csAllMarks(active).indexOf('transformacion') !== -1;
+      v = hasMark ? 0 : 6;
+      break;
+    }
+    default: v = 0;
+  }
+  return v;
+}
+
+/* ─── Filtro de utilidad de definitivas ─── */
+function botUltimateMakesSense(active, ability, enemyActive) {
+  switch (ability.kind) {
+    case 'suficiente': {
+      return combatState.player.characters.some(function(c){ return !c.dead && csHasState(c, 'amenaza'); });
+    }
+    case 'retribucionFinal': {
+      var totalAcum = combatState.player.characters
+        .filter(function(c){ return !c.dead && c.states && c.states.rencor > 0; })
+        .reduce(function(a, c){ return a + c.states.rencor; }, 0);
+      return totalAcum >= 2;
+    }
+    case 'finComienzo': {
+      var condena = (active.states && active.states.condena) || 0;
+      if (condena === 0) return false;
+      return condena >= enemyActive.hp;
+    }
+    case 'lienzoSangre': {
+      var paints = (combatState.bot.hand || []).filter(function(id){ return id === 'paint_roja' || id === 'paint_azul' || id === 'paint_verde'; }).length;
+      return paints >= 2;
+    }
+    case 'amor':
+    case 'amorSuficiente': {
+      if (active.hp <= 1) return false;
+      return combatState.bot.characters.some(function(c){ return c.dead; });
+    }
+    case 'canon': {
+      return combatState.bot.supports && combatState.bot.supports.some(function(s){ return s !== null; });
+    }
+    case 'omnesDeam': {
+      return combatState.bot.characters.some(function(c){ return c.id !== 'alter' && !c.dead; });
+    }
+    case 'obraMaestra': {
+      return combatState.bot.structures && combatState.bot.structures.some(function(s){ return s.kind === 'optimizacion'; });
+    }
+    case 'estratosfera': {
+      if (!csHasState(active, 'vuelo')) return active.hp >= 5;
+      return true;
+    }
+    default: return true;
+  }
+}
+
+/* ─── Scoring de habilidades / cambios / cartas ─── */
+function botScoreAbility(actionType, active, enemyActive) {
+  var ability = active.character.abilities[actionType];
+  if (!ability) return -1;
+  var personality = BOT_PERSONALITY[active.character.element] || { offense: 1, defense: 1, healing: 1, switching: 1 };
+  var score = 0;
+  var dmgInfo = botEstimateEffectiveDamage(active, ability, actionType);
+  score += dmgInfo.damage * 2 * personality.offense;
+  if (dmgInfo.kill) score += 25;
+  var heal = predictHeal(ability, active);
+  var hpNeeded = active.maxHp - active.hp;
+  score += Math.min(heal, hpNeeded) * 1.8 * personality.healing;
+  score += predictShieldGain(ability) * 1.3 * personality.defense;
+  var selfDmg = predictSelfDamage(ability, active);
+  score -= selfDmg * 2.5;
+  if (selfDmg >= active.hp) score -= 200;
+  score += botScoreStateValue(ability, active, enemyActive);
+  var effCost = getEffectiveCostFull(active, ability);
+  score -= sumCost(effCost) * 0.4;
+  if (combatState.botMood === 'aggressive') score *= 1.15;
+  else if (combatState.botMood === 'defensive') {
+    if (ability.kind === 'defensaActiva' || ability.kind === 'hipotesisSolida' || ability.kind === 'bajoAlas') score *= 1.4;
+    else if (dmgInfo.damage > 0) score *= 0.9;
+  }
+  return score;
+}
+
+function botScoreChange(targetIdx, active, enemyActive) {
+  var bot = combatState.bot;
+  var target = bot.characters[targetIdx];
+  if (!target || target.dead) return -1;
+  var rules = getChangeRulesForTarget('bot', targetIdx);
+  var score = (target.hp - active.hp) * 0.4;
+  if (active.hp <= 3) score += 12;
+  if (active.hp <= active.maxHp * 0.3) score += 5;
+  if (rules.quick) score += 6;
+  if (rules.diceCost === 0 && !rules.quick) score += 3;
+  if (target.id === 'jose') score += 4;
+  if (target.hp <= active.hp) score -= 2;
+  score *= (BOT_PERSONALITY[active.character.element] || { switching: 1 }).switching;
+  score -= rules.diceCost * 0.5;
+  return score;
+}
+
+function botScoreCard(cardId, card, active) {
+  if (!card) return -1;
+  var bot = combatState.bot;
+  if (card.oncePerRound && bot.cardsUsedThisRound[cardId]) return -1;
+  if (card.oncePerGame && bot.cardsUsedThisGame[cardId]) return -1;
+  if (card.category === 'pintura') {
+    var erik = bot.characters.find(function(c){ return c.id === 'erik' && !c.dead; });
+    if (!erik || erik.paintEquipped) return -1;
+    return 5;
+  }
+  var cost = adjustCardCostForPassives(card, bot);
+  if (!trySpendDice(bot.dice, cost).ok) return -1;
+  var score = 0;
+  var hpNeeded = active.maxHp - active.hp;
+  switch (card.effectType) {
+    case 'heal': if (hpNeeded <= 0) return -1; score += Math.min(card.value, hpNeeded) * 1.8; break;
+    case 'healAll': {
+      var totalHeal = 0;
+      bot.characters.forEach(function(c){ if (!c.dead) totalHeal += Math.min(card.value, c.maxHp - c.hp); });
+      if (totalHeal <= 0) return -1;
+      score += totalHeal * 1.5;
+      break;
+    }
+    case 'shield': score += card.value * 1.3; break;
+    case 'shieldAll': score += bot.characters.filter(function(c){ return !c.dead; }).length * card.value * 1.1; break;
+    case 'energy': if (active.energy >= active.maxEnergy) return -1; score += card.value * 2; break;
+    case 'nextAttackBonus': case 'nextAttackDouble': case 'nextAttackCritical': {
+      var canAttack = ['normal', 'elemental'].some(function(t){
+        var ab = active.character.abilities[t];
+        return ab && botCanUseAbility(bot, active, ab, t);
+      });
+      if (!canAttack) return -1;
+      score += (card.effectType === 'nextAttackCritical') ? 6 : (card.effectType === 'nextAttackDouble' ? 5 : card.value * 1.9);
+      break;
+    }
+    case 'nextAttackPiercing': {
+      var playerActive = combatState.player.characters[combatState.player.activeIndex];
+      score += (playerActive && totalShield(playerActive) > 0) ? 3 : 1;
+      break;
+    }
+    case 'nextAbilityDiscount': score += card.value * 1.5; break;
+    case 'nextAbilityFree': score += 7; break;
+    case 'drawDiceOfActive': case 'drawTeamDice': score += card.value * 0.9; break;
+    case 'rerollDice': score += card.value * 0.5; break;
+    case 'convertDice': score += card.value * 0.6; break;
+    case 'sacrificeDie': score += 1.5; break;
+    case 'quickChange': score += active.hp <= 3 ? 4 : 1; break;
+    case 'prepararContraataque': score += card.value * 1.2; break;
+    case 'markEnemy': score += card.value * 1.5; break;
+    case 'removeEnemyShields': {
+      var playerActive2 = combatState.player.characters[combatState.player.activeIndex];
+      score += (playerActive2 && totalShield(playerActive2) > 0) ? 4 : 0;
+      break;
+    }
+    case 'forceEnemyChange': score += 2; break;
+    case 'enemyAttackDebuff': score += card.value * 1.5; break;
+    case 'revive': if (!bot.characters.some(function(c){ return c.dead; })) return -1; score += 12; break;
+    default: break;
+  }
+  if (card.category === 'equipo') score += (active.equipment && active.equipment.length < 2) ? 1 : -1;
+  if (card.category === 'apoyo' && bot.supports && bot.supports.indexOf(null) === -1) score -= 1;
+  score -= sumCost(cost) * 0.4;
+  if (combatState.botMood === 'defensive') {
+    if (card.effectType === 'heal' || card.effectType === 'healAll' || card.effectType === 'shield' || card.effectType === 'shieldAll') score *= 1.3;
+  } else if (combatState.botMood === 'aggressive') {
+    if (card.effectType === 'nextAttackBonus' || card.effectType === 'nextAttackDouble' || card.effectType === 'nextAttackCritical') score *= 1.3;
+  }
+  return score;
+}
+
 function botCanUseAbility(botSide, active, ability, actionType) {
   if (ability.energyCost && active.energy < ability.energyCost) return false;
-  if (ability.kind === 'obraMaestra') { var hasOptim = botSide.structures && botSide.structures.some(function(st){ return st.kind === 'optimizacion'; }); if (!hasOptim) return false; }
+  if (ability.kind === 'obraMaestra') {
+    var hasOptim = botSide.structures && botSide.structures.some(function(st){ return st.kind === 'optimizacion'; });
+    if (!hasOptim) return false;
+  }
   if (ability.kind === 'amorSuficiente') {
     if (active.hp <= 1) return false;
     if (!botSide.characters.some(function(c){ return c.dead; })) return false;
@@ -1076,19 +1405,183 @@ function botCanUseAbility(botSide, active, ability, actionType) {
   var effCost = getEffectiveCostFull(active, ability);
   return trySpendDice(botSide.dice, effCost).ok;
 }
-function botChooseAction() {
-  var bot = combatState.bot, active = bot.characters[bot.activeIndex], char = active.character;
-  if (char.abilities.ultimate && botCanUseAbility(bot, active, char.abilities.ultimate, 'ultimate')) return { type:'ultimate' };
-  if (active.hp < active.maxHp * 0.35) { for (var i = 0; i < bot.characters.length; i++) { if (i === bot.activeIndex || bot.characters[i].dead) continue; if (bot.characters[i].hp > active.hp + 2) { var rules = getChangeRulesForTarget('bot', i); if (rules.diceCost === 0 || trySpendDice(bot.dice, { any:rules.diceCost }).ok) return { type:'change', index:i }; } } }
-  if (botCanUseAbility(bot, active, char.abilities.normal, 'normal')) return { type:'normal' };
-  if (botCanUseAbility(bot, active, char.abilities.elemental, 'elemental')) return { type:'elemental' };
-  return null;
+
+/* ─── Elección ─── */
+function botChooseBestCard() {
+  var bot = combatState.bot;
+  var active = bot.characters[bot.activeIndex];
+  if (!active || active.dead) return null;
+  if (!bot.hand || !bot.hand.length) return null;
+  var candidates = [];
+  var seen = {};
+  bot.hand.forEach(function(cardId){
+    if (seen[cardId]) return;
+    seen[cardId] = true;
+    var card = CARD_DB[cardId] || PAINT_CARDS[cardId];
+    if (!card) return;
+    var score = botScoreCard(cardId, card, active);
+    if (score > 0.5) candidates.push({ cardId: cardId, card: card, score: score });
+  });
+  if (!candidates.length) return null;
+  candidates.sort(function(a,b){ return b.score - a.score; });
+  var top = candidates.slice(0, Math.min(3, candidates.length));
+  var total = top.reduce(function(a,c){ return a + c.score; }, 0);
+  var roll = Math.random() * total;
+  for (var i = 0; i < top.length; i++) { roll -= top[i].score; if (roll <= 0) return top[i]; }
+  return top[0];
 }
-function botTurn() {
-  if (!combatState || combatState.pvp || combatState.phase !== 'playing' || combatState.botDone || combatState.turn !== 'bot') return;
+
+function botChooseAction() {
+  var bot = combatState.bot;
+  var active = bot.characters[bot.activeIndex];
+  if (!active || active.dead) return null;
+  var enemyActive = combatState.player.characters[combatState.player.activeIndex];
+  if (!enemyActive || enemyActive.dead) {
+    enemyActive = combatState.player.characters.find(function(c){ return !c.dead; });
+    if (!enemyActive) return null;
+  }
+  var candidates = [];
+
+  ['ultimate', 'normal', 'elemental'].forEach(function(type){
+    var ability = active.character.abilities[type];
+    if (!ability) return;
+    if (!botCanUseAbility(bot, active, ability, type)) return;
+    if (type === 'ultimate' && !botUltimateMakesSense(active, ability, enemyActive)) return;
+    var score = botScoreAbility(type, active, enemyActive);
+    candidates.push({ action: { type: type }, score: score });
+  });
+
+  for (var i = 0; i < bot.characters.length; i++) {
+    if (i === bot.activeIndex) continue;
+    if (bot.characters[i].dead) continue;
+    var chScore = botScoreChange(i, active, enemyActive);
+    if (chScore > 0.5) candidates.push({ action: { type: 'change', index: i }, score: chScore });
+  }
+
+  candidates.push({ action: { type: 'end' }, score: 1 });
+
+  if (!candidates.length) return null;
+  candidates.sort(function(a,b){ return b.score - a.score; });
+  var top = candidates.slice(0, Math.min(3, candidates.length));
+  var total = top.reduce(function(a,c){ return a + Math.max(0.1, c.score); }, 0);
+  var roll = Math.random() * total;
+  for (var j = 0; j < top.length; j++) { roll -= Math.max(0.1, top[j].score); if (roll <= 0) return top[j].action; }
+  return top[0].action;
+}
+
+/* ─── Ejecución de cartas del bot ─── */
+function botPlayCard(cardId, card) {
+  var bot = combatState.bot;
+  var active = bot.characters[bot.activeIndex];
+  if (!active || active.dead) return false;
+  if (card.oncePerRound && bot.cardsUsedThisRound[cardId]) return false;
+  if (card.oncePerGame && bot.cardsUsedThisGame[cardId]) return false;
+  if (card.category === 'pintura') {
+    var erik = bot.characters.find(function(c){ return c.id === 'erik' && !c.dead; });
+    if (!erik || erik.paintEquipped) return false;
+  }
+  var cost = adjustCardCostForPassives(card, bot);
+  var spendResult = trySpendDice(bot.dice, cost);
+  if (!spendResult.ok) return false;
+  bot.dice = spendResult.remaining;
+  var hi = bot.hand.indexOf(cardId);
+  if (hi >= 0) bot.hand.splice(hi, 1);
+  if (card.oncePerRound) bot.cardsUsedThisRound[cardId] = true;
+  if (card.oncePerGame) bot.cardsUsedThisGame[cardId] = true;
+  if (!PAINT_CARDS[cardId]) { if (!bot.discardPile) bot.discardPile = []; bot.discardPile.push(cardId); }
+
+  if (card.category === 'pintura') {
+    var e2 = bot.characters.find(function(c){ return c.id === 'erik' && !c.dead; });
+    e2.paintEquipped = card.paintColor;
+    logCombat('🎨 Rival equipa ' + card.name + ' en ' + e2.character.name);
+  } else if (card.category === 'equipo') {
+    if (!active.equipment) active.equipment = [];
+    if (active.equipment.length >= 2) {
+      var removed = active.equipment.shift();
+      if (!bot.discardPile) bot.discardPile = [];
+      bot.discardPile.push(removed);
+    }
+    active.equipment.push(cardId);
+    if (card.effect) {
+      if (card.effect.shieldBonus) addOrRefreshShield(active, 'eq_' + cardId, card.effect.shieldBonus);
+      if (card.effect.energyBonus) active.energy = Math.min(active.maxEnergy, active.energy + card.effect.energyBonus);
+      if (card.effect.healBonus) healChar(active, card.effect.healBonus);
+      if (card.effect.selfDamage) { active.hp = Math.max(0, active.hp - card.effect.selfDamage); if (active.hp <= 0) handleDeath('bot', bot.characters.indexOf(active)); }
+    }
+    logCombat('⚔️ Rival equipa ' + card.name);
+  } else if (card.category === 'apoyo') {
+    if (!bot.supports) bot.supports = [null, null, null, null];
+    var slot = bot.supports.indexOf(null);
+    if (slot === -1) slot = 0;
+    bot.supports[slot] = { cardId: cardId, duration: card.duration };
+    if (card.effect && card.effect.shieldInstant && active) addOrRefreshShield(active, 'support_' + cardId, card.effect.shieldInstant);
+    if (card.effect && card.effect.teamShieldInstant) bot.characters.forEach(function(c){ if (!c.dead) addOrRefreshShield(c, 'support_' + cardId, card.effect.teamShieldInstant); });
+    logCombat('📜 Rival coloca ' + card.name);
+  } else {
+    var savedPvp = combatState.pvp, savedTurn = combatState.turn;
+    combatState.pvp = true; combatState.turn = 'bot';
+    try { if (typeof applyCardEffect === 'function') applyCardEffect(card); } finally { combatState.pvp = savedPvp; combatState.turn = savedTurn; }
+    logCombat('🎴 Rival usa ' + card.name);
+  }
+  playSound('card');
+  renderCombat();
+  return true;
+}
+
+/* ─── Turno del bot ─── */
+function botTurn(skipThink) {
+  if (!canBotAct()) return;
+  var bot = combatState.bot;
+  var active = bot.characters[bot.activeIndex];
+  if (!active || active.dead) { declareEnd('bot'); return; }
+
+  updateBotMood();
+  showBotThinkBubble('🤔 Pensando<span class="bt-dots"></span>');
+
+  var thinkTime = skipThink ? 300 : (BOT_THINK_MIN_MS + Math.random() * (BOT_THINK_MAX_MS - BOT_THINK_MIN_MS));
+
+  setTimeout(function(){
+    if (!canBotAct()) { clearBotThinkBubble(); return; }
+    _botPlayCardsSequence(0, function(){
+      setTimeout(function(){
+        if (!canBotAct()) { clearBotThinkBubble(); return; }
+        clearBotThinkBubble();
+        _botExecuteMainAction();
+      }, 200);
+    });
+  }, thinkTime);
+}
+
+function _botPlayCardsSequence(played, callback) {
+  if (!canBotAct()) { callback(); return; }
+  if (played >= BOT_MAX_CARDS_PER_TURN) { callback(); return; }
+  var best = botChooseBestCard();
+  if (!best) { callback(); return; }
+  updateBotThinkBubble('🎴 ' + best.card.name);
+  setTimeout(function(){
+    if (!canBotAct()) { callback(); return; }
+    botPlayCard(best.cardId, best.card);
+    setTimeout(function(){ _botPlayCardsSequence(played + 1, callback); }, 350);
+  }, 400);
+}
+
+function _botExecuteMainAction() {
+  if (!canBotAct()) return;
   var action = botChooseAction();
-  if (action) { setTimeout(function(){ if (!combatState || combatState.pvp) return; if (action.type === 'change') { var r = tryChangeCharacter('bot', action.index); renderCombat(); if (r === 'quick') setTimeout(botTurn, 500); else if (r) setTimeout(nextTurn, 400); else setTimeout(botTurn, 400); } else executeAction('bot', action.type); }, 500); }
-  else { logCombat('🤖 El rival no puede actuar'); setTimeout(function(){ declareEnd('bot'); }, 500); }
+  if (!action || action.type === 'end') {
+    logCombat('🤖 El rival declara fin de ronda');
+    declareEnd('bot');
+    return;
+  }
+  if (action.type === 'change') {
+    var r = tryChangeCharacter('bot', action.index);
+    renderCombat();
+    if (r === 'quick') setTimeout(function(){ botTurn(true); }, 400);
+    else if (r) setTimeout(nextTurn, 400);
+    else setTimeout(function(){ _botExecuteMainAction(); }, 300);
+  } else {
+    executeAction('bot', action.type);
+  }
 }
 function nextTurn() {
   if (!combatState || combatState.phase === 'ended') return;
