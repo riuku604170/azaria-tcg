@@ -913,6 +913,16 @@ setTimeout(function(){ var rv = document.querySelectorAll('.reveal'); for (var i
 
 console.log('Azaria TCG — init completado');
 
+/* ═══ Logo AZARIA → scroll al inicio ═══ */
+(function bindLogoHome() {
+  var logo = document.getElementById('logoHome');
+  if (!logo) return;
+  logo.addEventListener('click', function(e){
+    e.preventDefault();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+})();
+
 /* ═══ Diagnóstico de almacenamiento (aviso al usuario si el navegador bloquea localStorage) ═══ */
 (function storageHealthCheck(){
   var issues = [];
