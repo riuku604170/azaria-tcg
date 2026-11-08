@@ -16,8 +16,20 @@ function getPlayerTeamIds() {
   return null;
 }
 function getRandomBotTeam() {
-  var pool = Object.keys(COMBAT_CHARS).filter(function(id){ return id !== 'hunger' && id !== 'exmaria'; });
-  for (var i = pool.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = pool[i]; pool[i] = pool[j]; pool[j] = t; }
+  var pool = Object.keys(COMBAT_CHARS).filter(function(id){
+    if (id === 'hunger' || id === 'exmaria') return false;
+    if (typeof isUnlocked === 'function' && !isUnlocked(id)) return false;
+    return true;
+  });
+  // Fallback al pool completo si el jugador no tiene 3 personajes desbloqueados
+  // (si no, el bot no tendría equipo y el combate no arrancaría)
+  if (pool.length < 3) {
+    pool = Object.keys(COMBAT_CHARS).filter(function(id){ return id !== 'hunger' && id !== 'exmaria'; });
+  }
+  for (var i = pool.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var t = pool[i]; pool[i] = pool[j]; pool[j] = t;
+  }
   return pool.slice(0, 3);
 }
 function getMaxEnergyFor(char){ if (char.abilities.ultimate && char.abilities.ultimate.energyCost) return char.abilities.ultimate.energyCost; return 3; }
