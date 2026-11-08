@@ -172,19 +172,40 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 0.35rem;
   z-index: 2;
   position: relative;
 }
 
 .el-badge {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: rgba(var(--el), 0.4);
-  display: grid;
-  place-items: center;
-  font-size: 1rem;
-  border: 1px solid rgba(var(--el), 0.8);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.22rem 0.62rem;
+  border-radius: 20px;
+  background: rgba(var(--el), 0.2);
+  border: 1px solid rgba(var(--el), 0.6);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgb(var(--el));
+  white-space: nowrap;
+  line-height: 1.4;
+  max-width: calc(100% - 60px);
+  overflow: hidden;
+  flex-shrink: 1;
+  min-width: 0;
+}
+.el-badge-emoji {
+  font-size: 0.85rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.el-badge-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .hp-badge {
@@ -195,6 +216,7 @@
   font-size: 0.9rem;
   color: var(--accent);
   border: 1px solid rgba(var(--el), 0.4);
+  flex-shrink: 0;
 }
 
 .portrait {
@@ -249,17 +271,8 @@
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
 }
 
-.card-element {
-  text-align: center;
-  font-size: 0.72rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: rgba(var(--el), 0.95);
-  margin-bottom: 0.5rem;
-  z-index: 2;
-  position: relative;
-  font-weight: 600;
-}
+/* ✅ El texto del elemento se ha movido al badge superior (pill) */
+.card-element { display: none !important; }
 
 .card-bottom {
   display: flex;
