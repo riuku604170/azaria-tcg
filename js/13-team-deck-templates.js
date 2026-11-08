@@ -24,7 +24,16 @@ function toggleTeam(id) {
 }
 function autoBuildTeam(){
   initAudio();
-  var pool = shuffleArray(Object.keys(CHARACTERS).filter(function(id){ return id !== 'hunger' && id !== 'exmaria'; }));
+  var pool = shuffleArray(Object.keys(CHARACTERS).filter(function(id){
+    if (id === 'hunger' || id === 'exmaria') return false;
+    if (typeof isUnlocked === 'function' && !isUnlocked(id)) return false;
+    return true;
+  }));
+  if (pool.length < 3) {
+    showTeamMissingToast('No hay suficientes personajes desbloqueados (tienes ' + pool.length + ', necesitas 3).');
+    playSound('error');
+    return;
+  }
   team = pool.slice(0, 3);
   saveTeam(); renderTeamPanel(); playSound('confirm');
 }
@@ -108,7 +117,26 @@ function saveDeck(){
 }
 function deckCardCount(id){ return deck.filter(function(c){ return c === id; }).length; }
 function addDeckCard(id) { if (!CARD_DB[id]) return; initAudio(); if (deck.length >= 30 || deckCardCount(id) >= 2) { playSound('error'); return; } deck.push(id); playSound('select'); saveDeck(); renderDeckGrid(); }
-function removeDeckCard(id) { if (!CARD_DB[id]) return; initAudio(); var i = deck.indexOf(id); if (i < 0) return; deck.splice(i, 1); playSound('deselect'); saveDeck(); renderDeckGrid(); }
+function removeDeckCard(id) {
+  if (!CARD_DB[id]) return;
+  initAudio();
+  var i = deck.indexOf(id);
+  if (i < 0) return;
+  deck.splice(i, 1);
+  playSound('deselect');
+  saveDeck();
+  try {
+    renderDeckGrid();
+  } catch (e) {
+    console.error('removeDeckCard: error al renderizar:', e);
+    // Fuerza un re-render limpio del contenedor
+    var grid = document.getElementById('deckGrid');
+    if (grid) grid.innerHTML = '';
+  }
+  // Sincroniza el contador por si el render falló
+  var dc = document.getElementById('deckCount'); if (dc) dc.textContent = deck.length;
+  var dce = document.getElementById('deckCounter'); if (dce) dce.classList.toggle('complete', deck.length === 30);
+}
 function formatCardCost(card) {
   if (!card.cost || Object.keys(card.cost).length === 0) return 'Sin coste';
   var parts = [];
@@ -139,7 +167,11 @@ function renderDeckGrid() {
   if (dce) dce.classList.toggle('complete', deck.length === 30);
   var isFull = deck.length >= 30;
   var noCat = setSize(deckCatFilterSet) === 0, noTag = setSize(deckTagFilterSet) === 0;
-  var ids = CARD_ORDER.filter(function(id){ var c = CARD_DB[id]; return (noCat || !!deckCatFilterSet[c.category]) && (noTag || !!deckTagFilterSet[c.tag]); });
+  var ids = CARD_ORDER.filter(function(id){
+    var c = CARD_DB[id];
+    if (typeof isUnlocked === 'function' && !isUnlocked(id)) return false;
+    return (noCat || !!deckCatFilterSet[c.category]) && (noTag || !!deckTagFilterSet[c.tag]);
+  });
   if (!ids.length) { grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 2rem; color: var(--muted); font-style: italic;">No hay cartas con este filtro.</div>'; return; }
   grid.innerHTML = ids.map(function(id){
     var card = CARD_DB[id], count = deckCardCount(id), isMaxed = count >= 2, isBlocked = isFull && count === 0;
@@ -154,19 +186,47 @@ function renderDeckGrid() {
       '<div class="deck-card-effect">' + card.effectText + '</div>' +
       '<span class="deck-card-tag">' + catIcon + card.tag + '</span></div>' + countBadge + removeBtn + '</div>';
   }).join('');
-  grid.querySelectorAll('.deck-card').forEach(function(el){ el.addEventListener('click', function(e){ if (e.target.closest('.deck-card-remove')) return; if (el.classList.contains('blocked')) { playSound('error'); return; } addDeckCard(el.dataset.cardId); }); });
-  grid.querySelectorAll('.deck-card-remove').forEach(function(btn){ btn.addEventListener('click', function(e){ e.stopPropagation(); removeDeckCard(btn.dataset.removeId); }); });
+  grid.querySelectorAll('.deck-card').forEach(function(el){
+    el.addEventListener('click', function(e){
+      if (e.target.closest('.deck-card-remove')) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (el.classList.contains('blocked')) { playSound('error'); return; }
+      addDeckCard(el.dataset.cardId);
+    });
+  });
+  grid.querySelectorAll('.deck-card-remove').forEach(function(btn){
+    btn.addEventListener('click', function(e){
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      removeDeckCard(btn.dataset.removeId);
+    });
+  });
 }
 function autoBuildDeck() {
-  deck = [];
-  var ev = CARD_ORDER.filter(function(id){ return CARD_DB[id].category === 'evento'; });
-  var eq = CARD_ORDER.filter(function(id){ return CARD_DB[id].category === 'equipo'; });
-  var ap = CARD_ORDER.filter(function(id){ return CARD_DB[id].category === 'apoyo'; });
-  shuffleArray(ev).slice(0, Math.min(14, ev.length)).forEach(function(id){ deck.push(id); });
-  shuffleArray(eq).slice(0, Math.min(10, eq.length)).forEach(function(id){ deck.push(id); });
-  shuffleArray(ap).slice(0, Math.min(6, ap.length)).forEach(function(id){ deck.push(id); });
-  var pool = shuffleArray(deck.slice()); var safety = 0;
-  while (deck.length < 30 && safety < 200) { var p = pool[Math.floor(Math.random() * pool.length)]; if (deckCardCount(p) < 2) deck.push(p); safety++; }
+  var unlocked = CARD_ORDER.filter(function(id){
+    return (typeof isUnlocked !== 'function' || isUnlocked(id));
+  });
+  var ev = unlocked.filter(function(id){ return CARD_DB[id].category === 'evento'; });
+  var eq = unlocked.filter(function(id){ return CARD_DB[id].category === 'equipo'; });
+  var ap = unlocked.filter(function(id){ return CARD_DB[id].category === 'apoyo'; });
+  var newDeck = [];
+  shuffleArray(ev).slice(0, Math.min(14, ev.length)).forEach(function(id){ newDeck.push(id); });
+  shuffleArray(eq).slice(0, Math.min(10, eq.length)).forEach(function(id){ newDeck.push(id); });
+  shuffleArray(ap).slice(0, Math.min(6, ap.length)).forEach(function(id){ newDeck.push(id); });
+  var pool = shuffleArray(newDeck.slice());
+  var safety = 0;
+  while (newDeck.length < 30 && safety < 200) {
+    var p = pool[Math.floor(Math.random() * pool.length)];
+    if (newDeck.filter(function(x){ return x === p; }).length < 2) newDeck.push(p);
+    safety++;
+  }
+  if (newDeck.length < 30) {
+    showTeamMissingToast('No hay suficientes cartas desbloqueadas (tienes ' + newDeck.length + ', necesitas 30).');
+    playSound('error');
+    return;
+  }
+  deck = newDeck.slice(0, 30);
   saveDeck(); renderDeckGrid(); playSound('confirm');
 }
 var autoBuildBtn = document.getElementById('autoBuildDeckBtn'); if (autoBuildBtn) autoBuildBtn.addEventListener('click', autoBuildDeck);
@@ -192,6 +252,28 @@ function saveTemplate(s, t, d, name) {
   }
 }
 function clearTemplate(s){ try { localStorage.removeItem(getTemplateSlotKey(s)); } catch (e) {} }
+/* ═══ Valida que una plantilla solo contenga ítems desbloqueados ═══ */
+function checkTemplateUnlocked(tpl) {
+  var missingChars = [];
+  var missingCards = [];
+  if (tpl && tpl.team) {
+    tpl.team.forEach(function(id){
+      if (CHARACTERS[id] && typeof isUnlocked === 'function' && !isUnlocked(id)) missingChars.push(id);
+    });
+  }
+  if (tpl && tpl.deck) {
+    tpl.deck.forEach(function(id){
+      if (CARD_DB[id] && typeof isUnlocked === 'function' && !isUnlocked(id)) missingCards.push(id);
+    });
+  }
+  return { ok: missingChars.length === 0 && missingCards.length === 0, missingChars: missingChars, missingCards: missingCards };
+}
+function formatMissingMessage(check) {
+  var parts = [];
+  if (check.missingChars.length) parts.push(check.missingChars.length + ' personaje(s)');
+  if (check.missingCards.length) parts.push(check.missingCards.length + ' carta(s)');
+  return parts.join(' y ');
+}
 function renderTemplateSlots() {
   var c = document.getElementById('templateSlots'); if (!c) return;
   var html = '';
@@ -227,6 +309,13 @@ function renderTemplateSlots() {
   c.querySelectorAll('.template-load-btn').forEach(function(btn){ btn.addEventListener('click', function(){
     var s = parseInt(btn.dataset.slot, 10);
     var t = getTemplate(s); if (!t) return;
+    // ✅ Validar antes de cargar
+    var check = checkTemplateUnlocked(t);
+    if (!check.ok) {
+      showTeamMissingToast('❌ No puedes cargar esta plantilla: falta ' + formatMissingMessage(check) + ' de tu inventario.');
+      playSound('error');
+      return;
+    }
     team = t.team.filter(function(id){ return CHARACTERS[id]; }).slice(0, 3);
     deck = t.deck.filter(function(id){ return CARD_DB[id]; }).slice(0, 30);
     var cnts = {}; deck = deck.filter(function(id){ cnts[id] = (cnts[id]||0) + 1; return cnts[id] <= 2; });
@@ -242,32 +331,6 @@ function renderTemplateSlots() {
   }); });
 }
 
-function showCardInfo(cardId) {
-  var card = CARD_DB[cardId] || PAINT_CARDS[cardId];
-  if (!card) { console.warn('[showCardInfo] Carta no encontrada:', cardId); return; }
-  var ov = document.getElementById('cardInfoDialog');
-  if (!ov) {
-    ov = document.createElement('div');
-    ov.id = 'cardInfoDialog';
-    ov.className = 'card-info-dialog';
-    document.body.appendChild(ov);
-  }
-  var meta = CARD_CATEGORY_META[card.category] || { label: 'Evento', icon: '✨', color: '165,131,255' };
-  var costText = formatCardCost(card);
-  var durationText = card.duration ? ' · ⏳ ' + card.duration + ' ronda(s)' : '';
-  var html = '<div class="card-info-content" style="--dc: ' + card.color + ';">' +
-    '<button class="card-info-close" id="cardInfoClose" aria-label="Cerrar">✕</button>' +
-    '<div class="card-info-emoji">' + card.emoji + '</div>' +
-    '<div class="card-info-name">' + card.name + '</div>' +
-    '<div class="card-info-cat" style="--cat: ' + meta.color + ';">' + meta.icon + ' ' + meta.label + ' · ' + card.tag + '</div>' +
-    '<div class="card-info-cost">🎲 ' + costText + durationText + '</div>' +
-    '<div class="card-info-effect">' + card.effectText + '</div>' +
-    '</div>';
-  ov.innerHTML = html;
-  ov.classList.add('show');
-  document.getElementById('cardInfoClose').addEventListener('click', function(){ ov.classList.remove('show'); });
-  ov.addEventListener('click', function(e){ if (e.target === ov) ov.classList.remove('show'); });
-}
 function showTemplatePreview(template, slot, onConfirm) {
   var validTeam = template.team.filter(function(id){ return CHARACTERS[id] && id !== 'hunger' && id !== 'exmaria'; }).slice(0, 3);
   var validDeck = template.deck.filter(function(id){ return CARD_DB[id]; });
@@ -416,11 +479,26 @@ function showTemplatePickerForCombat(playerLabel, onSelect) {
     el.addEventListener('click', function(){
       var slot = parseInt(el.dataset.slot, 10);
       if (slot === -1) {
+        // ✅ Validar equipo y mazo actuales
+        var cur = { team: team.slice(), deck: deck.slice() };
+        var chkCur = checkTemplateUnlocked(cur);
+        if (!chkCur.ok) {
+          showTeamMissingToast('❌ Tu equipo o mazo actual tiene ' + formatMissingMessage(chkCur) + ' que ya no están en tu inventario.');
+          playSound('error');
+          return;
+        }
         ov.classList.remove('show');
-        onSelect({ team: team.slice(), deck: deck.slice() });
+        onSelect(cur);
       } else {
         var t = getTemplate(slot);
         if (!t) return;
+        // ✅ Validar plantilla antes de mostrarla/usarla
+        var check = checkTemplateUnlocked(t);
+        if (!check.ok) {
+          showTeamMissingToast('❌ No puedes usar esta plantilla: falta ' + formatMissingMessage(check) + ' de tu inventario.');
+          playSound('error');
+          return;
+        }
         ov.classList.remove('show');
         showTemplatePreview(t, slot, function(){ onSelect(t); });
       }
