@@ -5,14 +5,14 @@ var PATCHES = [
 {
   version: 'BETA 1.4',
   date: '2026-11-08',
-  type: 'minor',
+  type: 'mayor',
   title: 'Arreglos visuales y de funcionamiento, nuevos próximos personajes/categorías, tienda y ajustes del menú',
   changes: [
     'Arreglados los botones para comenzar partida.',
     'Ahora visibles los cambios de los usuarios en el menú.',
     'Añadidos a próximos usuarios: Amsa, Gabo, Vicky y Víctor.',
     'Añadida la tienda (no funcional ahora mismo, solo referencia).',
-    'Reajustes en el menú',
+    'Reajustes en menú y cartas',
     'Nuevas categorías: Lusior y Azaria.'
   ]  
 },
