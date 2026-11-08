@@ -280,6 +280,11 @@ var CHARACTERS = {
         attributes: null }
     ]},
 
+  amsa:    { name:'Amsa',   element:'comprension',  set:'Erik', category:'Usuarios', hp:11, emoji:'🧩', img:'img/amsa.png',    comingSoon:true, abilities:[] },
+  victor:  { name:'Víctor', element:'comprension',  set:'Erik', category:'Usuarios', hp:11, emoji:'📐', img:'img/victor.png',  comingSoon:true, abilities:[] },
+  gabo:    { name:'Gabo',   element:'ilusion',      set:'Erik', category:'Usuarios', hp:11, emoji:'🃏', img:'img/gabo.png',    comingSoon:true, abilities:[] },
+  vicky:   { name:'Vicky',  element:'expresion',    set:'Erik', category:'Usuarios', hp:11, emoji:'🎬', img:'img/vicky.png',   comingSoon:true, abilities:[] },
+
   /* ═══════════════════════════════════════════════════════════════════
      RESTO DEL ROSTER (sin cambios en este parche, mantienen estructura antigua
      y se normalizan con un adaptador en el render).
