@@ -524,6 +524,22 @@ function syncCardTitles() {
   });
 }
 
+/* ═══ Compacta el badge del elemento: pill con emoji + nombre ═══ */
+function enhanceCardBadges() {
+  document.querySelectorAll('.char-card').forEach(function(card){
+    var el = card.dataset.el;
+    if (!el) return;
+    var emoji = (typeof ELEMENT_EMOJI !== 'undefined' && ELEMENT_EMOJI[el]) || '';
+    var name  = (typeof ELEMENT_NAMES !== 'undefined' && ELEMENT_NAMES[el]) || '';
+    if (!emoji && !name) return;
+    var badge = card.querySelector('.el-badge');
+    if (!badge) return;
+    badge.innerHTML =
+      '<span class="el-badge-emoji">' + emoji + '</span>' +
+      '<span class="el-badge-name">' + name + '</span>';
+  });
+}
+
 /* ═══ Marca como .locked las tarjetas no desbloqueadas ═══ */
 function refreshCollectionLocks() {
   if (typeof isUnlocked !== 'function') return;
