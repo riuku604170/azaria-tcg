@@ -858,7 +858,8 @@ var initFns = [
   ['initPatches', initPatches],
   ['initSandbox', initSandbox],
   ['checkTemplateIntegrity', checkTemplateIntegrity],
-  ['syncCardTitles', syncCardTitles]
+  ['syncCardTitles', syncCardTitles],
+  ['enhanceCardBadges', enhanceCardBadges]
 ];
 initFns.forEach(function(p){ try { p[1](); } catch (e) { console.error('Init error in ' + p[0] + ':', e); } });
 
