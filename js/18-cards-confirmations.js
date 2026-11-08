@@ -879,3 +879,45 @@ function playerChangeCharacterRequest(targetIndex) {
     if (!rules.quick) setTimeout(nextTurn, 400);
   });
 }
+
+function showCardInfo(cardId, opts) {
+  opts = opts || {};
+  var shopMode = !!opts.shopMode;
+  var card = CARD_DB[cardId] || PAINT_CARDS[cardId];
+  if (!card) { console.warn('[showCardInfo] Carta no encontrada:', cardId); return; }
+  var ov = document.getElementById('cardInfoDialog');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'cardInfoDialog';
+    ov.className = 'card-info-dialog';
+    document.body.appendChild(ov);
+  }
+  var meta = CARD_CATEGORY_META[card.category] || { label: 'Evento', icon: '✨', color: '165,131,255' };
+  var costText = formatCardCost(card);
+  var durationText = card.duration ? ' · ⏳ ' + card.duration + ' ronda(s)' : '';
+  var html = '<div class="card-info-content" style="--dc: ' + card.color + ';">' +
+    '<button class="card-info-close" id="cardInfoClose" aria-label="Cerrar">✕</button>' +
+    '<div class="card-info-emoji">' + card.emoji + '</div>' +
+    '<div class="card-info-name">' + card.name + '</div>' +
+    '<div class="card-info-cat" style="--cat: ' + meta.color + ';">' + meta.icon + ' ' + meta.label + ' · ' + card.tag + '</div>' +
+    '<div class="card-info-cost">🎲 ' + costText + durationText + '</div>' +
+    '<div class="card-info-effect">' + card.effectText + '</div>';
+  if (shopMode) {
+    if (typeof isUnlocked === 'function' && !isUnlocked(cardId)) {
+      html += '<div class="shop-buy-bar" style="margin-top: 0.8rem; padding: 0.6rem 0; background: none; border-top: 1px solid rgba(240,200,96,0.2);">' +
+        '<div class="shop-buy-price">💎 ' + (typeof SHOP_DEFAULT_PRICE !== 'undefined' ? SHOP_DEFAULT_PRICE : 100) + '</div>' +
+        '<button class="shop-buy-btn" id="shopBuyBtn">Comprar</button></div>';
+    } else {
+      html += '<div class="shop-buy-bar" style="margin-top: 0.8rem; padding: 0.6rem 0; background: none; border-top: 1px solid rgba(240,200,96,0.2);"><div class="shop-buy-owned">✓ Ya lo tienes</div></div>';
+    }
+  }
+  html += '</div>';
+  ov.innerHTML = html;
+  ov.classList.add('show');
+  document.getElementById('cardInfoClose').addEventListener('click', function(){ ov.classList.remove('show'); });
+  ov.addEventListener('click', function(e){ if (e.target === ov) ov.classList.remove('show'); });
+  if (shopMode) {
+    var bb = document.getElementById('shopBuyBtn');
+    if (bb) bb.addEventListener('click', function(){ if (typeof buyShopItem === 'function') buyShopItem(cardId, 'cards'); });
+  }
+}
