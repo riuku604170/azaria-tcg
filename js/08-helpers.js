@@ -50,10 +50,11 @@ function isMyTurn(){ if (!combatState) return false; return combatState.turn ===
 
 /* ═══ HELPERS DE MAZO / DAÑO / ESCUDO / EQUIPO ═══ */
 function generateRandomDeck() {
+  var filterUnlocked = function(id){ return (typeof isUnlocked !== 'function' || isUnlocked(id)); };
+  var events  = CARD_ORDER.filter(function(id){ return CARD_DB[id].category === 'evento'  && filterUnlocked(id); });
+  var equipos = CARD_ORDER.filter(function(id){ return CARD_DB[id].category === 'equipo'  && filterUnlocked(id); });
+  var apoyos  = CARD_ORDER.filter(function(id){ return CARD_DB[id].category === 'apoyo'   && filterUnlocked(id); });
   var d = [];
-  var events = CARD_ORDER.filter(function(id){ return CARD_DB[id].category === 'evento'; });
-  var equipos = CARD_ORDER.filter(function(id){ return CARD_DB[id].category === 'equipo'; });
-  var apoyos = CARD_ORDER.filter(function(id){ return CARD_DB[id].category === 'apoyo'; });
   shuffleArray(events).slice(0, Math.min(14, events.length)).forEach(function(id){ d.push(id); });
   shuffleArray(equipos).slice(0, Math.min(10, equipos.length)).forEach(function(id){ d.push(id); });
   shuffleArray(apoyos).slice(0, Math.min(6, apoyos.length)).forEach(function(id){ d.push(id); });
@@ -61,9 +62,17 @@ function generateRandomDeck() {
   var safety = 0;
   while (d.length < 30 && safety < 200) {
     var p = pool[Math.floor(Math.random() * pool.length)];
-    var cnt = d.filter(function(x){ return x === p; }).length;
-    if (cnt < 2) d.push(p);
+    if (d.filter(function(x){ return x === p; }).length < 2) d.push(p);
     safety++;
+  }
+  // Fallback: si el jugador no tiene 30 cartas desbloqueadas, se completa con todas
+  // (para que el bot siempre tenga un mazo válido)
+  if (d.length < 30) {
+    while (d.length < 30 && safety < 500) {
+      var pf = CARD_ORDER[Math.floor(Math.random() * CARD_ORDER.length)];
+      if (d.filter(function(x){ return x === pf; }).length < 2) d.push(pf);
+      safety++;
+    }
   }
   return d;
 }
