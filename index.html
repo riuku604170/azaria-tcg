@@ -17,6 +17,7 @@
 <link rel="stylesheet" href="css/10-combat.css">
 <link rel="stylesheet" href="css/11-sandbox.css">
 <link rel="stylesheet" href="css/12-misc.css">
+<link rel="stylesheet" href="css/14-shop.css">
 <link rel="stylesheet" href="css/99-responsive.css">
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 </head>
@@ -25,7 +26,20 @@
 <canvas id="stars"></canvas>
 
 <nav>
-  <div class="logo">AZARIA</div>
+  <div class="nav-brand">
+    <a href="#" class="logo" id="logoHome" title="Volver al inicio">AZARIA</a>
+    <div class="nav-actions">
+      <a href="#" id="shopNavBtn" class="nav-action-btn" title="Abrir tienda">
+        <span class="nav-action-icon">🛒</span>
+        <span class="nav-action-label">Tienda</span>
+      </a>
+      <a href="#" id="patchesNavLink" class="nav-action-btn" title="Ver avisos">
+        <span class="nav-action-icon">📢</span>
+        <span class="nav-action-label">Avisos</span>
+        <span class="patches-new-badge" id="patchesNewBadge" hidden aria-label="Nuevo aviso disponible">!</span>
+      </a>
+    </div>
+  </div>
   <ul>
     <li><a href="#cartas">Colección</a></li>
     <li><a href="#mazo">Mazo</a></li>
@@ -36,7 +50,6 @@
     <li><a href="#resonancias">Resonancias</a></li>
     <li><a href="#calculadora">Calculadora</a></li>
     <li><a href="#jugar">Jugar</a></li>
-    <li><a href="#" id="patchesNavLink">Avisos<span class="patches-new-badge" id="patchesNewBadge" aria-label="Nuevo aviso disponible" hidden>!</span></a></li>
   </ul>
 </nav>
 
@@ -803,6 +816,41 @@
   </div>
 </div>
 
+<!-- ═══ Tienda ═══ -->
+<div class="shop-modal" id="shopModal">
+  <div class="shop-backdrop" id="shopBackdrop"></div>
+  <div class="shop-content">
+    <div class="shop-header">
+      <div class="shop-title">🛒 Tienda</div>
+      <div class="shop-money" title="Tu dinero">
+        <span class="shop-money-icon">💎</span>
+        <span id="shopMoney">0</span>
+      </div>
+      <div class="shop-header-buttons">
+        <button class="shop-hd-btn" id="shopRedeemBtn" title="Canjear código">🔑</button>
+        <button class="shop-hd-btn" id="shopResetBtn" title="Resetear progreso">🔄</button>
+        <button class="shop-hd-btn shop-close" id="shopCloseBtn" title="Cerrar">✕</button>
+      </div>
+    </div>
+    <div class="shop-tabs" id="shopTabs"></div>
+    <div class="shop-body" id="shopBody"></div>
+  </div>
+</div>
+
+<!-- ═══ Modal de código ═══ -->
+<div class="shop-code-modal" id="shopCodeModal">
+  <div class="shop-code-backdrop" id="shopCodeBackdrop"></div>
+  <div class="shop-code-content">
+    <div class="shop-code-title">🔑 Canjear código</div>
+    <p class="shop-code-sub">Introduce un código para desbloquear contenido.</p>
+    <input type="text" id="shopCodeInput" class="shop-code-input" placeholder="Código...">
+    <div class="shop-code-buttons">
+      <button class="shop-code-btn cancel" id="shopCodeCancel">Cancelar</button>
+      <button class="shop-code-btn accept" id="shopCodeAccept">Canjear</button>
+    </div>
+  </div>
+</div>
+
 <div class="hover-tooltip" id="hoverTooltip"></div>
 
 <script src="js/01-state-globals.js" defer></script>
@@ -826,6 +874,7 @@
 <script src="js/18-cards-confirmations.js" defer></script>
 <script src="js/19-combat-render-bindings.js" defer></script>
 <script src="js/20-calculator-sandbox-init.js" defer></script>
+<script src="js/21-shop.js" defer></script>
 
 </body>
 </html>
