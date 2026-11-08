@@ -22,6 +22,7 @@ nav {
   background-clip: text;
   -webkit-text-fill-color: transparent;
   flex-shrink: 0;
+  text-decoration: none
 }
 
 nav ul {
@@ -197,4 +198,56 @@ nav a:hover::after {
   50% {
     transform: translateY(12px);
   }
+}
+
+/* ═══ Grupo brand: logo + acciones (Tienda / Avisos) ═══ */
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  flex-shrink: 0;
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding-left: 1.1rem;
+  border-left: 1px solid rgba(240, 200, 96, 0.22);
+}
+
+.nav-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.42rem 0.9rem;
+  border-radius: 20px;
+  background: rgba(240, 200, 96, 0.08);
+  border: 1px solid rgba(240, 200, 96, 0.28);
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  transition: all 0.25s;
+  position: relative;
+}
+
+.nav-action-btn:hover {
+  background: linear-gradient(135deg, rgba(240, 200, 96, 0.22), rgba(165, 131, 255, 0.12));
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 15px rgba(240, 200, 96, 0.2);
+}
+
+.nav-action-icon {
+  font-size: 0.95rem;
+  line-height: 1;
+  filter: drop-shadow(0 0 4px rgba(240, 200, 96, 0.4));
+}
+
+.nav-action-label {
+  line-height: 1;
 }
