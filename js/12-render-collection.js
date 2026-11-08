@@ -279,7 +279,7 @@ function buildModalContent(charId, char, originalId) {
 
   var abilitiesHtml = (char.abilities || []).map(function(ab){ return renderAbility(ab, ELEMENT_COLORS[el], terms); }).join('');
 
-  return '<div class="modal-header"><div class="modal-portrait" data-fallback="' + char.emoji + '"><img src="' + char.img + '" alt="' + char.name + '" class="portrait-img" style="opacity:0;" onload="this.style.opacity=1;" onerror="this.style.display=\'none\';"><div class="modal-hp-badge">' + char.hp + ' HP</div></div><div class="modal-info"><div class="modal-eyebrow"><span class="el-badge-lg">' + ELEMENT_EMOJI[el] + '</span>' + ELEMENT_NAMES[el] + ' · ' + char.set + '</div><h2 class="modal-title" id="modalTitle">' + char.name + '</h2><p class="modal-concept">"' + char.concept + '"</p>' + toggleHtml + '</div><button class="modal-close" aria-label="Cerrar">×</button></div><div class="modal-body"><div class="obtain-box"><div class="obtain-label">📍 Obtención</div><p class="obtain-text">' + obtainText + '</p></div><div class="abilities">' + abilitiesHtml + '</div></div>';
+  return '<div class="modal-header"><div class="modal-portrait" data-fallback="' + char.emoji + '"><img src="' + char.img + '" alt="' + char.name + '" class="portrait-img" style="opacity:0;" onload="this.style.opacity=1;" onerror="this.style.display=\'none\';"><div class="modal-hp-badge">' + char.hp + ' HP</div></div><div class="modal-info"><div class="modal-eyebrow"><span class="el-badge-lg">' + ELEMENT_EMOJI[el] + '</span>' + ELEMENT_NAMES[el] + ' · ' + (char.category || char.set) + '</div><h2 class="modal-title" id="modalTitle">' + char.name + '</h2><p class="modal-concept">"' + char.concept + '"</p>' + toggleHtml + '</div><button class="modal-close" aria-label="Cerrar">×</button></div><div class="modal-body"><div class="obtain-box"><div class="obtain-label">📍 Obtención</div><p class="obtain-text">' + obtainText + '</p></div><div class="abilities">' + abilitiesHtml + '</div></div>';
 }
 
 var modal = document.getElementById('cardModal');
@@ -489,5 +489,16 @@ function attachAbilityTermListeners(container, charId) {
       for (var i = 0; i < terms.length; i++) if (terms[i].key === key) { term = terms[i]; break; }
       if (term) showTermPopup(span, term);
     });
+  });
+}
+
+/* ═══ Sincroniza el title de las tarjetas con la categoría del personaje ═══ */
+function syncCardTitles() {
+  document.querySelectorAll('.char-card').forEach(function(card){
+    var id = card.dataset.character;
+    var ch = CHARACTERS[id];
+    if (!ch) return;
+    if (ch.comingSoon) return;                // deja "Próximamente"
+    if (ch.category) card.title = ch.category;
   });
 }
