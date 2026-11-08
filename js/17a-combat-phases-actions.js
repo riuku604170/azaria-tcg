@@ -308,7 +308,7 @@ function showSelectDetail(idx) {
 
   var html = '<div class="select-detail-inner" style="--el: ' + col + ';">';
   html += '<div class="select-detail-portrait" data-fallback="' + cd.emoji + '"><img src="img/' + cs.id + '.png" alt="' + cd.name + '" style="width:100%; height:100%; object-fit:cover; border-radius:14px;" onerror="this.style.display=\'none\';"><div style="position:absolute; bottom:10px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.85); padding: 0.25rem 0.8rem; border-radius: 20px; font-weight: 800; font-size: 0.8rem; color: rgb(' + col + '); border: 1px solid rgba(' + col + ', 0.6); white-space: nowrap; z-index: 3;">❤️ ' + cs.hp + '/' + cs.maxHp + ' HP</div></div>';
-  html += '<div class="select-detail-info"><div style="font-size: 0.75rem; font-weight: 800; letter-spacing: 0.18em; text-transform: uppercase; color: rgb(' + col + '); margin-bottom: 0.6rem;">' + ELEMENT_EMOJI[cd.element] + ' ' + ELEMENT_NAMES[cd.element] + ' · ' + cd.set + '</div>';
+  html += '<div class="select-detail-info"><div style="font-size: 0.75rem; font-weight: 800; letter-spacing: 0.18em; text-transform: uppercase; color: rgb(' + col + '); margin-bottom: 0.6rem;">' + ELEMENT_EMOJI[cd.element] + ' ' + ELEMENT_NAMES[cd.element] + ' · ' + (cd.category || cd.set) + '</div>';
   html += '<h2 style="font-size: 2rem; font-weight: 900; margin-bottom: 0.5rem; background: linear-gradient(90deg, #fff, rgb(' + col + ')); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: -0.02em;">' + cd.name + '</h2>';
   html += '<p style="color: var(--muted); font-style: italic; font-size: 0.88rem; line-height: 1.6; margin-bottom: 1.2rem; border-left: 2px solid rgba(' + col + ', 0.4); padding-left: 0.8rem;">"' + cd.concept + '"</p>';
   // ✅ Más alto porque ahora hay 5 bloques (normal + elemental + ult + pasiva + EX)
@@ -1560,6 +1560,26 @@ function botChooseBestCard() {
   return top[0];
 }
 
+function botChooseAction() {
+  var bot = combatState.bot;
+  var active = bot.characters[bot.activeIndex];
+  if (!active || active.dead) return null;
+  var enemyActive = combatState.player.characters[combatState.player.activeIndex];
+  if (!enemyActive || enemyActive.dead) {
+    enemyActive = combatState.player.characters.find(function(c){ return !c.dead; });
+    if (!enemyActive) return null;
+  }
+  var candidates = [];
+
+  ['ultimate', 'normal', 'elemental'].forEach(function(type){
+    var ability = active.character.abilities[type];
+    if (!ability) return;
+    if (!botCanUseAbility(bot, active, ability, type)) return;
+    if (type === 'ultimate' && !botUltimateMakesSense(active, ability, enemyActive)) return;
+    var score = botScoreAbility(type, active, enemyActive);
+    candidates.push({ action: { type: type }, score: score });
+  });
+
   for (var i = 0; i < bot.characters.length; i++) {
     if (i === bot.activeIndex) continue;
     if (bot.characters[i].dead) continue;
@@ -1577,6 +1597,7 @@ function botChooseBestCard() {
   var roll = Math.random() * total;
   for (var j = 0; j < top.length; j++) { roll -= Math.max(0.1, top[j].score); if (roll <= 0) return top[j].action; }
   return top[0].action;
+}
 
 /* ─── Ejecución de cartas del bot ─── */
 function botPlayCard(cardId, card) {
