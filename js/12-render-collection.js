@@ -21,11 +21,17 @@ var CHAR_SORT_TITLES = {
   category: 'Orden actual: por Categoría. Clic para cambiar.'
 };
 var CHAR_ELEMENT_ORDER = ['proteccion','comprension','expresion','transformacion','aceptacion','redencion','ilusion'];
-var CHAR_CATEGORY_ORDER = ['Usuarios', 'Personajes', 'Eriks'];
+var CHAR_CATEGORY_ORDER = ['Usuarios', 'Eriks', 'BTC', 'Lusior', 'Azaria'];
 var charSortMode = 'alpha';
 var charFilterSet = {}, resFilterSet = {}, deckCatFilterSet = {}, deckTagFilterSet = {};
-var CHARACTER_CATEGORIES = ['Eriks', 'Personajes', 'Usuarios', 'BTC'];
-var CHARACTER_CATEGORY_COLORS = { 'Eriks':'255,120,60', 'Personajes':'130,220,140', 'Usuarios':'140,180,230', 'BTC':'92,179,255' };
+var CHARACTER_CATEGORIES = ['Usuarios', 'Eriks', 'BTC', 'Lusior', 'Azaria'];
+var CHARACTER_CATEGORY_COLORS = {
+  'Usuarios': '140,180,230',
+  'Eriks':    '255,120,60',
+  'BTC':      '92,179,255',
+  'Lusior':   '100,220,120',
+  'Azaria':   '240,200,96'
+};
 var charCatFilterSet = {};
 
 function updateCharSortBtn() {
@@ -147,12 +153,21 @@ function renderCharFilter() {
 }
 
 function applyFilters() {
-  var searchEl = document.getElementById('charSearch'); var query = searchEl ? normalize(searchEl.value.trim()) : '';
+  var searchEl = document.getElementById('charSearch');
+  var query = searchEl ? normalize(searchEl.value.trim()) : '';
   var noneEl = setSize(charFilterSet) === 0;
   var noneCat = setSize(charCatFilterSet) === 0;
-  var cards = document.querySelectorAll('.char-card'); var visible = 0;
-  for (var i = 0; i < cards.length; i++) {
-    var card = cards[i];
+  var allCards = document.querySelectorAll('.char-card');
+  var visible = 0;
+  var totalVisible = 0;
+  for (var i = 0; i < allCards.length; i++) {
+    var card = allCards[i];
+    // ✅ Locked: ocultar SIEMPRE, sin importar los filtros
+    if (card.classList.contains('locked')) {
+      card.style.display = 'none';
+      continue;
+    }
+    totalVisible++;
     var cd = CHARACTERS[card.dataset.character];
     var nm = cd ? cd.name : '';
     var cat = cd ? (cd.category || '') : '';
@@ -165,7 +180,7 @@ function applyFilters() {
     } else card.style.display = 'none';
   }
   var counter = document.getElementById('charCounter');
-  if (counter) counter.innerHTML = '<strong>' + visible + '</strong> de ' + cards.length;
+  if (counter) counter.innerHTML = '<strong>' + visible + '</strong> de ' + totalVisible;
 }
 
 function renderResonances() {
@@ -284,7 +299,9 @@ function buildModalContent(charId, char, originalId) {
 
 var modal = document.getElementById('cardModal');
 var modalContent = document.getElementById('modalContent');
-function openCharacter(id, viewId) {
+function openCharacter(id, viewId, opts) {
+  opts = opts || {};
+  var shopMode = !!opts.shopMode;
   var showId = viewId || id;
   var char = CHARACTERS[showId]; if (!char || !modal || !modalContent) return;
   var terms = char.terms || [];
@@ -295,36 +312,40 @@ function openCharacter(id, viewId) {
 
   var closeBtn = modalContent.querySelector('.modal-close');
   if (closeBtn) closeBtn.addEventListener('click', closeModal);
-
   var toggleBtn = modalContent.querySelector('[data-toggle-view]');
-  if (toggleBtn) {
-    toggleBtn.addEventListener('click', function() {
-      var targetView = toggleBtn.getAttribute('data-toggle-view');
-      openCharacter(targetView, targetView);
-    });
-  }
-
-  // Términos clicables
+  if (toggleBtn) toggleBtn.addEventListener('click', function(){ var tv = toggleBtn.getAttribute('data-toggle-view'); openCharacter(tv, tv, opts); });
   modalContent.querySelectorAll('.clickable-term').forEach(function(span){
     span.addEventListener('click', function(e){
       e.stopPropagation();
-      var key = span.dataset.termKey;
-      var term = null;
+      var key = span.dataset.termKey; var term = null;
       for (var i = 0; i < terms.length; i++) if (terms[i].key === key) { term = terms[i]; break; }
       if (term) showTermPopup(span, term);
     });
   });
-
-  // Botones de Atributos
   modalContent.querySelectorAll('.ability-attributes-btn').forEach(function(btn){
     btn.addEventListener('click', function(e){
       e.stopPropagation();
-      var aname = btn.dataset.abilityName;
-      var ab = null;
+      var aname = btn.dataset.abilityName; var ab = null;
       for (var i = 0; i < abilities.length; i++) if (abilities[i].name === aname) { ab = abilities[i]; break; }
       if (ab && ab.attributes && ab.attributes.length) showAttributesPopup(btn, ab.name, ab.attributes);
     });
   });
+
+  // ✅ Barra de compra (solo en shopMode)
+  if (shopMode) {
+    var bar = document.createElement('div');
+    bar.className = 'shop-buy-bar';
+    if (typeof isUnlocked === 'function' && !isUnlocked(showId)) {
+      bar.innerHTML = '<div class="shop-buy-price">💎 ' + (typeof SHOP_DEFAULT_PRICE !== 'undefined' ? SHOP_DEFAULT_PRICE : 100) + '</div>' +
+        '<button class="shop-buy-btn" id="shopBuyBtn">Comprar</button>';
+      modalContent.appendChild(bar);
+      var bb = document.getElementById('shopBuyBtn');
+      if (bb) bb.addEventListener('click', function(){ if (typeof buyShopItem === 'function') buyShopItem(showId, 'characters'); });
+    } else {
+      bar.innerHTML = '<div class="shop-buy-owned">✓ Ya lo tienes</div>';
+      modalContent.appendChild(bar);
+    }
+  }
 
   modal.classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -501,4 +522,15 @@ function syncCardTitles() {
     if (ch.comingSoon) return;                // deja "Próximamente"
     if (ch.category) card.title = ch.category;
   });
+}
+
+/* ═══ Marca como .locked las tarjetas no desbloqueadas ═══ */
+function refreshCollectionLocks() {
+  if (typeof isUnlocked !== 'function') return;
+  document.querySelectorAll('.char-card').forEach(function(card){
+    var id = card.dataset.character;
+    if (!id) return;
+    card.classList.toggle('locked', !isUnlocked(id));
+  });
+  if (typeof applyFilters === 'function') applyFilters();
 }
