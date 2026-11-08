@@ -166,7 +166,7 @@ function showCharTooltip(card, cs) {
   var vis = ['normal','elemental','ultimate'], col = ELEMENT_COLORS[cd.element];
   var html = '<div class="ht-header" style="color: rgb(' + col + ');">' + ELEMENT_EMOJI[cd.element] + ' ' + ELEMENT_NAMES[cd.element] + '</div>';
   html += '<div class="ht-name" style="background: linear-gradient(90deg, #fff, rgb(' + col + ')); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">' + cd.name + '</div>';
-  html += '<div class="ht-sub">' + cd.set + ' · ' + cs.hp + '/' + cs.maxHp + ' HP · 🛡️ ' + totalShield(cs) + '</div>';
+  html += '<div class="ht-sub">' + (cd.category || cd.set) + ' · ' + cs.hp + '/' + cs.maxHp + ' HP · 🛡️ ' + totalShield(cs) + '</div>';
   cd.abilities.forEach(function(ab){
     if (vis.indexOf(ab.type) === -1) return;
     var icon = ab.type === 'normal' ? '⚔️' : (ab.type === 'elemental' ? '🔮' : '💥');
