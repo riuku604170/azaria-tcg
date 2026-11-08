@@ -857,7 +857,8 @@ var initFns = [
   ['renderTemplateSlots', renderTemplateSlots],
   ['initPatches', initPatches],
   ['initSandbox', initSandbox],
-  ['checkTemplateIntegrity', checkTemplateIntegrity]
+  ['checkTemplateIntegrity', checkTemplateIntegrity],
+  ['syncCardTitles', syncCardTitles]
 ];
 initFns.forEach(function(p){ try { p[1](); } catch (e) { console.error('Init error in ' + p[0] + ':', e); } });
 
