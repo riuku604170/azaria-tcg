@@ -4,6 +4,17 @@
 var PATCHES = [
 {
   version: 'BETA 1.4',
+  date: '2026-11-08',
+  type: 'minor',
+  title: 'Arreglos visuales y de funcionamiento + Nuevos próximos personajes',
+  changes: [
+    'Arreglados los botones para comenzar partida.',
+    'Ahora visibles los cambios de los usuarios en el menú.',
+    'Añadidos a próximos usuarios: Amsa, Gabo, Vicky y Víctor.'
+  ]  
+},
+{
+  version: 'BETA 1.4',
   date: '2026-11-07',
   type: 'minor',
   title: 'Rebalanceo, bot, arreglos y mejoras visuales',
