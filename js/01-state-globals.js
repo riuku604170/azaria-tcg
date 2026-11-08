@@ -25,3 +25,41 @@ var pendingExChoiceP2 = null;
 var currentGameMode = 'normal';
 // Stub no-op: mantiene compatibilidad con llamadas externas (showCombatStartConfirm, closeCombat).
 function refreshGameModeBtn() {}
+
+/* ═══ TIENDA / INVENTARIO ═══ */
+var playerMoney = 0;
+var unlockedIds = {};
+var redeemedCodes = {};
+var shopForceLocked = false;   // ✅ Modo prueba: si true, solo cuenta unlockedIds
+
+function loadShopState() {
+  try {
+    var m = localStorage.getItem('azaria_money');
+    playerMoney = m ? parseInt(m, 10) || 0 : 0;
+    var u = localStorage.getItem('azaria_unlocked');
+    if (u) { var arr = JSON.parse(u); if (Array.isArray(arr)) { unlockedIds = {}; arr.forEach(function(id){ unlockedIds[id] = true; }); } }
+    var c = localStorage.getItem('azaria_redeemed_codes');
+    if (c) { var arrC = JSON.parse(c); if (Array.isArray(arrC)) { redeemedCodes = {}; arrC.forEach(function(code){ redeemedCodes[code] = true; }); } }
+    shopForceLocked = localStorage.getItem('azaria_force_locked') === '1';
+  } catch (e) { console.warn('loadShopState:', e); }
+}
+function saveShopState() {
+  try {
+    localStorage.setItem('azaria_money', String(playerMoney));
+    localStorage.setItem('azaria_unlocked', JSON.stringify(Object.keys(unlockedIds)));
+    localStorage.setItem('azaria_redeemed_codes', JSON.stringify(Object.keys(redeemedCodes)));
+    localStorage.setItem('azaria_force_locked', shopForceLocked ? '1' : '0');
+  } catch (e) { console.warn('saveShopState:', e); }
+}
+function isUnlocked(id) {
+  if (shopForceLocked) return !!unlockedIds[id];   // ✅ Solo lo comprado/canjeado
+  if (unlockedIds[id]) return true;
+  if (typeof CHARACTERS !== 'undefined' && CHARACTERS[id]) {
+    return (CHARACTERS[id].category || '') !== 'Azaria';
+  }
+  return true;
+}
+function unlockId(id) { unlockedIds[id] = true; saveShopState(); }
+function addMoney(n) { playerMoney += n; saveShopState(); if (typeof renderShopMoney === 'function') renderShopMoney(); }
+
+loadShopState();
