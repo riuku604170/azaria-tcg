@@ -528,8 +528,46 @@ function advancePvpSetup(){
   return true;
 }
 
+/* ═══ Valida que una partida guardada solo tenga ítems desbloqueados ═══ */
+function checkCombatSaveUnlocked(sv) {
+  if (!sv) return { ok: false, missing: [] };
+  var missing = [];
+  var checkChar = function(c, side){
+    if (!c || !c.id) return;
+    if (CHARACTERS[c.id] && typeof isUnlocked === 'function' && !isUnlocked(c.id)) {
+      missing.push(side + ': ' + (CHARACTERS[c.id].name || c.id));
+    }
+  };
+  var checkCard = function(id, side){
+    if (!id) return;
+    if (CARD_DB[id] && typeof isUnlocked === 'function' && !isUnlocked(id)) {
+      missing.push(side + ': ' + (CARD_DB[id].name || id));
+    }
+  };
+  ['player','bot'].forEach(function(wk){
+    var s = sv[wk];
+    if (!s) return;
+    if (s.characters) s.characters.forEach(function(c){
+      checkChar(c, wk);
+      if (c && c.equipment) c.equipment.forEach(function(eqId){ checkCard(eqId, wk); });
+    });
+    if (s.deck) s.deck.forEach(function(id){ checkCard(id, wk); });
+    if (s.hand) s.hand.forEach(function(id){ checkCard(id, wk); });
+    if (s.discardPile) s.discardPile.forEach(function(id){ checkCard(id, wk); });
+    if (s.supports) s.supports.forEach(function(sp){ if (sp && sp.cardId) checkCard(sp.cardId, wk); });
+  });
+  return { ok: missing.length === 0, missing: missing };
+}
+
 function resumeCombatFromSlot(s) {
   var sv = getSavedCombat(s); if (!sv) return;
+  // ✅ Validar antes de reanudar
+  var chk = checkCombatSaveUnlocked(sv);
+  if (!chk.ok) {
+    showTeamMissingToast('❌ No puedes reanudar esta partida: falta ' + chk.missing.length + ' elemento(s) de tu inventario.');
+    playSound('error');
+    return;
+  }
   currentCombatSlot = s; combatState = sv;
   if (!combatState.player.discardPile) combatState.player.discardPile = [];
   if (!combatState.player.initialDrawThisRound) combatState.player.initialDrawThisRound = [];
