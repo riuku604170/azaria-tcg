@@ -276,9 +276,13 @@ function renderAbility(ab, elementColor, charTerms) {
     attrsBtn +
     '</div>';
 }
-function buildModalContent(charId, char, originalId) {
+function buildModalContent(charId, char, originalId, isIdolView) {
+  isIdolView = !!isIdolView;
   var el = char.element;
   var terms = char.terms || [];
+  var displayName = isIdolView ? 'YouTube Idol' : char.name;
+  var displayImg = isIdolView ? 'img/youtubeidol.png' : char.img;
+  var displayEmoji = isIdolView ? '🎤' : char.emoji;
   var obtainText = 'Se obtiene comprándolo en la tienda con cierto precio y un nivel de amistad concreto, tras vencerlo en una batalla (desbloqueado por ' + char.name + ').';
 
   var toggleHtml = '';
@@ -290,11 +294,17 @@ function buildModalContent(charId, char, originalId) {
     toggleHtml = '<button class="modal-toggle-view" data-toggle-view="exmaria" title="Ver EX-María">👁️ Ver EX-María</button>';
   } else if (charId === 'exmaria') {
     toggleHtml = '<button class="modal-toggle-view" data-toggle-view="maria" title="Volver a María">👁️ Volver a María</button>';
+  } else if (charId === 'youtube') {
+    if (isIdolView) {
+      toggleHtml = '<button class="modal-toggle-view" data-toggle-view="youtube" title="Volver a forma Casual">📺 Volver a YouTube (Casual)</button>';
+    } else {
+      toggleHtml = '<button class="modal-toggle-view" data-toggle-view="youtubeidol" title="Ver forma Idol">🎤 Ver YouTube Idol</button>';
+    }
   }
 
   var abilitiesHtml = (char.abilities || []).map(function(ab){ return renderAbility(ab, ELEMENT_COLORS[el], terms); }).join('');
 
-  return '<div class="modal-header"><div class="modal-portrait" data-fallback="' + char.emoji + '"><img src="' + char.img + '" alt="' + char.name + '" class="portrait-img" style="opacity:0;" onload="this.style.opacity=1;" onerror="this.style.display=\'none\';"><div class="modal-hp-badge">' + char.hp + ' HP</div></div><div class="modal-info"><div class="modal-eyebrow"><span class="el-badge-lg">' + ELEMENT_EMOJI[el] + '</span>' + ELEMENT_NAMES[el] + ' · ' + (char.category || char.set) + '</div><h2 class="modal-title" id="modalTitle">' + char.name + '</h2><p class="modal-concept">"' + char.concept + '"</p>' + toggleHtml + '</div><button class="modal-close" aria-label="Cerrar">×</button></div><div class="modal-body"><div class="obtain-box"><div class="obtain-label">📍 Obtención</div><p class="obtain-text">' + obtainText + '</p></div><div class="abilities">' + abilitiesHtml + '</div></div>';
+  return '<div class="modal-header"><div class="modal-portrait" data-fallback="' + displayEmoji + '"><img src="' + displayImg + '" alt="' + displayName + '" class="portrait-img" style="opacity:0;" onload="this.style.opacity=1;" onerror="this.style.display=\'none\';"><div class="modal-hp-badge">' + char.hp + ' HP</div></div><div class="modal-info"><div class="modal-eyebrow"><span class="el-badge-lg">' + ELEMENT_EMOJI[el] + '</span>' + ELEMENT_NAMES[el] + ' · ' + (char.category || char.set) + '</div><h2 class="modal-title" id="modalTitle">' + displayName + '</h2><p class="modal-concept">"' + char.concept + '"</p>' + toggleHtml + '</div><button class="modal-close" aria-label="Cerrar">×</button></div><div class="modal-body"><div class="obtain-box"><div class="obtain-label">📍 Obtención</div><p class="obtain-text">' + obtainText + '</p></div><div class="abilities">' + abilitiesHtml + '</div></div>';
 }
 
 var modal = document.getElementById('cardModal');
@@ -303,12 +313,16 @@ function openCharacter(id, viewId, opts) {
   opts = opts || {};
   var shopMode = !!opts.shopMode;
   var showId = viewId || id;
-  var char = CHARACTERS[showId]; if (!char || !modal || !modalContent) return;
+
+  // ✅ Vista especial "youtubeidol": usa YouTube como base pero cambia imagen/nombre
+  var isIdolView = (showId === 'youtubeidol');
+  var charId = isIdolView ? 'youtube' : showId;
+  var char = CHARACTERS[charId]; if (!char || !modal || !modalContent) return;
   var terms = char.terms || [];
   var abilities = (char.abilities || []).map(normalizeAbility);
 
   modalContent.style.setProperty('--el', ELEMENT_COLORS[char.element]);
-  modalContent.innerHTML = buildModalContent(showId, char, id);
+  modalContent.innerHTML = buildModalContent(charId, char, id, isIdolView);
 
   var closeBtn = modalContent.querySelector('.modal-close');
   if (closeBtn) closeBtn.addEventListener('click', closeModal);
@@ -335,12 +349,13 @@ function openCharacter(id, viewId, opts) {
   if (shopMode) {
     var bar = document.createElement('div');
     bar.className = 'shop-buy-bar';
-    if (typeof isUnlocked === 'function' && !isUnlocked(showId)) {
+    var idForShop = charId;  // ✅ Para youtubeidol, comprobar/desbloquear 'youtube'
+    if (typeof isUnlocked === 'function' && !isUnlocked(idForShop)) {
       bar.innerHTML = '<div class="shop-buy-price">💎 ' + (typeof SHOP_DEFAULT_PRICE !== 'undefined' ? SHOP_DEFAULT_PRICE : 100) + '</div>' +
         '<button class="shop-buy-btn" id="shopBuyBtn">Comprar</button>';
       modalContent.appendChild(bar);
       var bb = document.getElementById('shopBuyBtn');
-      if (bb) bb.addEventListener('click', function(){ if (typeof buyShopItem === 'function') buyShopItem(showId, 'characters'); });
+      if (bb) bb.addEventListener('click', function(){ if (typeof buyShopItem === 'function') buyShopItem(idForShop, 'characters'); });
     } else {
       bar.innerHTML = '<div class="shop-buy-owned">✓ Ya lo tienes</div>';
       modalContent.appendChild(bar);
