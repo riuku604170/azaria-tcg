@@ -1,6 +1,22 @@
 function adjustCardCostForPassives(card, side) {
   var adjusted = {};
   Object.keys(card.cost || {}).forEach(function(k){ adjusted[k] = card.cost[k]; });
+  // ✅ Monetización (EX de YouTube) sobre el lado que juega la carta
+  var actSideKey = getTurnKey();
+  var sideForMon = combatState[actSideKey];
+  if (sideForMon && sideForMon.structures) {
+    var mon = sideForMon.structures.find(function(st){ return st.kind === 'monetizacion' && st.usos > 0; });
+    if (mon) {
+      adjusted.any = (adjusted.any || 0) + 1;
+      mon.usos -= 1;
+      if (mon.usos <= 0) {
+        sideForMon.structures.splice(sideForMon.structures.indexOf(mon), 1);
+        logCombat('💸 Monetización agotada y eliminada');
+      } else {
+        logCombat('💸 Monetización: carta +1 genérico · usos restantes: ' + mon.usos);
+      }
+    }
+  }
   if (card.category === 'equipo') { var oa = side.characters.some(function(c){ return c.id === 'oliver' && !c.dead; }); if (oa) { if (adjusted.any && adjusted.any > 0) adjusted.any = Math.max(0, adjusted.any - 1); else if (adjusted.same && adjusted.same > 0) adjusted.same = Math.max(0, adjusted.same - 1); } }
   if (card.tag === 'Curación') { var na = side.characters.some(function(c){ return c.id === 'noah' && !c.dead; }); if (na) { if (adjusted.any && adjusted.any > 0) adjusted.any = Math.max(0, adjusted.any - 1); else if (adjusted.same && adjusted.same > 0) adjusted.same = Math.max(0, adjusted.same - 1); } }
   // ✅ Facebook: siguiente carta -1 dado (se consume al jugarla)
@@ -145,6 +161,18 @@ function playCardRequest(cardId) {
   if (isTurnDone()) return;
   var side = getTurnSide(); if (!side) return;
   var card = CARD_DB[cardId] || PAINT_CARDS[cardId]; if (!card) return;
+
+  // ✅ Cartas de peluche (Traductor): se usan sin coste
+  if (card.category === 'plush') {
+    applyPlushCard(cardId);
+    var hi = side.hand.indexOf(cardId);
+    if (hi >= 0) side.hand.splice(hi, 1);
+    if (!side.discardPile) side.discardPile = [];
+    side.discardPile.push(cardId);
+    playSound('card');
+    renderCombat();
+    return;
+  }
 
   if (card.oncePerRound && side.cardsUsedThisRound[cardId]) { playSound('error'); return; }
   if (card.oncePerGame && side.cardsUsedThisGame[cardId]) { playSound('error'); return; }
@@ -919,5 +947,49 @@ function showCardInfo(cardId, opts) {
   if (shopMode) {
     var bb = document.getElementById('shopBuyBtn');
     if (bb) bb.addEventListener('click', function(){ if (typeof buyShopItem === 'function') buyShopItem(cardId, 'cards'); });
+  }
+}
+/* ═══ Cartas de peluche (Traductor) ═══ */
+function triggerPlushOnDraw(who, cid) {
+  var side = combatState[who];
+  if (cid === 'plush_bar') {
+    // 2 daño al activo del que la robó + marca con Ilusión + inyecta Katze en el mazo contrario
+    var active = side.characters[side.activeIndex];
+    if (active && !active.dead) {
+      dealDamageToChar(active, 2, { targetSide: side, targetSideKey: who, targetIdx: side.activeIndex });
+      if (!active.dead) triggerMarkOrResonance(active, 'ilusion', who, who, side.activeIndex);
+    }
+    var ek = who === 'player' ? 'bot' : 'player';
+    var es = combatState[ek];
+    es.deck.push('plush_katze');
+    es.deck = shuffleArray(es.deck);
+    logCombat('🐻 Plüschbär activado: 2 daño + marca + Plüschkatze inyectada');
+  } else if (cid === 'plush_katze') {
+    side.characters.forEach(function(c){ if (!c.dead) healChar(c, 1); });
+    logCombat('🐱 Plüschkatze activado: +1 HP a todo el equipo');
+  }
+  // Freundschaft: +1 energía a Traductor
+  ['player','bot'].forEach(function(wk){
+    var t = combatState[wk].characters.find(function(c){ return c.id === 'traductor' && !c.dead; });
+    if (t) {
+      t.energy = Math.min(t.maxEnergy, t.energy + 1);
+      logCombat('🧸 Freundschaft: Traductor +1 energía');
+    }
+  });
+}
+function applyPlushCard(cardId) {
+  var side = getActiveSide(); if (!side) return;
+  var active = side.characters[side.activeIndex];
+  if (cardId === 'plush_hase') {
+    if (active && !active.dead) healChar(active, 3);
+    var ek = getEnemyKey();
+    var es = combatState[ek];
+    es.deck.push('plush_bar');
+    es.deck = shuffleArray(es.deck);
+    logCombat('🐰 Plüschhase: +3 HP al activo + Plüschbär inyectado en mazo rival');
+    ['player','bot'].forEach(function(wk){
+      var t = combatState[wk].characters.find(function(c){ return c.id === 'traductor' && !c.dead; });
+      if (t) { t.energy = Math.min(t.maxEnergy, t.energy + 1); logCombat('🧸 Freundschaft: Traductor +1 energía'); }
+    });
   }
 }
