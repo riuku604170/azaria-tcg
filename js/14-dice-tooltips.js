@@ -222,6 +222,8 @@ function showStructureTooltip(anchor, st) {
   html += '<div class="ht-name">🤖 Android</div><div class="ht-sub">' + st.duration + ' ronda(s) · Estructura de Google</div><div class="ht-effect">Al final de cada ronda, inflige 1 punto de daño al enemigo activo.</div>';
   } else if (st.kind === 'metaQuest') {
   html += '<div class="ht-name">📘 Meta Quest</div><div class="ht-sub">' + st.duration + ' ronda(s) · Estructura de Facebook</div><div class="ht-effect">Cura 1 punto de vida al aliado activo cada vez que dicho aliado use su ataque normal.</div>';
+  } else if (st.kind === 'monetizacion') {
+    html += '<div class="ht-name">💸 Monetización</div><div class="ht-sub">' + (st.usos || 0) + ' uso(s) restantes</div><div class="ht-effect">Las cartas del rival cuestan 1 dado genérico extra. Pierde 1 uso cada vez que el rival juega una carta.</div>';
   }
   hoverTooltip.innerHTML = html;
   hoverTooltip.classList.add('show');
