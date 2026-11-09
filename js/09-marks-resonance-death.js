@@ -357,6 +357,10 @@ function dealDamageToChar(targetCs, rawDamage, opts) {
       logCombat('🌐 Orgullo de la Creadora: Internet gana 1 energía al bajar a ' + targetCs.hp + ' HP');
     }
     triggerVibrate(sideKey, idx); playSound(opts.piercing ? 'pierce' : 'impact');
+    // ✅ YouTube: pierde 1 pop al recibir un ataque
+    if (targetCs.id === 'youtube' && typeof loseYouTubePop === 'function') {
+      loseYouTubePop(targetCs, 1, 'recibe ataque');
+    }
     if (csHasState(targetCs, 'vuelo')) {
       targetCs.hp = Math.max(0, targetCs.hp - 3);
       targetCs.energy = Math.min(targetCs.maxEnergy, targetCs.energy + 1);
@@ -543,7 +547,16 @@ function exHookModifyHealing(targetCs, amount) {
   return amount;
 }
 function exHookPreventDeath(cs, sideKey, idx) {
-  if (!cs || !cs.exActive) return false;
+  if (!cs) return false;
+  // ✅ X: Superviviente de las Profundidades (una vez por partida)
+  if (cs.id === 'x' && !(cs.states && cs.states.xSurvived)) {
+    if (!cs.states) cs.states = {};
+    cs.states.xSurvived = true;
+    cs.hp = 1;
+    logCombat('✖️ Superviviente de las Profundidades: X sobrevive con 1 HP');
+    return true;
+  }
+  if (!cs.exActive) return false;
   return false;
 }
 function exHookRoundStart(cs, sideKey) {
