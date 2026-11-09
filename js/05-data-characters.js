@@ -52,7 +52,7 @@ var CHARACTERS = {
         attributes: null }
     ]},
 
-  erik: { name:'Erik', element:'expresion', set:'Magia de Pintura', category:'Usuarios', hp:10, emoji:'🎨', img:'img/erik.png',
+  erik: { name:'Erik', element:'ilusion', set:'Magia de Pintura', category:'Usuarios', hp:10, emoji:'🎨', img:'img/erik.png',
     concept:'Sus habilidades están construidas para ser un personaje todoterreno consistente, que puede bastarse por sí mismo.',
     terms: [
       { key:'pintura_roja', name:'Pintura Roja', definition:'Aumenta el daño del siguiente ataque normal y se descarta. Solo puede equiparse sobre Erik.' },
@@ -61,19 +61,19 @@ var CHARACTERS = {
     ],
     abilities: [
       { type:'normal', icon:'⚔️', name:'Trazo Vivo',
-        description:'Golpea al enemigo e inflige daño leve, marcando al enemigo con Expresión. Si lleva equipada una carta de Pintura, no marca al enemigo, pero tendrá un efecto adicional dependiendo del color de la pintura: **Pintura Roja** aumenta el daño, **Pintura Azul** otorga un escudo y **Pintura Verde** cura.',
-        attributes: ['Coste: 1 dado de Expresión + 2 dados cualesquiera','Daño base: 1','Daño adicional de Pintura Roja: 2','Escudo de Pintura Azul: 1','Curación de Pintura Verde: 2'] },
+        description:'Golpea al enemigo e inflige daño leve, marcando al enemigo con Ilusión. Si lleva equipada una carta de Pintura, no marca al enemigo, pero tendrá un efecto adicional dependiendo del color de la pintura: **Pintura Roja** aumenta el daño, **Pintura Azul** otorga un escudo y **Pintura Verde** cura.',
+        attributes: ['Coste: 1 dado de Ilusión + 2 dados cualesquiera','Daño base: 1','Daño adicional de Pintura Roja: 2','Escudo de Pintura Azul: 1','Curación de Pintura Verde: 2'] },
       { type:'elemental', icon:'🔮', name:'Interpretación',
         description:'Se golpea a sí mismo y se inflige daño verdadero leve. Luego genera una carta de **Pintura Roja**, una de **Pintura Azul** y una de **Pintura Verde**.',
-        attributes: ['Coste: 3 dados de Expresión','Vida propia perdida: 1','Cartas de pintura generadas: 3'] },
+        attributes: ['Coste: 3 dados de Ilusión','Vida propia perdida: 1','Cartas de pintura generadas: 3'] },
       { type:'ultimate', icon:'💥', name:'Lienzo de Sangre',
         description:'Gasta todas las cartas de Pintura que posea en la mano y no estén equipadas, causando los siguientes efectos: **Pintura Roja** inflige daño al enemigo, **Pintura Azul** aumenta la vida de su escudo y **Pintura Verde** se cura a sí mismo.',
-        attributes: ['Coste: 3 dados de Expresión + 2 puntos de energía','Daño por Pintura Roja: 1','Aumento del escudo por Pintura Azul: 1','Curación por Pintura Verde: 1'] },
+        attributes: ['Coste: 3 dados de Ilusión + 2 puntos de energía','Daño por Pintura Roja: 1','Aumento del escudo por Pintura Azul: 1','Curación por Pintura Verde: 1'] },
       { type:'passive', icon:'🛡️', name:'Inspiración Solitaria',
         description:'Cuantos menos personajes con vida haya en campo, mayor será el efecto de sus habilidades. Con 2 personajes con vida: daño, escudo y curación base aumentan en 1 punto. Con 1 personaje con vida: aumentan en 2 puntos.',
         attributes: null },
       { type:'ex', icon:'🌟', name:'EX · Paleta Inagotable',
-        description:'Todos los ataques normales marcan al enemigo con Expresión.',
+        description:'Todos los ataques normales marcan al enemigo con Ilusión.',
         attributes: null }
     ]},
 
@@ -369,7 +369,7 @@ var CHARACTERS = {
     { type:'passive', icon:'🛡️', name:'Lealtad Imbatible', effect:'Si un aliado es atacado bajo efecto "Buen Recaudo", el daño final lo recibe ella y el enemigo atacante obtiene una carga de "Advertido". Si un enemigo no puede recibir más cargas de "Advertido" y obtiene una carga de "Advertido", es marcado con "Protección" alternativamente.' },
     { type:'ex', icon:'🌟', name:'EX · Lealtad Insaciable', effect:'El efecto de "Advertido" es acumulable hasta 1 carga. Si ataca a un enemigo con cargas de "Advertido", aumenta su daño en 2 puntos por dicha carga y le quita la carga de "Advertido" al enemigo.' }
   ]},
-  amaya:   { name:'Amaya',    element:'comprension',    set:'Erik', category:'HNN', hp:11, emoji:'🦉', img:'img/amaya.png',    comingSoon:true, abilities:[] },
+  amaya:   { name:'Amaya',    element:'ilusion',        set:'Erik', category:'HNN', hp:11, emoji:'🦉', img:'img/amaya.png',    comingSoon:true, abilities:[] },
   eve:     { name:'Eve',      element:'comprension',    set:'Erik', category:'HNN', hp:11, emoji:'🍎', img:'img/eve.png',      comingSoon:true, abilities:[] },
   opal:    { name:'Opal',     element:'expresion',      set:'Erik', category:'HNN', hp:11, emoji:'💠', img:'img/opal.png',     comingSoon:true, abilities:[] },
 };
