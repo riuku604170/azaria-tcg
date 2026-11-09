@@ -288,7 +288,7 @@ function dealDamageToChar(targetCs, rawDamage, opts) {
     logCombat('🛡️ Escudo absorbe ' + res.absorbed + (totalShield(targetCs) > 0 ? ' (queda ' + totalShield(targetCs) + ')' : ' ¡roto!'));
     if (opts.attackerCs && targetCs.id === 'orath' && csHasState(targetCs, 'minutoSilencioShield')) {
       var okCruz = spawnCruzMadera(sideKey, 'orath_shield', 'shield');
-      if (okCruz) logCombat('✝️ El escudo de Orath es golpeado: Cruz de Madera propia');
+      if (okCruz) logCombat('✝️ La Cobertura de Fe es golpeada: Cruz de Madera propia');
     }
     if (csHasState(targetCs, 'hipotesisShieldActive') && opts.attackerCs && !opts.attackerCs.dead) {
       var attKey = (combatState.player.characters.indexOf(opts.attackerCs) >= 0) ? 'player' : 'bot';
