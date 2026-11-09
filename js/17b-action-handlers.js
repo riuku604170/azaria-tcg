@@ -1048,4 +1048,126 @@ var ACTION_HANDLERS = {
     }
   },
 
+  /* ═══ X ═══ */
+  zasca: function(ctx) {
+    var a = ctx.active, ea = ctx.enemyActive, es = ctx.enemySide, ek = ctx.enemyKey, side = ctx.side, at = ctx.actionType, ab = ctx.ability;
+    var dmg = ab.damage || 2;
+    dmg = applyGenericDamageMods(a, dmg);
+    if (a.pendingBuff) ctx.pendingBuffConsumed = true;
+    if (at === 'normal') { var ob = getOptimizationBonus(side); if (ob > 0) { dmg += ob; logCombat('🏛️ Optimización: +' + ob); } }
+    applyDamageWithMods(ea, dmg, predictPiercing(a, ab), ek, es.activeIndex, a);
+    if (!ea.dead) { csSetState(ea, 'irritacion', true); logCombat('😤 Irritación aplicada a ' + ea.character.name); }
+  },
+
+  circoMediatico: function(ctx) {
+    var a = ctx.active, side = ctx.side, who = ctx.who;
+    csSetState(a, 'provocacion', true);
+    addOrRefreshShield(a, 'x_circo', 2);
+    logCombat('🎯 X: Provocación + 2 escudo');
+    // Rival pierde 1 energía
+    var ek = who === 'player' ? 'bot' : 'player';
+    var es = combatState[ek];
+    var ea = es.characters[es.activeIndex];
+    if (ea && !ea.dead) {
+      var before = ea.energy;
+      ea.energy = Math.max(0, ea.energy - 1);
+      if (ea.energy < before) logCombat('⚡ ' + ea.character.name + ' pierde 1 energía (Provocación)');
+    }
+  },
+
+  sublevacion: function(ctx) {
+    var a = ctx.active, ea = ctx.enemyActive, es = ctx.enemySide, ek = ctx.enemyKey, ab = ctx.ability;
+    var dmg = 4;
+    dmg = applyGenericDamageMods(a, dmg, false);
+    if (a.pendingBuff) ctx.pendingBuffConsumed = true;
+    applyDamageWithMods(ea, dmg, false, ek, es.activeIndex, a);
+    // Destruir 2 dados aleatorios del oponente
+    var shuffled = shuffleArray(es.dice.slice());
+    var destroyed = shuffled.slice(0, 2);
+    es.dice = es.dice.filter(function(d){ return destroyed.indexOf(d) === -1; });
+    if (destroyed.length) logCombat('🎲 Sublevación: ' + destroyed.length + ' dado(s) destruido(s) del oponente');
+  },
+
+  /* ═══ YouTube ═══ */
+  allEyesOnMe: function(ctx) {
+    var a = ctx.active, ea = ctx.enemyActive, es = ctx.enemySide, ek = ctx.enemyKey, side = ctx.side, at = ctx.actionType, ab = ctx.ability;
+    var dmg = ab.damage || 1;
+    dmg = applyGenericDamageMods(a, dmg);
+    if (a.pendingBuff) ctx.pendingBuffConsumed = true;
+    if (at === 'normal') { var ob = getOptimizationBonus(side); if (ob > 0) { dmg += ob; logCombat('🏛️ Optimización: +' + ob); } }
+    applyDamageWithMods(ea, dmg, predictPiercing(a, ab), ek, es.activeIndex, a);
+    if (a.forma === 'idol' && !ea.dead) {
+      triggerMarkOrResonance(ea, 'expresion', ctx.who, ek, es.activeIndex);
+      logCombat('📺 Forma Idol: marca con Expresión');
+    }
+  },
+
+  hotToGo: function(ctx) {
+    var a = ctx.active, ea = ctx.enemyActive, es = ctx.enemySide, ek = ctx.enemyKey, side = ctx.side, who = ctx.who, ab = ctx.ability;
+    var oldForma = a.forma || 'casual';
+    var dmg = 2 + (oldForma === 'idol' ? 1 : 0);
+    dmg = applyGenericDamageMods(a, dmg, true);
+    if (a.pendingBuff) ctx.pendingBuffConsumed = true;
+    applyDamageWithMods(ea, dmg, false, ek, es.activeIndex, a);
+    if (oldForma === 'casual') gainYouTubePop(a, 2, 'Hot To Go Casual');
+    checkYouTubeForma(a);
+    if (oldForma !== a.forma) {
+      for (var i = 0; i < 2; i++) side.dice.push({ type:'expresion', id:uid(), justAdded:true });
+      logCombat('📺 Cambio de forma: +2 dados de Expresión');
+    }
+  },
+
+  theWorldIsMine: function(ctx) {
+    var a = ctx.active, ea = ctx.enemyActive, es = ctx.enemySide, ek = ctx.enemyKey;
+    var pop = a.popularidad || 0;
+    var bonus = Math.floor(pop / 2);
+    var activeDmg = 2 + bonus;
+    // Activo
+    if (ea && !ea.dead) applyDamageWithMods(ea, activeDmg, true, ek, es.activeIndex, a);
+    // Demás
+    es.characters.forEach(function(c, i){
+      if (c.dead || i === es.activeIndex) return;
+      applyDamageWithMods(c, 1, true, ek, i, a);
+    });
+    logCombat('💥 The World Is Mine: ' + activeDmg + ' piercing al activo, 1 al resto');
+    // Consumir 1 popularidad
+    a.popularidad = Math.max(0, pop - 1);
+    checkYouTubeForma(a);
+  },
+
+  /* ═══ Traductor ═══ */
+  littleBooBoo: function(ctx) {
+    var a = ctx.active, ea = ctx.enemyActive, es = ctx.enemySide, ek = ctx.enemyKey, side = ctx.side, at = ctx.actionType, ab = ctx.ability;
+    var dmg = ab.damage || 2;
+    dmg = applyGenericDamageMods(a, dmg);
+    if (a.pendingBuff) ctx.pendingBuffConsumed = true;
+    if (at === 'normal') { var ob = getOptimizationBonus(side); if (ob > 0) { dmg += ob; logCombat('🏛️ Optimización: +' + ob); } }
+    if (a.exActive && csHasState(a, 'paillettes')) { dmg += 1; logCombat('🌟 EX Étoile: +1 daño (Paillettes activo)'); }
+    applyDamageWithMods(ea, dmg, predictPiercing(a, ab), ek, es.activeIndex, a);
+    // Paillettes: +1 escudo al activo
+    if (csHasState(a, 'paillettes')) {
+      if (!a.shields) a.shields = [];
+      var ex = a.shields.find(function(sh){ return sh.source === 'paillettes'; });
+      if (ex) { if (ex.hp < 3) { ex.hp += 1; ex.maxHp = 3; logCombat('✨ Paillettes: escudo ' + ex.hp + '/3'); } }
+      else { a.shields.push({ source:'paillettes', hp:1, maxHp:3 }); logCombat('✨ Paillettes: primer escudo (1/3)'); }
+    }
+  },
+
+  pluschtier: function(ctx) {
+    var side = ctx.side;
+    if (!side.hand) side.hand = [];
+    side.hand.push('plush_hase');
+    logCombat('🐰 Plüschtier: Plüschhase generado en tu mano (coste 0)');
+  },
+
+  petiteEtoile: function(ctx) {
+    var a = ctx.active, ea = ctx.enemyActive, es = ctx.enemySide, ek = ctx.enemyKey, ab = ctx.ability;
+    var dmg = 3;
+    dmg = applyGenericDamageMods(a, dmg, false);
+    if (a.pendingBuff) ctx.pendingBuffConsumed = true;
+    applyDamageWithMods(ea, dmg, predictPiercing(a, ab), ek, es.activeIndex, a);
+    csSetState(a, 'paillettes', true);
+    logCombat('✨ Petite Étoile: Paillettes activo (durante el resto del combate)');
+  },
+
 };
