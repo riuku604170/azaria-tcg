@@ -3,6 +3,18 @@
 // ═══════════ NOVEDADES (parches) ═══════════
 var PATCHES = [
 {
+  version: 'BETA 1.5',
+  date: '2026-11-09',
+  type: 'mayor',
+  title: 'Nuevos personajes, arreglos visuales y de menú',
+  changes: [
+    'Cartas de personaje ahora mejor diseñadas.',
+    'Añadidos X, YouTube y Traductor (BTC) a la tienda.',
+    'Añadidos a próximos personajes: Whatsapp e Instagram (BTC).',
+    'Nota: Código de la tienda - AZARIATCG'
+  ]  
+},
+{
   version: 'BETA 1.4',
   date: '2026-11-08',
   type: 'mayor',
@@ -12,7 +24,7 @@ var PATCHES = [
     'Ahora visibles los cambios de los usuarios en el menú.',
     'Añadidos a próximos usuarios: Amsa, Gabo, Vicky y Víctor.',
     'Añadida la tienda (no funcional ahora mismo, solo referencia).',
-    'Reajustes en menú y cartas',
+    'Reajustes en menú y cartas.',
     'Nuevas categorías: Lusior y Azaria.'
   ]  
 },
@@ -77,6 +89,54 @@ var PATCHES = [
 // Al añadir uno nuevo arriba, el badge ! aparecerá automáticamente.
 var ANNOUNCEMENTS = [
 {
+  id: 'ann_2026_11_09_1',
+  date: '2026-11-09',
+  icon: '💎',
+  title: 'La tienda de artículos',
+  body: [
+    '-¡Venga Manolo, que vamos tarde!',
+    '-Vámonos que nos vamos, Antonio...',
+    '-Manolo, ¿tienes idea de cuánto se han perdido por aquí?',
+    '-Perdona, Antonio, es que el cercanías estaba hoy un poco cansado.',
+    '-Manolo... Que han pasado días, Manolo.',
+    '-Ni que nosotros fuéramos los del parte del día, de eso ya se encarga el colega.',
+    '-Venga, hombre, venga...',
+    '-Bueno pues vams a comentar, ¿no Antonio?',
+    '-Pues claro que sí, Manolo. Tenemos rediseños, algunos ajustes, cambios, mejoras...',
+    '-Yo creo que lo más importante tira para lo de la tienda, Antonio.',
+    '-Casi que sí, Manolo. Me dicen que ahora el bot además es mejor.',
+    '-¿Para qué te voy a mentir, Antonio? Yo creo que el bot está apollardado.',
+    '-Será que yo no sé jugar, ¿verdad, Manolo?',
+    '-Evidentemente, Antonio. Y bueno, bueno... ¿Qué le han hecho a los usuarios? Madre mía...',
+    '-Van a meter nuevos usuarios, además de todos los demás personajes que han estado metiendo hasta ahora.',
+    '-No, gilipollas. Todo el mundo se ha llevado un disgusto encima, les han bajado la vida y subido el coste de las habilidades a la mayoría, Antonio.',
+    '-Si es que estaban demasiado duros todos, yo ya lo decía. A mí me da igual, porque ya no juego con usuarios desde la última vez que lo mencionamos.',
+    '-Pues vaya disgusto que te vas a comer, Antonio... ¡Los van a quitar a todos!',
+    '-Me cachis en la mar, Manolo...',
+    '-Todos van a ir a la tienda cuando el juego deje de ser una beta. Además, los personajes de la categoría Azaria no van a ser jugables hasta que llegue la primera versión oficial, Antonio.',
+    '-¿Y cómo va a probar el esclavo del desarrollador los personajes?',
+    '-La verdad es que no lo sé, habrá que consultarlo al pinganillo.',
+    '-Mientras tanto, comunico para los espectadores que no lo sepan. Usad el código AZARIATCG en la tienda para obtener a todos los personajes nuevos que saquen durante la beta.',
+    '-Exceptuando a los de Azaria, e incluyendo a los de la nueva categoría, actualmente vacía. Los personajes de Lusior.',
+    '-¿Y esos están bien, Antonio?',
+    '-Que no ha salido ninguno, hombre. Que parece que no escuchas, tontopolla.',
+    '-Hombre, pero algún chivatazo habrá, ¿no?',
+    'Pues fíjate que sí, Manolo. Personajes como Pepe el Siluro, Pete, Hector, y algunos más.',
+    '-De mientras, créete que me han dado otro chivatazo por el pinganillo, Antononio... Sobre los personajes de Azaria. Que hay un código para esos, dicen.',
+    '-¿Y sabemos el código, Manolo?',
+    '-De eso no tengo ni idea, Antonio.',
+    '-Pues para eso no dices nada, adefesio. Que encima eres más feo que pegarle a un padre, Manolo.',
+    '-Sin lugar a duda, Antonio.',
+    '-¿Tenemos más novedades para próximas actualizaciones, Manolo?',
+    '-Pues si no me equivoco, para la próxima vez que aparezcamos por aquí, Antonio, tendremos nuevos modos de juego y personajes en todas las categorías.',
+    '-Eso son muy buenas noticias, Manolo.',
+    '-Dicho esto, aquí nos despedimos, espectadores espectantes. Nos vemos en la siguiente actualización...',
+    '-Con Paco y Manolo.',
+    '-Picha, a ver si nos aprendemos el nombrecito de los cojones.',
+    '-Perdón, perdón...'
+  ]
+},
+{
   id: 'ann_2026_11_05_1',
   date: '2026-11-05',
   icon: '🎂',
@@ -97,7 +157,7 @@ var ANNOUNCEMENTS = [
     '-Es cierto... ¿Y por qué Iris?',
     '-¡Pues me están diciendo por el pinganillo que es el cumpleaños de una fan!',
     '-¡Aguaa! Pues desde aquí le deseamos muchas felicidades a la cumpleañera, ¿verdad Manolo?',
-    '-Como siempre, Antonio, y que cumpla muchos más... Nos vemos en la siguiente actualización.',
+    '-Como siempre, Antonio, y que cumpla muchos más... Nos vemos en la siguiente actualización...',
     '-Con Paco y Manolo.',
     '-Que tú te llamas Antonio, gilipollas...',
     '-Lleva razón.'
