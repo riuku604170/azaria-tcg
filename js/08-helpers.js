@@ -96,7 +96,7 @@ var SHIELD_SOURCE_NAMES = {
   'erik_paint_azul': 'Pintura Azul',
   'internet_daga': 'Daga de Ola',
   'nc_interpretacion': 'Interpretación',
-  'orath_minuto': 'Minuto de Silencio',
+  'orath_minuto': 'Cobertura de Fe',
   'neon_passive': 'Frecuencia Constante',
   'google_ex': 'Infraestructura Conectada',
   'facebook_protocolo': 'Protocolo de Seguridad',
