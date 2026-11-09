@@ -85,6 +85,20 @@ function scrollToCollection(){ setTimeout(function(){ var s = document.getElemen
 function scrollToDeck(){ setTimeout(function(){ var s = document.getElementById('mazo'); if (s) s.scrollIntoView({ behavior:'smooth', block:'start' }); }, 300); }
 function drawFromDeck(who) {
   var side = combatState[who]; if (!side.discardPile) side.discardPile = [];
-  if (side.deck.length === 0) { if (side.discardPile.length > 0) { side.deck = shuffleArray(side.discardPile.slice()); side.discardPile = []; logCombat('♻️ Descarte barajado (' + side.deck.length + ')'); } else return null; }
-  var cid = side.deck.shift(); side.hand.push(cid); return cid;
+  if (side.deck.length === 0) {
+    if (side.discardPile.length > 0) {
+      side.deck = shuffleArray(side.discardPile.slice());
+      side.discardPile = [];
+      logCombat('♻️ Descarte barajado (' + side.deck.length + ')');
+    } else return null;
+  }
+  var cid = side.deck.shift();
+  // ✅ Auto-trigger de cartas de peluche
+  if (typeof PLUSH_CARDS !== 'undefined' && PLUSH_CARDS[cid] && PLUSH_CARDS[cid].autoTrigger) {
+    side.discardPile.push(cid);
+    if (typeof triggerPlushOnDraw === 'function') triggerPlushOnDraw(who, cid);
+    return cid;
+  }
+  side.hand.push(cid);
+  return cid;
 }
