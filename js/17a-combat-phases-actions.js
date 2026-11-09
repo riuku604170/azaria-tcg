@@ -589,6 +589,63 @@ function beginRoundPlay() {
     combatState.player.characters.forEach(function(c){ if (c.states) c.states.acelerado = false; });
     combatState.bot.characters.forEach(function(c){ if (c.states) c.states.acelerado = false; });
     logCombat('⚔️ ¡Comienza el combate!'); pm.forEach(function(m){ logCombat(m); });
+    // ✅ Reset del contador de "entradas" de YouTube esta ronda
+    ['player','bot'].forEach(function(wk){
+      combatState[wk].characters.forEach(function(c){
+        if (c.id === 'youtube' && c.states) c.states.ytEnteredThisRound = 0;
+      });
+    });
+    // ✅ YouTube: chequeo de inicio de ronda
+    ['player','bot'].forEach(function(wk){
+      var sd = combatState[wk];
+      sd.characters.forEach(function(c){
+        if (c.id !== 'youtube' || c.dead) return;
+        var isActive = sd.activeIndex === sd.characters.indexOf(c);
+        // EX: congelar pop si comienza ronda activo desde ronda 2
+        if (isActive && c.exActive && combatState.round > 1) {
+          if (!c.states) c.states = {};
+          c.states.ytPopFrozen = true;
+          logCombat('📺 EX Money Money Money: popularidad congelada esta ronda');
+          // Reforzar Monetización en el rival
+          var ek = wk === 'player' ? 'bot' : 'player';
+          var es = combatState[ek];
+          if (!es.structures) es.structures = [];
+          var mon = es.structures.find(function(st){ return st.kind === 'monetizacion'; });
+          if (mon) { mon.usos = Math.min(3, (mon.usos || 0) + 1); logCombat('💸 Monetización reforzada: ' + mon.usos + ' usos'); }
+          else { es.structures.push({ kind:'monetizacion', usos:1 }); logCombat('💸 Monetización colocada: 1 uso'); }
+        } else {
+          if (!c.states) c.states = {};
+          c.states.ytPopFrozen = false;
+        }
+        // Bonificaciones/pérdidas por inicio de ronda
+        if (isActive) {
+          onYouTubeBecomeActive(c);
+          if (hasAnyMark(c)) loseYouTubePop(c, 1, 'empieza ronda con marca');
+          else gainYouTubePop(c, 1, 'empieza ronda sin marca');
+        }
+        // Inicializar forma
+        if (!c.forma) c.forma = (c.popularidad || 0) >= 5 ? 'idol' : 'casual';
+      });
+    });
+    // ✅ EX YouTube: colocar Monetización en rival al inicio del combate
+    if (combatState.round === 1) {
+      ['player','bot'].forEach(function(wk){
+        var yt = combatState[wk].characters.find(function(c){ return c.id === 'youtube' && c.exActive; });
+        if (!yt) return;
+        var ek = wk === 'player' ? 'bot' : 'player';
+        var es = combatState[ek];
+        if (!es.structures) es.structures = [];
+        if (!es.structures.some(function(st){ return st.kind === 'monetizacion'; })) {
+          es.structures.push({ kind:'monetizacion', usos:3 });
+          logCombat('💸 EX YouTube: Monetización (3 usos) colocada en campo rival');
+        }
+      });
+    }
+    // ✅ EX X: robar 1 carta adicional
+    ['player','bot'].forEach(function(wk){
+      var xCs = combatState[wk].characters.find(function(c){ return c.id === 'x' && c.exActive && !c.dead; });
+      if (xCs) { drawFromDeck(wk); logCombat('✖️ EX X: +1 carta robada'); }
+    });
     combatState.roundStarting = false;
     renderCombat();
     // ✅ Si el bot es quien empieza la ronda (declaró primero), trigger automático
@@ -793,6 +850,13 @@ function getEffectiveCostFull(active, ability) {
     rCost.any = (rCost.any || 0) + rCounter;
     return rCost;
   }
+  // ✅ Irritación (X): la habilidad del que la tiene cuesta +1 genérico
+  if (active && (csHasState(active, 'irritacion') || combatState._activeUnderIrritation)) {
+    var irrCost = {};
+    Object.keys(base).forEach(function(k){ irrCost[k] = base[k]; });
+    irrCost.any = (irrCost.any || 0) + 1;
+    return irrCost;
+  }
   return base;
 }
 
@@ -862,6 +926,20 @@ function maybeRedirectToIris(targetCs, targetSideKey, targetIdx, attackerCs, cur
   var kind = combatState._currentAbilityKind;
   if (kind && AOE_ABILITY_KINDS.indexOf(kind) !== -1) return null;
   var side = combatState[targetSideKey];
+
+  // ✅ Provocación (X): fuerza el ataque hacia X
+  var xCs = side.characters.find(function(c){ return c.id === 'x' && !c.dead && csHasState(c, 'provocacion'); });
+  if (xCs && xCs !== targetCs) {
+    logCombat('🎯 Provocación: ataque redirigido a X');
+    return {
+      newTarget: xCs,
+      newSideKey: targetSideKey,
+      newIdx: side.characters.indexOf(xCs),
+      modifiedDmg: currentDmg
+    };
+  }
+
+  // ── Iris (Buen Recaudo / Advertencia) ──
   var irisCs = side.characters.find(function(c){ return c.id === 'iris' && !c.dead; });
   if (!irisCs) return null;
   if (targetCs === irisCs) return null;
@@ -879,7 +957,6 @@ function maybeRedirectToIris(targetCs, targetSideKey, targetIdx, attackerCs, cur
   if (!shouldRedirect) return null;
 
   if (consumeBuenRecaudo) csSetState(targetCs, 'buenRecaudo', false);
-
   addAdvertidoCharge(attackerCs, irisCs);
   logCombat('🛡️ Lealtad Imbatible: ataque redirigido a Iris' + (bonusDmg > 0 ? ' (+1 daño de Advertencia)' : ''));
 
@@ -1110,6 +1187,9 @@ function tryChangeCharacter(who, targetIndex) {
   logCombat('🔄 ' + (who === 'player' ? (combatState.pvp ? 'J1' : 'Tú') : (combatState.pvp ? 'J2' : 'El rival')) + ': ' + oldN + ' → ' + newN + sfx);
   // ✅ Killer Tunes: cambio de personaje → 1 daño al enemigo activo
   if (typeof triggerKillerTunesDamage === 'function') triggerKillerTunesDamage(who);
+  if (side.characters[targetIndex] && side.characters[targetIndex].id === 'youtube') {
+    onYouTubeBecomeActive(side.characters[targetIndex]);
+  }
   playSound('change');
   return rules.quick ? 'quick' : true;
 }
@@ -2101,6 +2181,16 @@ function endRound() {
     }
   });
 
+  // ✅ Reset de entradas de YouTube al final de ronda
+  ['player','bot'].forEach(function(wk){
+    combatState[wk].characters.forEach(function(c){
+      if (c.id === 'youtube' && c.states) {
+        c.states.ytEnteredThisRound = 0;
+        c.states.ytPopFrozen = false;
+      }
+    });
+  });
+
   combatState.round++; combatState.playerDone = false; combatState.botDone = false;
   combatState.player.firstChangeUsed = false; combatState.player.firstAttackUsed = false;
   combatState.bot.firstChangeUsed = false; combatState.bot.firstAttackUsed = false;
@@ -2149,6 +2239,10 @@ function endRound() {
       // ✅ Buen Recaudo dura hasta el fin de la ronda
       if (c.states.buenRecaudo) c.states.buenRecaudo = false;
       // (Advertido NO se limpia: persiste entre rondas en el enemigo)
+      // ✅ Estados de nueva tanda
+      if (c.states.irritacion) c.states.irritacion = false;
+      if (c.states.provocacion) c.states.provocacion = false;
+      // Paillettes persiste hasta fin de combate
     }
   }); });
   combatState.player.neonUltChangeDamage = false;
@@ -2295,6 +2389,42 @@ function applyGoogleExOnChange(oldChar, side, newIndex, turnKey) {
   if (!newActive || newActive.dead) return;
   addOrRefreshShield(newActive, 'google_ex', 1);
   logCombat('🔍 EX Google: ' + newActive.character.name + '+1 escudo (total: ' + totalShield(newActive) + ')'.replace('+', ' +'));
+}
+
+/* ═══ YouTube: Popularidad y Forma ═══ */
+function gainYouTubePop(cs, amount, reason) {
+  if (!cs || cs.id !== 'youtube') return;
+  if (cs.states && cs.states.ytPopFrozen) { logCombat('📺 Popularidad congelada (EX)'); return; }
+  var old = cs.popularidad || 0;
+  cs.popularidad = Math.min(7, old + amount);
+  logCombat('📺 YouTube +' + amount + ' pop (' + old + '→' + cs.popularidad + ')' + (reason ? ' · ' + reason : ''));
+  checkYouTubeForma(cs);
+}
+function loseYouTubePop(cs, amount, reason) {
+  if (!cs || cs.id !== 'youtube') return;
+  if (cs.states && cs.states.ytPopFrozen) return;
+  var old = cs.popularidad || 0;
+  cs.popularidad = Math.max(0, old - amount);
+  if (cs.popularidad !== old) logCombat('📺 YouTube -' + amount + ' pop (' + old + '→' + cs.popularidad + ')' + (reason ? ' · ' + reason : ''));
+  checkYouTubeForma(cs);
+}
+function checkYouTubeForma(cs) {
+  if (!cs || cs.id !== 'youtube') return;
+  var pop = cs.popularidad || 0;
+  var newForma = pop >= 5 ? 'idol' : 'casual';
+  var oldForma = cs.forma || 'casual';
+  if (oldForma !== newForma) {
+    cs.forma = newForma;
+    logCombat('📺 YouTube → forma ' + newForma.toUpperCase());
+  }
+}
+function onYouTubeBecomeActive(cs) {
+  if (!cs || cs.id !== 'youtube') return;
+  if (!cs.states) cs.states = {};
+  var cnt = cs.states.ytEnteredThisRound || 0;
+  cs.states.ytEnteredThisRound = cnt + 1;
+  var gain = cnt === 0 ? 2 : 1;
+  gainYouTubePop(cs, gain, 'entrada #' + (cnt + 1));
 }
 
 function previewPlayerAction(actionType) {
