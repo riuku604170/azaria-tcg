@@ -595,6 +595,12 @@ function beginRoundPlay() {
         if (c.id === 'youtube' && c.states) c.states.ytEnteredThisRound = 0;
       });
     });
+    // ✅ Reset sageEnteredThisTurn
+    ['player','bot'].forEach(function(wk){
+      combatState[wk].characters.forEach(function(c){
+        if (c.id === 'sage' && c.states) c.states.sageEnteredThisTurn = false;
+      });
+    });
     // ✅ YouTube: chequeo de inicio de ronda
     ['player','bot'].forEach(function(wk){
       var sd = combatState[wk];
@@ -695,6 +701,28 @@ function computeBaseDamageForAbility(attackerCs, ability, actionType) {
       if (sSide.structures && sSide.structures.some(function(s){ return s.kind === 'mesaDJ'; })) sDmg += 1;
       return sDmg;
     }
+    case 'zasca': return ability.damage || 2;
+    case 'allEyesOnMe': return ability.damage || 1;
+    case 'littleBooBoo': return ability.damage || 2;
+    case 'sueloALaCara': {
+      var sd = ability.damage || 2;
+      if (attackerCs.equipment && attackerCs.equipment.length) sd += attackerCs.equipment.length;
+      return sd;
+    }
+    case 'vittoriaNormal': return ability.damage || 1;
+    case 'hotToGo': return 2 + (attackerCs.forma === 'idol' ? 1 : 0);
+    case 'theWorldIsMine': {
+      var popWim = attackerCs.popularidad || 0;
+      return 2 + Math.floor(popWim / 2);
+    }
+    case 'sublevacion': return 4;
+    case 'petiteEtoile': return 3;
+
+    case 'sageNormal': {
+      var dec = (attackerCs.states && attackerCs.states.decidida) || 0;
+      return 3 + dec;
+    }
+
     default: return 0;
   }
 }
@@ -857,6 +885,18 @@ function getEffectiveCostFull(active, ability) {
     irrCost.any = (irrCost.any || 0) + 1;
     return irrCost;
   }
+
+  // ✅ Sage: la normal sube +N cualquier por N cargas de Decidida
+  if (active.id === 'sage' && ability.kind === 'sageNormal') {
+    var sageDec = (active.states && active.states.decidida) || 0;
+    if (sageDec > 0) {
+      var sageCost = {};
+      Object.keys(base).forEach(function(k){ sageCost[k] = base[k]; });
+      sageCost.any = (sageCost.any || 0) + sageDec;
+      return sageCost;
+    }
+  }
+
   return base;
 }
 
@@ -1160,12 +1200,27 @@ function getChangeRules(who) {
 function getChangeRulesForTarget(who, targetIndex) {
   var rules = getChangeRules(who);
   var side = combatState[who];
+  var active = side.characters[side.activeIndex];
+  var target = side.characters[targetIndex];
+
+  // ✅ Sage: cambiar DE ella es gratis (y con EX, rápido)
+  if (active && active.id === 'sage') {
+    rules.diceCost = 0;
+    if (active.exActive) rules.quick = true;
+  }
+
+  // ✅ Sage: cambiar A ella cuesta +1 (siempre, incluso si consonancia lo hacía gratis)
+  if (target && target.id === 'sage' && active && active.id !== 'sage') {
+    rules.diceCost = rules.diceCost + 1;
+  }
+
+  // ✅ Jose EX: cambiar a Jose no cuesta dados (existente)
   if (targetIndex !== undefined && side.characters[targetIndex] && side.characters[targetIndex].id === 'jose') {
     var joseCs = side.characters[targetIndex];
     rules.quick = true;
-    // ✅ EX Jose (Inercia): cambiar a Jose no cuesta dados
     if (joseCs.exActive) { rules.diceCost = 0; rules.discounted = true; }
   }
+
   return rules;
 }
 function tryChangeCharacter(who, targetIndex) {
@@ -1183,6 +1238,21 @@ function tryChangeCharacter(who, targetIndex) {
   hungerOnEnter(who, side.characters[targetIndex], oldChar);
   if (side.characters[targetIndex].id === 'jose') csSetState(side.characters[targetIndex], 'acelerado', true);
   applyGoogleExOnChange(oldChar, side, targetIndex, who);
+  // ✅ Sage: efectos de entrada/salida (bot)
+  var _newCs = side.characters[targetIndex];
+  var _oldIdx = side.characters.indexOf(oldChar);
+  if (oldChar && oldChar.id === 'sage' && _newCs.id !== 'sage' && oldChar.exActive && !oldChar.dead) {
+    dealDamageToChar(oldChar, 1, { targetSide:side, targetSideKey:who, targetIdx:_oldIdx });
+    logCombat('🐴 EX Sage: pierde 1 HP al salir');
+  }
+  if (_newCs && _newCs.id === 'sage' && oldChar.id !== 'sage' && !_newCs.dead) {
+    csSetState(_newCs, 'sageEnteredThisTurn', true);
+    _newCs.states = _newCs.states || {};
+    _newCs.states.decidida = Math.min(3, (_newCs.states.decidida || 0) + 1);
+    logCombat('🐴 Sage: +1 Decidida (' + _newCs.states.decidida + '/3)');
+    dealDamageToChar(_newCs, 1, { targetSide:side, targetSideKey:who, targetIdx:targetIndex });
+    logCombat('🐴 Sage: -1 HP al cambiar a ella');
+  }
   var sfx = rules.quick ? ' (acción rápida)' : (rules.discounted ? ' (gratis)' : '');
   logCombat('🔄 ' + (who === 'player' ? (combatState.pvp ? 'J1' : 'Tú') : (combatState.pvp ? 'J2' : 'El rival')) + ': ' + oldN + ' → ' + newN + sfx);
   // ✅ Killer Tunes: cambio de personaje → 1 daño al enemigo activo
@@ -1834,6 +1904,13 @@ function nextTurn() {
   if (next === 'player' && combatState.playerDone) next = 'bot';
   else if (next === 'bot' && combatState.botDone) next = 'player';
   combatState.turn = next;
+  // ✅ Reset sageEnteredThisTurn para el lado que acaba de actuar
+  var prevTurnSide = (next === 'player') ? 'bot' : 'player';
+  if (combatState[prevTurnSide]) {
+    combatState[prevTurnSide].characters.forEach(function(c){
+      if (c.id === 'sage' && c.states) c.states.sageEnteredThisTurn = false;
+    });
+  }
   if (next === 'bot') {
     if (combatState.pvp) {
       showBanner('TURNO JUGADOR 2', 1200);
@@ -1909,7 +1986,7 @@ function endRound() {
       if (c.id === 'orath' && csHasState(c, 'minutoSilencioShield')) {
         csSetState(c, 'minutoSilencioShield', false);
         c.shields = (c.shields || []).filter(function(sh){ return sh.source !== 'orath_minuto'; });
-        logCombat('🔮 El escudo de Minuto de Silencio se desvanece');
+        logCombat('🔮 La Cobertura de Fe se desvanece');
       }
     });
   });
@@ -2243,6 +2320,14 @@ function endRound() {
       if (c.states.irritacion) c.states.irritacion = false;
       if (c.states.provocacion) c.states.provocacion = false;
       // Paillettes persiste hasta fin de combate
+      // ✅ Sage: pierde 1 Decidida al final de ronda
+      if (c.id === 'sage' && c.states.decidida > 0) {
+        c.states.decidida -= 1;
+        logCombat('🐴 Sage: pierde 1 Decidida (' + c.states.decidida + '/3)');
+        var _sageSide = sideOfChar(c);
+        dealDamageToChar(c, 1, { targetSide:_sageSide.side, targetSideKey:_sageSide.key, targetIdx:_sageSide.side.characters.indexOf(c) });
+        logCombat('🐴 Sage: -1 HP por pérdida de Decidida');
+      }
     }
   }); });
   combatState.player.neonUltChangeDamage = false;
@@ -2454,7 +2539,11 @@ function previewPlayerAction(actionType) {
   preview.shieldSelf = predictShieldGain(ability);
   preview.reflectDmg = getReflectDamage(enemySide);
 
-  var applyGeneric = ['damage','trazoVivo','intervencion','aceleron','instinto','deudaSangre','graciaPicara','cosecha','rocePosible','pilarFundamental'].indexOf(ability.kind) !== -1;
+  var applyGeneric = [
+    'damage','trazoVivo','intervencion','aceleron','instinto','deudaSangre','graciaPicara','cosecha','rocePosible','pilarFundamental',
+    // ✅ Nuevos
+    'zasca','allEyesOnMe','littleBooBoo','sueloALaCara','vittoriaNormal','hotToGo','theWorldIsMine','sublevacion','petiteEtoile'
+  ].indexOf(ability.kind) !== -1;
   if (ability.target === 'enemy' && preview.baseDmg > 0 && target) {
     if (applyGeneric) {
       var gb = getGenericBonuses(active);
@@ -2777,41 +2866,210 @@ function previewPlayerAction(actionType) {
     if (blockedEx) { playSound('error'); var bU2 = document.getElementById('ultimateBtn'); if (bU2) { bU2.classList.add('shake'); setTimeout(function(){ bU2.classList.remove('shake'); }, 400); } return; }
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  // ✅ EFECTOS SECUNDARIOS NARRATIVOS (estados, recursos, textos)
+  // ═══════════════════════════════════════════════════════════════
+  preview.effects = [];
+  var ef = preview.effects;
+
+  // ─── X ───
+  if (ability.kind === 'zasca') {
+    ef.push({ type: 'state', icon: '😤', label: 'Irritación (1 ronda)', target: 'enemy' });
+  }
+  if (ability.kind === 'circoMediatico') {
+    ef.push({ type: 'state', icon: '🎯', label: 'Provocación (1 ronda)', target: 'self' });
+    ef.push({ type: 'resource', icon: '🛡️', label: '+2 escudo', target: 'self' });
+    ef.push({ type: 'resource', icon: '⚡', label: '−1 energía', target: 'enemy' });
+  }
+  if (ability.kind === 'sublevacion') {
+    ef.push({ type: 'text', icon: '🎲', label: 'Destruye 2 dados aleatorios del rival' });
+  }
+
+  // ─── YouTube ───
+  if (ability.kind === 'allEyesOnMe') {
+    if (active.forma === 'idol') {
+      ef.push({ type: 'state', icon: '🏷️', label: 'Marca con Expresión', target: 'enemy' });
+    } else {
+      ef.push({ type: 'text', icon: '💭', label: 'En forma Casual no marca (necesitas 5+ pop)' });
+    }
+  }
+  if (ability.kind === 'hotToGo') {
+    if (active.forma === 'casual') {
+      ef.push({ type: 'resource', icon: '📺', label: '+2 Popularidad', target: 'self' });
+      var nextPop = Math.min(7, (active.popularidad || 0) + 2);
+      if (nextPop >= 5 && (active.popularidad || 0) < 5) {
+        ef.push({ type: 'text', icon: '🎤', label: 'Cambio de forma: Casual → Idol' });
+        ef.push({ type: 'resource', icon: '🎲', label: '+2 dados de Expresión (cambio de forma)', target: 'self' });
+      }
+    }
+  }
+  if (ability.kind === 'theWorldIsMine') {
+    ef.push({ type: 'resource', icon: '📺', label: '−1 Popularidad', target: 'self' });
+    var popNowWim = active.popularidad || 0;
+    var bonusWim = Math.floor(popNowWim / 2);
+    ef.push({ type: 'text', icon: '💥', label: 'Al activo: ' + (2 + bonusWim) + ' piercing · Al resto: 1 piercing' });
+  }
+
+  // ─── Traductor ───
+  if (ability.kind === 'littleBooBoo') {
+    if (csHasState(active, 'paillettes')) {
+      if (active.exActive) ef.push({ type: 'text', icon: '🌟', label: 'EX Étoile: +1 daño adicional (Paillettes)' });
+      ef.push({ type: 'resource', icon: '🛡️', label: '+1 escudo (fuente Paillettes, máx 3)', target: 'self' });
+    }
+  }
+  if (ability.kind === 'pluschtier') {
+    ef.push({ type: 'text', icon: '🐰', label: 'Genera Plüschhase en la mano (coste 0)' });
+    ef.push({ type: 'text', icon: '🐻', label: 'Al usar Plüschhase → inyecta Plüschbär en mazo rival' });
+  }
+  if (ability.kind === 'petiteEtoile') {
+    ef.push({ type: 'state', icon: '✨', label: 'Paillettes (hasta fin de combate)', target: 'self' });
+    ef.push({ type: 'text', icon: '🛡️', label: 'Cada ataque normal: +1 escudo (máx 3)' });
+  }
+
+  // ─── Iris ───
+  if (ability.kind === 'sueloALaCara') {
+    if (active.equipment && active.equipment.length) {
+      ef.push({ type: 'text', icon: '💥', label: 'Rompe ' + active.equipment.length + ' equipación(es) propia(s) para +' + active.equipment.length + ' daño' });
+    }
+  }
+  if (ability.kind === 'irisAdvertencia') {
+    ef.push({ type: 'resource', icon: '🛡️', label: '+3 escudo (se pierde al fin de ronda)', target: 'self' });
+    ef.push({ type: 'text', icon: '🔄', label: 'Cambia al siguiente aliado activo' });
+    ef.push({ type: 'state', icon: '⚔️', label: 'Advertencia activa (resto de ronda)', target: 'self' });
+    ef.push({ type: 'text', icon: '🎯', label: 'Ataques al activo se redirigen a Iris (+1 daño)' });
+  }
+  if (ability.kind === 'liderPunoHierro') {
+    var hasAdv = enemyActive && enemyActive.states && enemyActive.states.advertido > 0;
+    if (hasAdv) {
+      ef.push({ type: 'text', icon: '🥊', label: 'Ataca con Suela a la Cara (+2 daño base fijo)' });
+      if (active.exActive) ef.push({ type: 'text', icon: '🌟', label: 'EX: consume ' + (enemyActive.states.advertido || 0) + ' carga(s) para +' + ((enemyActive.states.advertido || 0) * 2) + ' daño extra' });
+    } else {
+      ef.push({ type: 'state', icon: '🛡️', label: 'Buen Recaudo a aliados vivos', target: 'team' });
+      ef.push({ type: 'resource', icon: '🛡️', label: '+2 escudo', target: 'self' });
+    }
+  }
+
+  // ─── Vittoria ───
+  if (ability.kind === 'vittoriaNormal') {
+    ef.push({ type: 'text', icon: '🎲', label: 'Reembolso de dados si mata al enemigo' });
+  }
+  if (ability.kind === 'vittoriaAceptacion') {
+    if (enemyActive && csHasMark(enemyActive, 'aceptacion')) {
+      ef.push({ type: 'resource', icon: '🌿', label: '+2 HP (enemigo ya marcado)', target: 'self' });
+    } else {
+      ef.push({ type: 'text', icon: '🌿', label: '1 daño penetrante + marca con Aceptación' });
+    }
+  }
+  if (ability.kind === 'vistoUltimate') {
+    ef.push({ type: 'state', icon: '👁️', label: 'Visto (aliados + enemigo activo)', target: 'both' });
+    ef.push({ type: 'text', icon: '👁️', label: 'Fin de ronda: 6 penetrante repartido (12 si Vittoria muere → revive con 1 HP)' });
+  }
+
+  // ─── Añadir estados/marcas de habilidades existentes (para que el preview sea completo) ───
+  if (ability.kind === 'intervencion' && enemyActive && csHasState(enemyActive, 'amenaza')) {
+    ef.push({ type: 'state', icon: '🚨', label: 'Quita Amenaza al enemigo', target: 'enemy' });
+  }
+  if (ability.kind === 'bajoAlas') {
+    ef.push({ type: 'state', icon: '💔', label: 'Vulnerable al aliado con menos vida', target: 'team' });
+  }
+  if (ability.kind === 'trazoVivo' && !active.paintEquipped) {
+    ef.push({ type: 'state', icon: '🌸', label: 'Marca con Expresión', target: 'enemy' });
+  }
+  if (ability.kind === 'graciaPicara' || ability.kind === 'flechazoTentador') {
+    ef.push({ type: 'state', icon: '🔥', label: 'Marca con Transformación', target: 'enemy' });
+  }
+  if (ability.kind === 'aceleron' && csHasState(active, 'acelerado')) {
+    ef.push({ type: 'state', icon: '🔥', label: 'Marca con Transformación', target: 'enemy' });
+  }
+  if (ability.kind === 'deudaSangre') {
+    ef.push({ type: 'state', icon: '💢', label: '+1 Rencor', target: 'enemy' });
+  }
+  if (ability.kind === 'degradacion') {
+    ef.push({ type: 'state', icon: '🩸', label: 'Marca con Redención', target: 'enemy' });
+  }
+  if (ability.kind === 'cosecha' && (active.states && active.states.cosechaCounter) >= 1) {
+    ef.push({ type: 'resource', icon: '🌿', label: '+1 HP al aliado con menos vida', target: 'team' });
+  }
+
   return preview;
 }
 function buildPreviewBodyHTML(preview) {
   var html = '<div class="confirm-body">';
+
+  // ═══════════ DAÑO ═══════════
   if (preview.rawDmg > 0 || preview.trueDmg > 0) {
     var hasB = preview.buffDmg || preview.cardBonus || preview.equipDmg || preview.supportDmg || preview.optimizationDmg || preview.erikBonus || preview.markBonus || preview.redencionDmg || preview.obraMaestraDmg || preview.carrerillaBonus || preview.alterBuffDmg;
     if (hasB) {
       html += '<div class="confirm-row"><span class="confirm-row-label">Daño base</span><span class="confirm-row-value damage">' + preview.baseDmg + '</span></div>';
-      if (preview.buffDmg) html += '<div class="confirm-row"><span class="confirm-row-label">+ Impulso</span><span class="confirm-row-value bonus">+' + preview.buffDmg + '</span></div>';
-      if (preview.cardBonus) html += '<div class="confirm-row"><span class="confirm-row-label">+ Carta</span><span class="confirm-row-value bonus">+' + preview.cardBonus + '</span></div>';
-      if (preview.equipDmg) html += '<div class="confirm-row"><span class="confirm-row-label">+ Equipo</span><span class="confirm-row-value bonus">+' + preview.equipDmg + '</span></div>';
-      if (preview.supportDmg) html += '<div class="confirm-row"><span class="confirm-row-label">+ Apoyos</span><span class="confirm-row-value bonus">+' + preview.supportDmg + '</span></div>';
-      if (preview.optimizationDmg) html += '<div class="confirm-row"><span class="confirm-row-label">+ Optimización</span><span class="confirm-row-value bonus">+' + preview.optimizationDmg + '</span></div>';
-      if (preview.obraMaestraDmg) html += '<div class="confirm-row"><span class="confirm-row-label">+ Obra Maestra</span><span class="confirm-row-value bonus">+' + preview.obraMaestraDmg + '</span></div>';
-      if (preview.erikBonus) html += '<div class="confirm-row"><span class="confirm-row-label">+ Inspiración</span><span class="confirm-row-value bonus">+' + preview.erikBonus + '</span></div>';
-      if (preview.alterBuffDmg) html += '<div class="confirm-row"><span class="confirm-row-label">+ Omnes Deam</span><span class="confirm-row-value bonus">+' + preview.alterBuffDmg + '</span></div>';
-      if (preview.redencionDmg) html += '<div class="confirm-row"><span class="confirm-row-label">+ Redención</span><span class="confirm-row-value bonus">+' + preview.redencionDmg + '</span></div>';
-      if (preview.markBonus) html += '<div class="confirm-row"><span class="confirm-row-label">+ Marca</span><span class="confirm-row-value bonus">+' + preview.markBonus + '</span></div>';
-            if (preview.carrerillaBonus) html += '<div class="confirm-row"><span class="confirm-row-label">+ Carrerilla</span><span class="confirm-row-value bonus">+' + preview.carrerillaBonus + '</span></div>';
+      if (preview.buffDmg)          html += '<div class="confirm-row"><span class="confirm-row-label">+ Impulso</span><span class="confirm-row-value bonus">+' + preview.buffDmg + '</span></div>';
+      if (preview.cardBonus)        html += '<div class="confirm-row"><span class="confirm-row-label">+ Carta</span><span class="confirm-row-value bonus">+' + preview.cardBonus + '</span></div>';
+      if (preview.equipDmg)         html += '<div class="confirm-row"><span class="confirm-row-label">+ Equipo</span><span class="confirm-row-value bonus">+' + preview.equipDmg + '</span></div>';
+      if (preview.supportDmg)       html += '<div class="confirm-row"><span class="confirm-row-label">+ Apoyos</span><span class="confirm-row-value bonus">+' + preview.supportDmg + '</span></div>';
+      if (preview.optimizationDmg)  html += '<div class="confirm-row"><span class="confirm-row-label">+ Optimización</span><span class="confirm-row-value bonus">+' + preview.optimizationDmg + '</span></div>';
+      if (preview.obraMaestraDmg)   html += '<div class="confirm-row"><span class="confirm-row-label">+ Obra Maestra</span><span class="confirm-row-value bonus">+' + preview.obraMaestraDmg + '</span></div>';
+      if (preview.erikBonus)        html += '<div class="confirm-row"><span class="confirm-row-label">+ Inspiración</span><span class="confirm-row-value bonus">+' + preview.erikBonus + '</span></div>';
+      if (preview.alterBuffDmg)     html += '<div class="confirm-row"><span class="confirm-row-label">+ Omnes Deam</span><span class="confirm-row-value bonus">+' + preview.alterBuffDmg + '</span></div>';
+      if (preview.redencionDmg)     html += '<div class="confirm-row"><span class="confirm-row-label">+ Redención</span><span class="confirm-row-value bonus">+' + preview.redencionDmg + '</span></div>';
+      if (preview.markBonus)        html += '<div class="confirm-row"><span class="confirm-row-label">+ Marca</span><span class="confirm-row-value bonus">+' + preview.markBonus + '</span></div>';
+      if (preview.carrerillaBonus)  html += '<div class="confirm-row"><span class="confirm-row-label">+ Carrerilla</span><span class="confirm-row-value bonus">+' + preview.carrerillaBonus + '</span></div>';
     } else {
       html += '<div class="confirm-row"><span class="confirm-row-label">Daño base</span><span class="confirm-row-value damage">' + preview.baseDmg + '</span></div>';
     }
-    if (preview.flatReduction) html += '<div class="confirm-row"><span class="confirm-row-label">− Reducción</span><span class="confirm-row-value shield">−' + preview.flatReduction + '</span></div>';
-    if (!preview.piercing && preview.shieldAbsorbed > 0) html += '<div class="confirm-row"><span class="confirm-row-label">− Escudo absorbe</span><span class="confirm-row-value shield">−' + preview.shieldAbsorbed + '</span></div>';
-    html += '<div class="confirm-row"><span class="confirm-row-label">Daño verdadero</span><span class="confirm-row-value true-dmg">' + preview.trueDmg + '</span></div>';
+    if (preview.flatReduction)                         html += '<div class="confirm-row"><span class="confirm-row-label">− Reducción</span><span class="confirm-row-value shield">−' + preview.flatReduction + '</span></div>';
+    if (!preview.piercing && preview.shieldAbsorbed > 0) html += '<div class="confirm-row"><span class="confirm-row-label">− Escudos absorben</span><span class="confirm-row-value shield">−' + preview.shieldAbsorbed + '</span></div>';
+    html += '<div class="confirm-row"><span class="confirm-row-label"><strong>Daño verdadero</strong></span><span class="confirm-row-value true-dmg"><strong>' + preview.trueDmg + '</strong></span></div>';
+    if (preview.target) {
+      html += '<div class="confirm-row" style="font-size:0.75rem; opacity:0.85;"><span class="confirm-row-label">' + preview.target.character.name + '</span><span class="confirm-row-value">❤️ ' + preview.targetHpBefore + ' → ' + preview.targetHpAfter + ' · 🛡️ ' + preview.targetShieldBefore + ' → ' + preview.targetShieldAfter + '</span></div>';
+    }
   }
+
+  // ═══════════ CURACIÓN / ESCUDO PROPIO / AUTODAÑO ═══════════
   if (preview.healApplied > 0) html += '<div class="confirm-row"><span class="confirm-row-label">Curación propia</span><span class="confirm-row-value heal">+' + preview.healApplied + ' HP</span></div>';
-  if (preview.shieldSelf) html += '<div class="confirm-row"><span class="confirm-row-label">Escudo propio</span><span class="confirm-row-value shield">+' + preview.shieldSelf + '</span></div>';
-  if (preview.selfDamage) html += '<div class="confirm-row"><span class="confirm-row-label">Autodaño</span><span class="confirm-row-value damage">−' + preview.selfDamage + ' HP</span></div>';
-  if (preview.reflectDmg) html += '<div class="confirm-row"><span class="confirm-row-label">Trampa refleja</span><span class="confirm-row-value damage">−' + preview.reflectDmg + ' HP</span></div>';
-  if (preview.condenaGain) html += '<div class="confirm-row"><span class="confirm-row-label">+ Condena</span><span class="confirm-row-value bonus">+' + preview.condenaGain + '</span></div>';
+  if (preview.shieldSelf)      html += '<div class="confirm-row"><span class="confirm-row-label">Escudo propio</span><span class="confirm-row-value shield">+' + preview.shieldSelf + '</span></div>';
+  if (preview.selfDamage)      html += '<div class="confirm-row"><span class="confirm-row-label">Autodaño</span><span class="confirm-row-value damage">−' + preview.selfDamage + ' HP</span></div>';
+  if (preview.reflectDmg)      html += '<div class="confirm-row"><span class="confirm-row-label">Trampa refleja</span><span class="confirm-row-value damage">−' + preview.reflectDmg + ' HP</span></div>';
+  if (preview.condenaGain)     html += '<div class="confirm-row"><span class="confirm-row-label">+ Condena</span><span class="confirm-row-value bonus">+' + preview.condenaGain + '</span></div>';
+
+  // ═══════════ EFECTOS SECUNDARIOS (narrativos) ═══════════
+  if (preview.effects && preview.effects.length) {
+    var states = preview.effects.filter(function(e){ return e.type === 'state'; });
+    var resources = preview.effects.filter(function(e){ return e.type === 'resource'; });
+    var texts = preview.effects.filter(function(e){ return e.type === 'text'; });
+
+    var targetLabel = { enemy: '🎯 Enemigo', self: '✨ Tú', team: '🛡️ Tu equipo', both: '🌐 Ambos' };
+
+    if (states.length) {
+      html += '<div class="confirm-preview-section"><div class="confirm-preview-title">🏷️ Estados aplicados</div>';
+      states.forEach(function(e){
+        html += '<div class="confirm-preview-item state"><span class="cpv-icon">' + e.icon + '</span><span class="cpv-label">' + e.label + '</span>' + (e.target ? '<span class="cpv-target">' + (targetLabel[e.target] || '') + '</span>' : '') + '</div>';
+      });
+      html += '</div>';
+    }
+    if (resources.length) {
+      html += '<div class="confirm-preview-section"><div class="confirm-preview-title">⚡ Recursos</div>';
+      resources.forEach(function(e){
+        html += '<div class="confirm-preview-item resource"><span class="cpv-icon">' + e.icon + '</span><span class="cpv-label">' + e.label + '</span>' + (e.target ? '<span class="cpv-target">' + (targetLabel[e.target] || '') + '</span>' : '') + '</div>';
+      });
+      html += '</div>';
+    }
+    if (texts.length) {
+      html += '<div class="confirm-preview-section"><div class="confirm-preview-title">✨ Efectos adicionales</div>';
+      texts.forEach(function(e){
+        html += '<div class="confirm-preview-item text"><span class="cpv-icon">' + e.icon + '</span><span class="cpv-label">' + e.label + '</span></div>';
+      });
+      html += '</div>';
+    }
+  }
+
   html += '</div>';
-  if (preview.notes && preview.notes.length) html += '<div style="margin-top: 0.5rem; padding: 0.6rem 0.8rem; background: rgba(240,200,96,0.08); border: 1px solid rgba(240,200,96,0.25); border-radius: 8px; font-size: 0.78rem; line-height: 1.5;">' + preview.notes.join(' · ') + '</div>';
+
+  // ═══════════ NOTAS Y RIESGOS ═══════════
+  if (preview.notes && preview.notes.length) {
+    html += '<div style="margin-top: 0.5rem; padding: 0.6rem 0.8rem; background: rgba(240,200,96,0.08); border: 1px solid rgba(240,200,96,0.25); border-radius: 8px; font-size: 0.78rem; line-height: 1.5;">' + preview.notes.join(' · ') + '</div>';
+  }
   if (preview.willKill) html += '<div class="confirm-warning">💀 ¡Eliminará a ' + preview.target.character.name + '!</div>';
   if (preview.willDieFromSelf) html += '<div class="confirm-warning">💀 ¡' + preview.active.character.name + ' morirá tras usar esta habilidad!</div>';
+
   return html;
 }
 function showActionConfirmation(actionType, ability, onConfirm) {
