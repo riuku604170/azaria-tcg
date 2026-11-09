@@ -565,7 +565,7 @@ var ACTION_HANDLERS = {
     var a = ctx.active;
     addOrRefreshShield(a, 'orath_minuto', 2);
     csSetState(a, 'minutoSilencioShield', true);
-    logCombat('🔮 Minuto de silencio: +2 escudo (se desvanece al final de la ronda)');
+    logCombat('🔮 Minuto de silencio: Cobertura de Fe +2 escudo (se desvanece al final de la ronda)');
   },
 
   diosTeAmpare: function(ctx) {
@@ -1170,4 +1170,97 @@ var ACTION_HANDLERS = {
     logCombat('✨ Petite Étoile: Paillettes activo (durante el resto del combate)');
   },
 
+  /* ═══ Sage ═══ */
+  sageNormal: function(ctx) {
+    var a = ctx.active, ea = ctx.enemyActive, es = ctx.enemySide, ek = ctx.enemyKey, side = ctx.side, at = ctx.actionType, ab = ctx.ability;
+    var dec = (a.states && a.states.decidida) || 0;
+    var dmg = (ab.damage || 3) + dec;
+    dmg = applyGenericDamageMods(a, dmg);
+    if (a.pendingBuff) ctx.pendingBuffConsumed = true;
+    if (at === 'normal') { var ob = getOptimizationBonus(side); if (ob > 0) { dmg += ob; logCombat('🏛️ Optimización: +' + ob); } }
+    applyDamageWithMods(ea, dmg, predictPiercing(a, ab), ek, es.activeIndex, a);
+    if (dec > 0) logCombat('🐴 Galope: ' + dec + ' bonus de Decidida');
+  },
+
+  sageElemental: function(ctx) {
+    var a = ctx.active, ea = ctx.enemyActive, es = ctx.enemySide, ek = ctx.enemyKey, who = ctx.who;
+    // Desequipar 1 objeto del rival activo
+    var hasEquip = ea && ea.equipment && ea.equipment.length > 0 && !ea.dead;
+    if (hasEquip) {
+      var removed = ea.equipment.shift();
+      if (!es.discardPile) es.discardPile = [];
+      es.discardPile.push(removed);
+      var eqName = CARD_DB[removed] ? CARD_DB[removed].name : removed;
+      logCombat('🐴 Relincho: Sage desequipa ' + eqName + ' a ' + ea.character.name);
+    } else if (ea && !ea.dead) {
+      triggerMarkOrResonance(ea, 'transformacion', who, ek, es.activeIndex);
+      logCombat('🐴 Relincho: rival desequipado → marcado con Transformación');
+    }
+    // Cambia al siguiente enemigo vivo
+    var nx = getNextAliveIndex(es, es.activeIndex);
+    if (nx >= 0 && nx !== es.activeIndex) {
+      var oldName = ea.character.name;
+      es.activeIndex = nx;
+      logCombat('🔄 ' + oldName + ' forzado a cambiar a ' + es.characters[nx].character.name);
+    }
+  },
+
+  sageUltimate: function(ctx) {
+    var a = ctx.active, es = ctx.enemySide, ek = ctx.enemyKey;
+    if (!a.states || (a.states.decidida || 0) < 3) {
+      logCombat('❌ Sage necesita 3 Decidida');
+      return;
+    }
+    var bonus = a.states.sageEnteredThisTurn ? 2 : 0;
+    var dmgPer = 2 + bonus;
+    logCombat('🐴 Sage usa su definitiva: ' + dmgPer + ' daño normal a cada enemigo' + (bonus > 0 ? ' (bonus entrada)' : ''));
+    es.characters.forEach(function(c, i){
+      if (c.dead) return;
+      applyDamageWithMods(c, dmgPer, false, ek, i, a);
+    });
+    var effectCount = countAndClearSageEffects(a);
+    var selfDmg = Math.max(0, effectCount - (a.exActive ? 3 : 0));
+    if (effectCount > 0) {
+      logCombat('🐴 Sage pierde ' + effectCount + ' efecto(s)' + (a.exActive ? ' (EX: -3 daño)' : ''));
+      if (selfDmg > 0) {
+        var sageSide = sideOfChar(a);
+        dealDamageToChar(a, selfDmg, { targetSide:sageSide.side, targetSideKey:sageSide.key, targetIdx:sageSide.side.characters.indexOf(a) });
+        logCombat('🐴 Sage recibe ' + selfDmg + ' daño por pérdida de efectos');
+      } else {
+        logCombat('🐴 EX Sage: daño por pérdida anulado');
+      }
+    }
+  },
+
 };
+
+/* ═══ Sage: contar y limpiar efectos (marcas NO cuentan) ═══ */
+function countAndClearSageEffects(cs) {
+  if (!cs) return 0;
+  var count = 0;
+  var BLACKLIST = [
+    'internetEnergyGranted', 'googleEndDamage', 'xSurvived',
+    'ytEnteredThisRound', 'ytPopFrozen', 'sageEnteredThisTurn',
+    'minutoSilencioShield', 'hipotesisShieldActive',
+    'advertenciaShieldActive', 'noResurrectLimit'
+  ];
+  if (cs.states) {
+    Object.keys(cs.states).forEach(function(k){
+      if (BLACKLIST.indexOf(k) !== -1) return;
+      var v = cs.states[k];
+      if (v === true || (typeof v === 'number' && v > 0)) {
+        count++;
+        cs.states[k] = false;
+      }
+    });
+  }
+  if (cs.pendingBuff > 0) { count++; cs.pendingBuff = 0; }
+  if (cs.cardNextAttackBonus > 0) { count++; cs.cardNextAttackBonus = 0; }
+  if (cs.cardNextAttackPiercing === true) { count++; cs.cardNextAttackPiercing = false; }
+  if (cs.cardNextAttackDouble === true) { count++; cs.cardNextAttackDouble = false; }
+  if (cs.cardNextAbilityDiscount > 0) { count++; cs.cardNextAbilityDiscount = 0; }
+  if (cs.cardNextAbilityFree === true) { count++; cs.cardNextAbilityFree = false; }
+  if (cs.cardMarkBonus > 0) { count++; cs.cardMarkBonus = 0; }
+  if (cs.manuelStacks > 0) { count++; cs.manuelStacks = 0; }
+  return count;
+}
