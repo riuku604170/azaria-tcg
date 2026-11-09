@@ -12,7 +12,8 @@ var PATCHES = [
     'Añadidos X, YouTube0 y Traductor (BTC).',
     'Añadida Sage (Eriks).',
     'Añadidos a próximos personajes: Whatsapp e Instagram (BTC).',
-    'Añadido apartado de Ayuda, pendiente.',  
+    'Añadido apartado de Ayuda, pendiente.', 
+    'Cambio de respuestas de Erik y Amaya a Ilusión.',
     'Nota: Código de la tienda - AZARIATCG.'
   ]  
 },
