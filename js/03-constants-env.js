@@ -31,6 +31,11 @@ var STATUS_DESCRIPTIONS = {
   buenRecaudo: { name:'🛡️ Buen Recaudo', text:'Mientras dure, si este aliado es atacado, el daño es redirigido a Iris y el atacante gana 1 carga de Advertido. Se consume tras redirigir 1 ataque o al final de la ronda.' },
   advertenciaActive: { name:'⚔️ Advertencia', text:'Iris ha activado Advertencia: durante el resto de la ronda, los ataques dirigidos al activo de su equipo se redirigen a Iris con +1 de daño y otorgan 1 carga de Advertido al atacante.' },
   visto: { name:'👁️ Visto', text:'Al final de la ronda, todos los personajes con este efecto se reparten 6 de daño penetrante (a partes iguales) si Vittoria sigue viva, o 12 si ha muerto (reviviendo ella con 1 HP). Si Vittoria es la última en morir, no se aplica. El efecto se pierde tras resolverse.' },
+  irritacion: { name:'😤 Irritación', text:'Mientras tenga este estado, cada habilidad o carta que use cuesta 1 dado genérico extra. Se elimina al final de la ronda.' },
+  provocacion: { name:'🎯 Provocación', text:'El rival está obligado a dirigir todos sus ataques (single-target) hacia X durante esa ronda. Al activarse, el rival pierde 1 de energía. Se elimina al final de la ronda.' },
+  popularidad: { name:'📺 Popularidad', text:'Recurso de YouTube (0–7). Gana puntos al entrar activamente al combate y al comenzar la ronda activo sin marca. Pierde puntos al recibir ataques y al comenzar la ronda activo con marca. Al llegar a 5 cambia a forma Idol; al bajar de 5, a Casual.' },
+  paillettes: { name:'✨ Paillettes', text:'Mientras esté activo (hasta el final del combate), cada ataque normal de Traductor genera 1 punto de escudo (hasta 3). Con su EX, el ataque normal hace +1 daño adicional.' },
+  monetizacion: { name:'💸 Monetización', text:'Estructura de YouTube EX en el campo rival. Todas las cartas del rival cuestan 1 dado genérico extra. Pierde 1 uso cada vez que el rival usa una carta.' },
 };
 
 var PHILOSOPHIES = {
