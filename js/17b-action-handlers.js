@@ -179,11 +179,11 @@ var ACTION_HANDLERS = {
     applyDamageWithMods(ea, baseDmg, predictPiercing(a, ab), ek, es.activeIndex, a);
     if (paint === 'azul') { addOrRefreshShield(a, 'erik_paint_azul', 1); logCombat('🎨 Pintura Azul: +1 escudo'); }
     if (paint === 'verde') { healChar(a, 2); logCombat('🎨 Pintura Verde: cura 2'); }
-    // ✅ EX Erik (Paleta Inagotable): marca con Expresión siempre (aunque haya pintura)
+    // ✅ EX Erik (Paleta Inagotable): marca con Ilusión siempre (aunque haya pintura)
     var shouldMark = !paint || a.exActive;
     if (shouldMark && !ea.dead) {
-      triggerMarkOrResonance(ea, 'expresion', who, ek, es.activeIndex);
-      if (a.exActive && paint) logCombat('🌟 EX Erik: marca con Expresión (aun con pintura)');
+      triggerMarkOrResonance(ea, 'ilusion', who, ek, es.activeIndex);
+      if (a.exActive && paint) logCombat('🌟 EX Erik: marca con Ilusión (aun con pintura)');
     }
     if (paint) { a.paintEquipped = null; logCombat('🎨 La pintura se ha consumido'); }
   },
