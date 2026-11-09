@@ -101,7 +101,7 @@ var ANNOUNCEMENTS = [
     '-Manolo... Que han pasado días, Manolo.',
     '-Ni que nosotros fuéramos los del parte del día, de eso ya se encarga el colega.',
     '-Venga, hombre, venga...',
-    '-Bueno pues vams a comentar, ¿no Antonio?',
+    '-Bueno pues vamos a comentar, ¿no Antonio?',
     '-Pues claro que sí, Manolo. Tenemos rediseños, algunos ajustes, cambios, mejoras...',
     '-Yo creo que lo más importante tira para lo de la tienda, Antonio.',
     '-Casi que sí, Manolo. Me dicen que ahora el bot además es mejor.',
