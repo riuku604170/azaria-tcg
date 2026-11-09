@@ -152,4 +152,22 @@ var COMBAT_CHARS = {
     ultimate: { name:'DEJA DE MIRARME CON ESOS OJOS', cost:{aceptacion:4}, energyCost:3, target:'self', kind:'vistoUltimate' },
     ex: { name:'EX · GRACIAS', kind:'ex', target:'self' }
   }},
+  x: { name:'X', element:'transformacion', emoji:'✖️', hp:11, abilities: {
+    normal: { name:'Zasca', cost:{transformacion:1, any:2}, target:'enemy', kind:'zasca', damage:2, energy:1 },
+    elemental: { name:'Circo Mediático', cost:{transformacion:3}, target:'self', kind:'circoMediatico', energy:1 },
+    ultimate: { name:'Sublevación', cost:{transformacion:3}, energyCost:3, target:'enemy', kind:'sublevacion' },
+    ex: { name:'EX · Consumidor de Dramas', kind:'ex', target:'self' }
+  }},
+  youtube: { name:'YouTube', element:'expresion', emoji:'📺', hp:9, abilities: {
+    normal: { name:'All eyes on me!', cost:{expresion:2, any:1}, target:'enemy', kind:'allEyesOnMe', damage:1, energy:1 },
+    elemental: { name:'Hot To Go!', cost:{expresion:4}, target:'enemy', kind:'hotToGo', energy:1 },
+    ultimate: { name:'The World Is Mine', cost:{expresion:5}, energyCost:3, target:'enemy', kind:'theWorldIsMine' },
+    ex: { name:'EX · Money, Money, Money', kind:'ex', target:'self' }
+  }},
+  traductor: { name:'Traductor', element:'ilusion', emoji:'🗣️', hp:10, abilities: {
+    normal: { name:'Little Boo-Boo', cost:{ilusion:1, any:2}, target:'enemy', kind:'littleBooBoo', damage:2, energy:1 },
+    elemental: { name:'Plüschtier', cost:{ilusion:4}, target:'self', kind:'pluschtier', energy:1 },
+    ultimate: { name:'Petite Étoile', cost:{ilusion:3}, energyCost:2, target:'enemy', kind:'petiteEtoile' },
+    ex: { name:'EX · Étoile', kind:'ex', target:'self' }
+  }},
 };
