@@ -20,7 +20,7 @@ function renderHand() {
   var canAct = canHumanControlCurrentTurn();
   c.innerHTML = side.hand.map(function(cid){
     if (cid === 'hidden') return '<div class="combat-card disabled" style="--dc: 100,100,100; --cat: 100,100,100; min-height: 56px;"><div class="combat-card-header"><span class="combat-card-emoji">🂠</span><span class="combat-card-name">Carta oculta</span></div></div>';
-    var card = CARD_DB[cid] || PAINT_CARDS[cid]; if (!card) return '';
+    var card = CARD_DB[cid] || PAINT_CARDS[cid] || (typeof PLUSH_CARDS !== 'undefined' && PLUSH_CARDS[cid]); if (!card) return '';
     var disabled = false;
     if (canAct) {
       if (card.oncePerRound && side.cardsUsedThisRound[cid]) disabled = true;
@@ -64,7 +64,10 @@ function renderTeamCards(who) {
     var html = '<div class="' + cls + '" data-team="' + actualWho + '" data-index="' + i + '" style="--el: ' + col + ';">';
     if (cs.exActive) html += '<span class="ccc-ex-star" title="Este personaje tiene EX activa">🌟</span>';
     html += '<div class="ccc-top"><span class="ccc-el-badge">' + ELEMENT_EMOJI[cs.character.element] + '</span><span class="ccc-top-badge' + (ultReady ? ' ult-ready' : '') + '">⚡ ' + cs.energy + '/' + cs.maxEnergy + '</span></div>';
-    html += '<div class="ccc-portrait" data-fallback="' + cs.character.emoji + '"><img src="img/' + cs.id + '.png" alt="' + cs.character.name + '" onerror="this.style.display=\'none\';"></div>';
+    // ✅ Imagen dinámica: YouTube cambia a Idol según su forma
+    var portraitSrc = 'img/' + cs.id + '.png';
+    if (cs.id === 'youtube' && cs.forma === 'idol') portraitSrc = 'img/youtubeidol.png';
+    html += '<div class="ccc-portrait" data-fallback="' + cs.character.emoji + '"><img src="' + portraitSrc + '" alt="' + cs.character.name + '" onerror="this.style.display=\'none\';"></div>';
     html += '<div class="ccc-name">' + cs.character.name + '</div>';
     html += '<div class="ccc-element">' + ELEMENT_NAMES[cs.character.element] + '</div>';
     html += '<div class="ccc-hp-bar"><div class="ccc-hp-fill" style="width:' + hpPct + '%;"></div></div>';
@@ -91,8 +94,20 @@ function renderTeamCards(who) {
       if (cs.states.buenRecaudo) badges.push('<span class="ccc-badge" data-status="buenRecaudo" style="--bc: 100,200,255;">🛡️ Buen Recaudo</span>');
       if (cs.id === 'iris' && cs.states.advertenciaActive) badges.push('<span class="ccc-badge" data-status="advertenciaActive" style="--bc: 140,180,230;">⚔️ Advertencia</span>');
       if (cs.states.visto) badges.push('<span class="ccc-badge" data-status="visto" style="--bc: 130,220,140;">👁️ Visto</span>');
+      // ✅ Nuevos estados
+      if (cs.states.irritacion) badges.push('<span class="ccc-badge" data-status="irritacion" style="--bc: 255,140,60;">😤 Irritación</span>');
+      if (cs.states.provocacion) badges.push('<span class="ccc-badge" data-status="provocacion" style="--bc: 255,80,120;">🎯 Provocación</span>');
+      if (cs.states.paillettes) badges.push('<span class="ccc-badge" data-status="paillettes" style="--bc: 240,200,96;">✨ Paillettes</span>');
     }
     if (cs.manuelStacks > 0) badges.push('<span class="ccc-badge" data-status="manuelStacks" data-value="' + cs.manuelStacks + '" style="--bc: 200,150,60;">📈 +' + cs.manuelStacks + '</span>');
+    // ✅ YouTube
+    if (cs.id === 'youtube') {
+      var pop = cs.popularidad || 0;
+      var forma = cs.forma || 'casual';
+      var formaIcon = forma === 'idol' ? '🎤' : '👕';
+      var formaLabel = forma === 'idol' ? 'Idol' : 'Casual';
+      badges.push('<span class="ccc-badge" data-status="popularidad" data-value="' + pop + '" style="--bc: 240,200,96;">📺 ' + pop + '/7 · ' + formaIcon + ' ' + formaLabel + '</span>');
+    }
     if (side.obraMaestraTurns > 0 && isActive) badges.push('<span class="ccc-badge" data-status="obraMaestra" data-value="' + side.obraMaestraTurns + '" style="--bc: 240,200,96;">💥 Obra Maestra (' + side.obraMaestraTurns + ')</span>');
     if (cs.marks) Object.keys(cs.marks).forEach(function(el){ var em = ELEMENT_EMOJI[el] || '🏷️'; var cl = ELEMENT_COLORS[el] || '240,200,96'; badges.push('<span class="ccc-badge mark" data-status="marca" style="--bc: ' + cl + ';">' + em + ' Marca</span>'); });
     // ✅ Alter: marcar a los aliados potenciados por Omnes Deam Salutate
@@ -158,6 +173,7 @@ function renderSupports(uiWho) {
             : st.kind === 'mesaDJ' ? '🎧'
             : st.kind === 'android' ? '🤖'
             : st.kind === 'metaQuest' ? '📘'
+            : st.kind === 'monetizacion' ? '💸'
             : '🧠';
       sHtml += '<div class="side-slot-filled" data-struct-slot="' + si + '" style="--dc: 130,220,140;">' + stEmoji + durHtml + '</div>';
     } else sHtml += '<div class="side-slot-empty">+</div>';
