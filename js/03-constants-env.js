@@ -36,6 +36,7 @@ var STATUS_DESCRIPTIONS = {
   popularidad: { name:'📺 Popularidad', text:'Recurso de YouTube (0–7). Gana puntos al entrar activamente al combate y al comenzar la ronda activo sin marca. Pierde puntos al recibir ataques y al comenzar la ronda activo con marca. Al llegar a 5 cambia a forma Idol; al bajar de 5, a Casual.' },
   paillettes: { name:'✨ Paillettes', text:'Mientras esté activo (hasta el final del combate), cada ataque normal de Traductor genera 1 punto de escudo (hasta 3). Con su EX, el ataque normal hace +1 daño adicional.' },
   monetizacion: { name:'💸 Monetización', text:'Estructura de YouTube EX en el campo rival. Todas las cartas del rival cuestan 1 dado genérico extra. Pierde 1 uso cada vez que el rival usa una carta.' },
+  decidida: { name:'🐴 Decidida', text:'Cargas de Sage (0–3). Cada carga aumenta en +1 el daño y en +1 el coste de su ataque normal (dados cualesquiera). Al final de cada ronda pierde 1 carga y recibe 1 de daño por la carga perdida. La ulti requiere 3 cargas y las consume.' },
 };
 
 var PHILOSOPHIES = {
