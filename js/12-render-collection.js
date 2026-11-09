@@ -21,13 +21,13 @@ var CHAR_SORT_TITLES = {
   category: 'Orden actual: por Categoría. Clic para cambiar.'
 };
 var CHAR_ELEMENT_ORDER = ['proteccion','comprension','expresion','transformacion','aceptacion','redencion','ilusion'];
-var CHAR_CATEGORY_ORDER = ['Usuarios', 'Eriks', 'BTC', 'Lusior', 'Azaria'];
+var CHAR_CATEGORY_ORDER = ['Usuarios', 'HNN', 'BTC', 'Lusior', 'Azaria'];
 var charSortMode = 'alpha';
 var charFilterSet = {}, resFilterSet = {}, deckCatFilterSet = {}, deckTagFilterSet = {};
-var CHARACTER_CATEGORIES = ['Usuarios', 'Eriks', 'BTC', 'Lusior', 'Azaria'];
+var CHARACTER_CATEGORIES = ['Usuarios', 'HNN', 'BTC', 'Lusior', 'Azaria'];
 var CHARACTER_CATEGORY_COLORS = {
   'Usuarios': '140,180,230',
-  'Eriks':    '255,120,60',
+  'HNN':    '255,120,60',
   'BTC':      '92,179,255',
   'Lusior':   '100,220,120',
   'Azaria':   '240,200,96'
