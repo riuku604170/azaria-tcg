@@ -11,10 +11,10 @@ var COMBAT_CHARS = {
     ultimate: { name:'Obra Maestra', cost:{comprension:4}, energyCost:2, target:'self', kind:'obraMaestra' },
     ex: { name:'EX · Perfeccionamiento Absoluto', kind:'ex', target:'self' }
   }},
-  erik: { name:'Erik', element:'expresion', emoji:'🎨', hp:10, abilities: {
-    normal: { name:'Trazo Vivo', cost:{expresion:1, any:2}, target:'enemy', kind:'trazoVivo', damage:1, energy:1 },
-    elemental: { name:'Interpretación', cost:{expresion:3}, target:'self', kind:'interpretacion', selfDamage:1, energy:1 },
-    ultimate: { name:'Lienzo de Sangre', cost:{expresion:3}, energyCost:2, target:'self', kind:'lienzoSangre' },
+  erik: { name:'Erik', element:'ilusion', emoji:'🎨', hp:10, abilities: {
+    normal: { name:'Trazo Vivo', cost:{ilusion:1, any:2}, target:'enemy', kind:'trazoVivo', damage:1, energy:1 },
+    elemental: { name:'Interpretación', cost:{ilusion:3}, target:'self', kind:'interpretacion', selfDamage:1, energy:1 },
+    ultimate: { name:'Lienzo de Sangre', cost:{ilusion:3}, energyCost:2, target:'self', kind:'lienzoSangre' },
     ex: { name:'EX · Paleta Inagotable', kind:'ex', target:'self' }
   }},
   tenshi: { name:'Tenshi', element:'proteccion', emoji:'⚔️', hp:11, abilities: {
