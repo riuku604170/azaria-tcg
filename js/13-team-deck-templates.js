@@ -26,6 +26,7 @@ function autoBuildTeam(){
   initAudio();
   var pool = shuffleArray(Object.keys(CHARACTERS).filter(function(id){
     if (id === 'hunger' || id === 'exmaria') return false;
+    if (CHARACTERS[id].comingSoon) return false;   // ✅ Excluir próximamente
     if (typeof isUnlocked === 'function' && !isUnlocked(id)) return false;
     return true;
   }));
