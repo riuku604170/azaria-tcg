@@ -109,3 +109,13 @@ var PAINT_CARDS = {
   paint_azul:{ id:'paint_azul', category:'pintura', name:'Pintura Azul', tag:'Pintura', emoji:'🔵', color:'80,140,220', cost:{}, effectText:'Equipable solo sobre Erik. Su Trazo Vivo otorga 1 escudo.', paintColor:'azul' },
   paint_verde:{ id:'paint_verde', category:'pintura', name:'Pintura Verde', tag:'Pintura', emoji:'🟢', color:'90,200,110', cost:{}, effectText:'Equipable solo sobre Erik. Su Trazo Vivo cura 2 HP.', paintColor:'verde' }
 };
+
+/* ═══ Cartas de peluche de Traductor (generadas en combate) ═══ */
+var PLUSH_CARDS = {
+  plush_hase:  { id:'plush_hase',  category:'plush', name:'Plüschhase',  emoji:'🐰', color:'255,130,190', cost:{}, autoTrigger:false,
+    effectText:'Al usarla: cura 3 HP al personaje activo de tu equipo e inyecta Plüschbär en el mazo del rival.' },
+  plush_bar:   { id:'plush_bar',   category:'plush', name:'Plüschbär',   emoji:'🐻', color:'255,215,100', cost:{}, autoTrigger:true,
+    effectText:'Al robarla: 2 de daño al activo del que la robó + lo marca con Ilusión + inyecta Plüschkatze en el mazo contrario.' },
+  plush_katze: { id:'plush_katze', category:'plush', name:'Plüschkatze', emoji:'🐱', color:'130,220,140', cost:{}, autoTrigger:true,
+    effectText:'Al robarla: cura 1 HP a todo el equipo del que la robó.' }
+};
