@@ -1,131 +1,179 @@
-/* ═══ CONSTANTES ═══ */
-var ELEMENT_EMOJI = { redencion:'🩸', comprension:'💡', expresion:'🌸', proteccion:'🛡️', ilusion:'🎭', transformacion:'🔥', aceptacion:'🌿' };
-var ELEMENT_COLORS = { redencion:'200,45,60', comprension:'255,215,100', expresion:'255,130,190', proteccion:'140,180,230', ilusion:'180,100,230', transformacion:'255,120,60', aceptacion:'130,220,140' };
-var ELEMENT_NAMES = { redencion:'Redención', comprension:'Comprensión', expresion:'Expresión', proteccion:'Protección', ilusion:'Ilusión', transformacion:'Transformación', aceptacion:'Aceptación' };
-var ABILITY_TYPES = { normal:'Ataque Normal', elemental:'Habilidad Elemental', ultimate:'Habilidad Definitiva', passive:'Habilidad Pasiva', ex:'EX' };
-var ROLLING_COLOR = '160, 160, 180';
-var CARD_TAG_COLORS = { 'Ataque':'200,45,60','Curación':'78,194,107','Defensa':'140,180,230','Energía':'240,200,96','Dados':'165,131,255','Utilidad':'255,130,190','Potente':'255,215,100','Arma':'200,45,60','Armadura':'140,180,230','Accesorio':'255,215,100','Estructura':'130,220,140','Aura':'255,130,190','Trampa':'180,100,230','Pintura':'255,130,190' };
-var CARD_CATEGORY_META = { equipo:{label:'Equipo',icon:'⚔️',color:'200,45,60'}, apoyo:{label:'Apoyo',icon:'📜',color:'130,220,140'}, evento:{label:'Evento',icon:'✨',color:'165,131,255'}, pintura:{label:'Pintura',icon:'🎨',color:'255,130,190'} };
-
-var STATUS_DESCRIPTIONS = {
-  castigada: { name:'🩸 Castigada', text:'Mientras tenga este efecto, toda curación que reciba se convierte en daño verdadero (penetrante) en lugar de curarla.' },
-  condena: { name:'💀 Condena', text:'Recurso que Alaya acumula al recibir daño verdadero de fuentes que no son enemigas (ella misma, aliados, equipamientos, efectos propios, entorno, etc.). Su habilidad definitiva lo consume íntegramente como daño penetrante.' },
-  martir: { name:'🩸 Mártir Afligida', text:'Pasiva de Alaya: siempre que reciba daño verdadero de una fuente que no sea enemiga, gana 1 punto de Condena por cada punto de HP perdido. Con el efecto Castigada, la curación se convierte en daño verdadero y, por tanto, también genera Condena.' },
-  vulnerable: { name:'💔 Vulnerable', text:'Aplica una reducción de daño verdadero. Al recibir daño verdadero, el enemigo causante de dicho daño pasa a considerarse como Amenaza, y se elimina el efecto de Vulnerable.' },
-  amenaza: { name:'🚨 Amenaza', text:'Al infligir daño a un enemigo considerado como Vulnerable estando ya marcado como Amenaza, se marca a sí mismo con Protección. La habilidad definitiva de Tenshi (Suficiente) explota esta condición infligiendo daño penetrante extra.' },
-  furia: { name:'🔥 Furia', text:'Aumenta el daño infligido con el ataque normal en 1 punto. El estado se elimina al final de la ronda. No es acumulable. Se activa cuando Eevee recibe daño verdadero.' },
-  defensaActiva: { name:'💠 Defensa Activa', text:'El daño del próximo golpe que reciba Eevee se reduce en 1, y contraataca inmediatamente con un ataque normal. Después, el estado se elimina.' },
-  sintonia: { name:'🎵 Sintonía', text:'La siguiente curación que reciba también la recibirán el resto de aliados en Sintonía. Una vez ocurra, todos los aliados dejan de estar en Sintonía.' },
-  acelerado: { name:'💨 Acelerado', text:'Se considera un ataque acelerado todo ataque normal ejecutado como primera acción tras cambiar de personaje a Jose en ese mismo turno.' },
-  marca: { name:'🏷️ Marca elemental', text:'Si se aplica otra marca distinta a este personaje, ambas desaparecen al instante y se desencadena una Resonancia.' },
-  manuelStacks: { name:'📈 Acumulación (Decadencia)', text:'Cada stack de Decadencia de Manuel suma +1 al daño base de Degradación (tanto al enemigo como a sí mismo) y reduce en 1 el coste de dados de Degradación.' },
-  obraMaestra: { name:'💥 Obra Maestra', text:'Mientras esté activa, las habilidades definitivas de los aliados doblan su daño base (el valor numérico propio de la habilidad, sin bufos ni bonos), siempre que la estructura Portátil siga en el campo.' },
-  rencor: { name:'💢 Rencor', text:'Acumulación de Abla sobre este personaje. La habilidad definitiva de Abla inflige daño adicional por cada acumulación y las consume al golpear.' },
-  vuelo: { name:'🦅 Vuelo', text:'Artemis en vuelo: reduce en 2 el daño recibido. Si recibe daño verdadero recibe +3 de daño adicional, gana 1 de energía y pierde este efecto.' },
-  carrerilla: { name:'🏃 Carrerilla', text:'El siguiente ataque de Artemis que cause daño añade +2 de daño. Si ese ataque es su ataque normal, gana 1 de energía adicional.' },
-  cruzMadera: { name:'✝️ Cruz de Madera', text:'Estructura exclusiva de Orath. Causa 1 punto de daño al enemigo activo al ser destruida. Al final de la ronda, si Orath está activa, marca al enemigo activo con redención y se destruye.' },
-  cruzSangre: { name:'✝️ Cruz de Sangre', text:'Estructura exclusiva de Orath generada al morir ella. Se destruye si un aliado muere. Al destruirse, revive al último aliado caído con 1 HP y 2 de escudo.' },
-  invulnerabilidad: { name:'🛡️ Invulnerabilidad', text:'Cada punto de invulnerabilidad reduce en 1 el daño verdadero que recibe Alter. No se consume al absorber daño: Alter pierde 1 punto al final de cada ronda (máx 3). Solo se elimina por efectos que la quiten o por esta pérdida al final de ronda.' },
-  podrida: { name:'🦠 Podrida', text:'Al final de cada ronda, NC inflige 1 daño al enemigo activo (a todos los enemigos si usó su definitiva ese turno). La lectura consume esta podredumbre para marcar al enemigo con Protección.' },
-  advertido: { name:'⚠️ Advertido', text:'Cargas acumuladas sobre un enemigo de Iris. Máximo 3 cargas sin EX, 1 con EX. Cuando el enemigo está al máximo y recibe otra carga, en su lugar se le marca con Protección. Se consumen con el ataque normal de Iris cuando tiene EX activa.' },
-  buenRecaudo: { name:'🛡️ Buen Recaudo', text:'Mientras dure, si este aliado es atacado, el daño es redirigido a Iris y el atacante gana 1 carga de Advertido. Se consume tras redirigir 1 ataque o al final de la ronda.' },
-  advertenciaActive: { name:'⚔️ Advertencia', text:'Iris ha activado Advertencia: durante el resto de la ronda, los ataques dirigidos al activo de su equipo se redirigen a Iris con +1 de daño y otorgan 1 carga de Advertido al atacante.' },
-  visto: { name:'👁️ Visto', text:'Al final de la ronda, todos los personajes con este efecto se reparten 6 de daño penetrante (a partes iguales) si Vittoria sigue viva, o 12 si ha muerto (reviviendo ella con 1 HP). Si Vittoria es la última en morir, no se aplica. El efecto se pierde tras resolverse.' },
-  irritacion: { name:'😤 Irritación', text:'Mientras tenga este estado, cada habilidad o carta que use cuesta 1 dado genérico extra. Se elimina al final de la ronda.' },
-  provocacion: { name:'🎯 Provocación', text:'El rival está obligado a dirigir todos sus ataques (single-target) hacia X durante esa ronda. Al activarse, el rival pierde 1 de energía. Se elimina al final de la ronda.' },
-  popularidad: { name:'📺 Popularidad', text:'Recurso de YouTube (0–7). Gana puntos al entrar activamente al combate y al comenzar la ronda activo sin marca. Pierde puntos al recibir ataques y al comenzar la ronda activo con marca. Al llegar a 5 cambia a forma Idol; al bajar de 5, a Casual.' },
-  paillettes: { name:'✨ Paillettes', text:'Mientras esté activo (hasta el final del combate), cada ataque normal de Traductor genera 1 punto de escudo (hasta 3). Con su EX, el ataque normal hace +1 daño adicional.' },
-  monetizacion: { name:'💸 Monetización', text:'Estructura de YouTube EX en el campo rival. Todas las cartas del rival cuestan 1 dado genérico extra. Pierde 1 uso cada vez que el rival usa una carta.' },
-  decidida: { name:'🐴 Decidida', text:'Cargas de Sage (0–3). Cada carga aumenta en +1 el daño y en +1 el coste de su ataque normal (dados cualesquiera). Al final de cada ronda pierde 1 carga y recibe 1 de daño por la carga perdida. La ulti requiere 3 cargas y las consume.' },
+var COMBAT_CHARS = {
+  alaya: { name:'Alaya', element:'redencion', emoji:'🌹', hp:10, abilities: {
+    normal:{ name:'Autolesión', cost:{redencion:1, any:1}, target:'self', kind:'autolesion', selfDamage:1, energy:1 },
+    elemental:{ name:'Penitencia', cost:{redencion:3}, target:'self', kind:'penitencia', energy:1 },
+    ultimate:{ name:'El Fin del Comienzo', cost:{redencion:3}, energyCost:3, target:'enemy', kind:'finComienzo' },
+    ex:{ name:'EX · Repetición del Fin', kind:'ex', target:'self', oncePerGame:true }
+  }},
+  oliver: { name:'Óliver', element:'comprension', emoji:'🧠', hp:10, abilities: {
+    normal: { name:'Corrección', cost:{comprension:1, any:1}, target:'enemy', kind:'damage', damage:1, energy:1 },
+    elemental: { name:'Optimización', cost:{comprension:3}, target:'self', kind:'optimizacion', energy:1 },
+    ultimate: { name:'Obra Maestra', cost:{comprension:4}, energyCost:2, target:'self', kind:'obraMaestra' },
+    ex: { name:'EX · Perfeccionamiento Absoluto', kind:'ex', target:'self' }
+  }},
+  erik: { name:'Erik', element:'expresion', emoji:'🎨', hp:10, abilities: {
+    normal: { name:'Trazo Vivo', cost:{expresion:1, any:2}, target:'enemy', kind:'trazoVivo', damage:1, energy:1 },
+    elemental: { name:'Interpretación', cost:{expresion:3}, target:'self', kind:'interpretacion', selfDamage:1, energy:1 },
+    ultimate: { name:'Lienzo de Sangre', cost:{expresion:3}, energyCost:2, target:'self', kind:'lienzoSangre' },
+    ex: { name:'EX · Paleta Inagotable', kind:'ex', target:'self' }
+  }},
+  tenshi: { name:'Tenshi', element:'proteccion', emoji:'⚔️', hp:11, abilities: {
+    normal: { name:'Intervención', cost:{proteccion:2, any:1}, target:'enemy', kind:'intervencion', damage:2, energy:1 },
+    elemental: { name:'Bajo mis Alas', cost:{proteccion:2}, target:'self', kind:'bajoAlas', energy:1 },
+    ultimate: { name:'Suficiente', cost:{proteccion:3}, energyCost:3, target:'enemy', kind:'suficiente' },
+    ex: { name:'EX · Resguardo Divino', kind:'ex', target:'self' }
+  }},
+  eloy: { name:'Eloy', element:'comprension', emoji:'📖', hp:12, abilities: {
+    normal: { name:'Análisis', cost:{comprension:1, any:2}, target:'enemy', kind:'damage', damage:2, energy:0 },
+    elemental: { name:'Hipótesis Sólida', cost:{comprension:3}, target:'self', kind:'hipotesisSolida', energy:0 },
+    ultimate: { name:'Conclusión', cost:{comprension:4}, energyCost:3, target:'self', kind:'conclusion' },
+    ex: { name:'EX · Dominio Intelectual', kind:'ex', target:'self' }
+  }},
+  eevee: { name:'Eevee', element:'proteccion', emoji:'🦊', hp:9, abilities: {
+    normal: { name:'Advertencia', cost:{proteccion:1, any:2}, target:'enemy', kind:'damage', damage:2, energy:1 },
+    elemental: { name:'Defensa Activa', cost:{proteccion:4}, target:'self', kind:'defensaActiva', energy:1 },
+    ultimate: { name:'Contraofensiva', cost:{proteccion:4}, energyCost:3, target:'enemy', kind:'contraofensiva' },
+    ex: { name:'EX · Territorial', kind:'ex', target:'self' }
+  }},
+  ren: { name:'Ren', element:'ilusion', emoji:'🌀', hp:9, abilities: {
+    normal: { name:'Error', cost:{ilusion:1, any:2}, target:'enemy', kind:'damage', damage:2, energy:1 },
+    elemental: { name:'Inconsistencia', cost:{ilusion:5}, target:'enemy', kind:'inconsistencia', energy:1 },
+    ultimate: { name:'Destrucción de Lógica', cost:{ilusion:4}, energyCost:3, target:'enemy', kind:'destruccionLogica' },
+    ex: { name:'EX · Espejismo', kind:'ex', target:'self' }
+  }},
+  noah: { name:'Noah', element:'proteccion', emoji:'⚓', hp:8, abilities: {
+    normal: { name:'Latido', cost:{proteccion:1, any:1}, target:'enemy', kind:'damage', damage:1, energy:1 },
+    elemental: { name:'Eco Vital', cost:{proteccion:3}, target:'self', kind:'ecoVital', energy:1 },
+    ultimate: { name:'Armonía', cost:{proteccion:3}, energyCost:3, target:'self', kind:'armonia' },
+    ex: { name:'EX · Vibración Compasiva', kind:'ex', target:'self' }
+  }},
+  abla: { name:'Abla', element:'redencion', emoji:'🗡️', hp:9, abilities: {
+    normal: { name:'Rencor', cost:{redencion:1, any:2}, target:'enemy', kind:'damage', damage:2, energy:1 },
+    elemental: { name:'Deuda de Sangre', cost:{redencion:4}, target:'enemy', kind:'deudaSangre', energy:1 },
+    ultimate: { name:'Retribución Final', cost:{redencion:4}, energyCost:3, target:'enemy', kind:'retribucionFinal' },
+    ex: { name:'EX · Sangría Persistente', kind:'ex', target:'self' }
+  }},
+  manuel: { name:'Manuel', element:'redencion', emoji:'⚡', hp:11, abilities: { normal:{ name:'Ruptura', cost:{redencion:2, any:2}, target:'enemy', kind:'damage', damage:3, energy:1 }, elemental:{ name:'Degradación', cost:{redencion:5}, target:'enemy', kind:'degradacion', energy:1 }, ultimate:{ name:'Decadencia', cost:{redencion:3}, energyCost:2, target:'self', kind:'decadencia' }, ex: { name:'EX · Caos Acelerado', kind:'ex', target:'self' } }},
+  jose: { name:'Jose', element:'transformacion', emoji:'🦋', hp:9, abilities: {
+    normal: { name:'Acelerón', cost:{transformacion:2, any:1}, target:'enemy', kind:'aceleron', energy:1 },
+    elemental: { name:'Impulso', cost:{transformacion:3}, target:'self', kind:'impulso', energy:1 },
+    ultimate: { name:'Instinto', cost:{transformacion:4}, energyCost:2, target:'enemy', kind:'instinto' },
+    ex: { name:'EX · Inercia', kind:'ex', target:'self' }
+  }},
+  josemi: { name:'Josemi', element:'expresion', emoji:'🎤', hp:11, abilities: {
+    normal: { name:'Esbozo', cost:{expresion:1, any:2}, target:'enemy', kind:'damage', damage:2, energy:1 },
+    elemental: { name:'Reescritura', cost:{expresion:3}, target:'enemy', kind:'reescritura', energy:1 },
+    ultimate: { name:'Canon', cost:{expresion:5}, energyCost:2, target:'self', kind:'canon' },
+    ex: { name:'EX · Arquitectura Creativa', kind:'ex', target:'self' }
+  }},
+  artemis: { name:'Artemis', element:'aceptacion', emoji:'🦅', hp:11, abilities: { 
+    normal: { name:'Disparo divino', cost:{aceptacion:2, any:2}, target:'enemy', kind:'damage', damage:3, energy:1 }, 
+    elemental: { name:'Carrerilla', cost:{aceptacion:3}, target:'self', kind:'carrerilla', energy:0 }, 
+    ultimate: { name:'Mis dedos palpan el borde de la estratosfera', cost:{aceptacion:6}, energyCost:3, target:'enemy', kind:'estratosfera' },
+    ex: { name:'EX · Estratosfera Mejorada', kind:'ex', target:'self' }
+  }},
+  orath: { name:'Orath', element:'redencion', emoji:'🗿', hp:9, abilities: {
+    normal: { name:'Ojo por ojo', cost:{redencion:2, any:1}, target:'enemy', kind:'ojoPorOjo', damage:1, energy:1 },
+    elemental: { name:'Minuto de silencio', cost:{redencion:4}, target:'self', kind:'minutoSilencio', energy:1 },
+    ultimate: { name:'Dios te ampare, maldito pecador', cost:{redencion:3}, energyCost:2, target:'enemy', kind:'diosTeAmpare' },
+    // ✅ EX: Cruz de Sangre. Sus efectos viven en handleDeath, gateados por
+    // exSystemEnabled && orathCs.exActive. Aquí solo la declaramos para que
+    // aparezca el botón EX del sidebar.
+    ex: { name:'EX · Cruz de Sangre', kind:'ex', target:'self' }
+  }},
+  alter: { name:'Alter', element:'ilusion', emoji:'🎭', hp:12, abilities: {
+    normal: { name:'Amenaza a la Ontología', cost:{ilusion:1, any:1}, target:'enemy', kind:'damage', damage:1, energy:0 },
+    elemental: { name:'Conversión Psicológica', cost:{ilusion:3}, target:'self', kind:'conversionPsicologica', energy:0 },
+    ultimate: { name:'Omnes Deam Salutate', cost:{ilusion:4}, energyCost:3, target:'self', kind:'omnesDeam' },
+    ex: { name:'EX · Buen Provecho', kind:'ex', target:'self' }
+  }},
+  adela: { name:'Adela', element:'transformacion', emoji:'🕊️', hp:10, abilities: {
+    normal: { name:'Gracia Pícara', cost:{transformacion:2, any:1}, target:'enemy', kind:'graciaPicara', damage:1, energy:1 },
+    elemental: { name:'Flechazo Tentador', cost:{transformacion:3}, target:'enemy', kind:'flechazoTentador', energy:1 },
+    ultimate: { name:'Mis Modales en el Suelo', cost:{transformacion:5}, energyCost:2, target:'enemy', kind:'misModales' },
+    ex: { name:'EX · Café para llevar', kind:'ex', target:'self' }
+  }},
+  hunger: { name:'Hunger Incarnate', element:'transformacion', emoji:'👹', hp:5, abilities: {
+    normal: { name:'Muere', cost:{transformacion:1, any:1}, target:'enemy', kind:'muereNormal', damage:1, energy:1 },
+    elemental: { name:'MUERE', cost:{transformacion:3}, target:'enemy', kind:'muereElemental', energy:1 },
+    ultimate: { name:'Mi cordura, en el suelo, hecha pedazos', cost:{transformacion:4}, energyCost:2, target:'enemy', kind:'miCordura' },
+    ex: { name:'EX · Café amargo', kind:'ex', target:'self' }
+  }},
+  internet: { name:'Internet', element:'proteccion', emoji:'🌐', hp:5, abilities: {
+    normal: { name:'Orden', cost:{proteccion:1, any:2}, target:'enemy', kind:'damage', damage:2, energy:1 },
+    elemental: { name:'Daga de Ola', cost:{proteccion:3}, target:'enemy', kind:'dagaDeOla', damage:3, energy:1 },
+    ultimate: { name:'Fase de Limpieza', cost:{proteccion:3}, energyCost:3, target:'enemy', kind:'faseDeLimpieza' },
+    ex: { name:'EX · Último Recurso', kind:'ex', target:'self' }
+  }},
+  neon: { name:'Neón', element:'ilusion', emoji:'🎆', hp:6, abilities: {
+    normal: { name:'Scratch', cost:{ilusion:1, any:2}, target:'enemy', kind:'scratch', damage:1, energy:1 },
+    elemental: { name:'Remix', cost:{ilusion:4}, target:'self', kind:'remix', energy:1 },
+    ultimate: { name:'Killer Tunes', cost:{ilusion:4}, energyCost:3, target:'self', kind:'killerTunes' },
+    ex: { name:'EX · Sobrecarga', kind:'ex', target:'self' }
+  }},
+  maria: { name:'María', element:'aceptacion', emoji:'🌺', hp:8, abilities: {
+    normal: { name:'Cosecha', cost:{aceptacion:1, any:2}, target:'enemy', kind:'cosecha', damage:1, energy:1 },
+    elemental: { name:'Caricia', cost:{aceptacion:4}, target:'self', kind:'caricia', energy:1 },
+    ultimate: { name:'Amor', cost:{aceptacion:5}, energyCost:3, target:'self', kind:'amor' },
+    ex: { name:'EX · Recuerdo', kind:'ex', target:'self' }
+  }},
+  exmaria: { name:'EX-María', element:'aceptacion', emoji:'🌺', hp:8, abilities: {
+    normal: { name:'Es acaso el roce posible', cost:{aceptacion:1, any:1}, target:'enemy', kind:'rocePosible', damage:1, energy:1 },
+    elemental: { name:'Es acaso tu amor verdadero', cost:{aceptacion:3}, target:'self', kind:'amorVerdadero', energy:1 },
+    ultimate: { name:'Es acaso mi amor suficiente', cost:{aceptacion:4}, energyCost:2, target:'self', kind:'amorSuficiente' }
+  }},
+  nc: { name:'NC', element:'proteccion', emoji:'🎯', hp:12, abilities: {
+    normal: { name:'Lectura', cost:{proteccion:1, any:2}, target:'enemy', kind:'lectura', damage:1, energy:0 },
+    elemental: { name:'Interpretación', cost:{proteccion:3}, target:'self', kind:'interpretacionNC', energy:0 },
+    ultimate: { name:'Sobre-exageración', cost:{proteccion:4}, energyCost:4, target:'enemy', kind:'sobreExageracion', energy:0 },
+    ex: { name:'EX · Desquite artístico', kind:'ex', target:'self' }
+  }},
+  google: { name:'Google', element:'comprension', emoji:'🔍', hp:10, abilities: {
+    normal: { name:'Consulta Rápida', cost:{comprension:1, any:1}, target:'enemy', kind:'damage', damage:1, energy:1 },
+    elemental: { name:'Android', cost:{comprension:3}, target:'enemy', kind:'android', damage:1, piercing:true, energy:1 },
+    ultimate: { name:'Descanso Mental', cost:{comprension:3}, energyCost:2, target:'self', kind:'descansoMental' },
+    ex: { name:'EX · Infraestructura Conectada', kind:'ex', target:'self' }
+  }},
+  facebook: { name:'Facebook', element:'aceptacion', emoji:'📘', hp:11, abilities: {
+    normal: { name:'Buscando un Equilibrio', cost:{aceptacion:1, any:1}, target:'enemy', kind:'damage', damage:1, energy:1 },
+    elemental: { name:'Protocolo de Seguridad', cost:{aceptacion:4}, target:'self', kind:'protocoloSeguridad', energy:1, shieldSelf:2 },
+    ultimate: { name:'Pilar Fundamental', cost:{aceptacion:3}, energyCost:3, target:'enemy', kind:'pilarFundamental', damage:3 },
+    ex: { name:'EX · Informes de Rendimiento', kind:'ex', target:'self' }
+  }},
+  iris: { name:'Iris', element:'proteccion', emoji:'🌈', hp:11, abilities: {
+    normal: { name:'Suela a la Cara', cost:{proteccion:1, any:3}, target:'enemy', kind:'suelaALaCara', damage:2, energy:1 },
+    elemental: { name:'Advertencia', cost:{proteccion:4}, target:'self', kind:'irisAdvertencia', energy:1 },
+    ultimate: { name:'Líder de Puño de Hierro', cost:{proteccion:4}, energyCost:2, target:'enemy', kind:'liderPunoHierro' },
+    ex: { name:'EX · Lealtad Insaciable', kind:'ex', target:'self' }
+  }},
+  vittoria: { name:'Vittoria', element:'aceptacion', emoji:'👑', hp:10, abilities: {
+    normal: { name:'Habilidad normal', cost:{aceptacion:3}, target:'enemy', kind:'vittoriaNormal', damage:1, energy:1 },
+    elemental: { name:'Aceptación', cost:{aceptacion:3}, target:'enemy', kind:'vittoriaAceptacion', energy:1 },
+    ultimate: { name:'DEJA DE MIRARME CON ESOS OJOS', cost:{aceptacion:4}, energyCost:3, target:'self', kind:'vistoUltimate' },
+    ex: { name:'EX · GRACIAS', kind:'ex', target:'self' }
+  }},
+  x: { name:'X', element:'transformacion', emoji:'✖️', hp:11, abilities: {
+    normal: { name:'Zasca', cost:{transformacion:1, any:2}, target:'enemy', kind:'zasca', damage:2, energy:1 },
+    elemental: { name:'Circo Mediático', cost:{transformacion:3}, target:'self', kind:'circoMediatico', energy:1 },
+    ultimate: { name:'Sublevación', cost:{transformacion:3}, energyCost:3, target:'enemy', kind:'sublevacion' },
+    ex: { name:'EX · Consumidor de Dramas', kind:'ex', target:'self' }
+  }},
+  youtube: { name:'YouTube', element:'expresion', emoji:'📺', hp:9, abilities: {
+    normal: { name:'All eyes on me!', cost:{expresion:2, any:1}, target:'enemy', kind:'allEyesOnMe', damage:1, energy:1 },
+    elemental: { name:'Hot To Go!', cost:{expresion:4}, target:'enemy', kind:'hotToGo', energy:1 },
+    ultimate: { name:'The World Is Mine', cost:{expresion:5}, energyCost:3, target:'enemy', kind:'theWorldIsMine' },
+    ex: { name:'EX · Money, Money, Money', kind:'ex', target:'self' }
+  }},
+  traductor: { name:'Traductor', element:'ilusion', emoji:'🗣️', hp:10, abilities: {
+    normal: { name:'Little Boo-Boo', cost:{ilusion:1, any:2}, target:'enemy', kind:'littleBooBoo', damage:2, energy:1 },
+    elemental: { name:'Plüschtier', cost:{ilusion:4}, target:'self', kind:'pluschtier', energy:1 },
+    ultimate: { name:'Petite Étoile', cost:{ilusion:3}, energyCost:2, target:'enemy', kind:'petiteEtoile' },
+    ex: { name:'EX · Étoile', kind:'ex', target:'self' }
+  }},
+  sage: { name:'Sage', element:'redencion', emoji:'🐴', hp:12, abilities: {
+    normal: { name:"Galope pasional de la gracia del señor", cost:{redencion:2, any:2}, target:'enemy', kind:'sageNormal', damage:3, energy:1 },
+    elemental: { name:"Relincho al coro del infierno entero", cost:{redencion:4}, target:'enemy', kind:'sageElemental', energy:1 },
+    ultimate: { name:"Mis caenas', prendidas fuego, sobre to' sus muertos", cost:{redencion:2}, energyCost:3, target:'enemy', kind:'sageUltimate' },
+    ex: { name:'EX · Brava caída desde la torre de Babel', kind:'ex', target:'self' }
+  }},
 };
-
-var PHILOSOPHIES = {
-  proteccion: { emoji:'🛡️', name:'Protección', tagline:'Reducir el daño', desc:'Afrontan el sufrimiento intentando reducir el daño, tanto para sí mismas como para quienes consideran importantes.', quote:'La Protección no consiste en tener miedo al daño, sino en decidir que impedirlo es la mejor manera de superar la adversidad.', consonance2:'El personaje activo recibe un escudo de 1 punto de vida al principio de cada ronda.', consonance3:'Todos los aliados reciben un escudo de 1 punto de vida al principio de cada ronda.' },
-  comprension: { emoji:'💡', name:'Comprensión', tagline:'Entenderlo', desc:'Afrontan el sufrimiento intentando entenderlo. Creen que el conocimiento es la mejor herramienta para resolver cualquier problema.', quote:'La Comprensión no consiste en saberlo todo, sino en creer que siempre existe una forma mejor de actuar si se logra entender la situación.', consonance2:'Al inicio de la partida, el personaje activo comienza con 1 punto de energía.', consonance3:'Al inicio de la partida, todos los aliados comienzan con 1 punto de energía.' },
-  expresion: { emoji:'🌸', name:'Expresión', tagline:'Crear', desc:'Afrontan el sufrimiento creando. Sienten la necesidad de dar forma a su mundo interior.', quote:'La Expresión no consiste en decir lo que uno siente, sino en transformar la experiencia en algo nuevo que antes no existía.', consonance2:'Al inicio de la partida, robas 2 cartas adicionales en tu primera mano (5 → 7).', consonance3:'Al principio de cada ronda, robas 1 carta adicional (2 → 3).' },
-  transformacion: { emoji:'🔥', name:'Transformación', tagline:'Adaptarse al cambio', desc:'Afrontan el sufrimiento adaptándose al cambio. Prefieren moverse y aprovechar el impulso de la situación.', quote:'La Transformación no consiste en cambiar por cambiar, sino en entender que avanzar muchas veces implica dejar atrás lo que ya no funciona.', consonance2:'El primer cambio de personaje de cada ronda no cuesta dados.', consonance3:'El primer cambio de personaje de cada ronda es gratuito y se considera una acción rápida.' },
-  aceptacion: { emoji:'🌿', name:'Aceptación', tagline:'Asimilarlo', desc:'Afrontan el sufrimiento asimilándolo. Entienden que no todo puede cambiarse y buscan convivir con lo ocurrido.', quote:'La Aceptación no consiste en rendirse ante el sufrimiento, sino en impedir que este siga teniendo poder sobre uno mismo.', consonance2:'Al comienzo de cada ronda, el personaje activo recupera 1 punto de vida.', consonance3:'Al comienzo de cada ronda, todos los aliados recuperan 1 punto de vida.' },
-  redencion: { emoji:'🩸', name:'Redención', tagline:'Actuar', desc:'Afrontan el sufrimiento actuando. Asumen las consecuencias y transforman el dolor en fuerza.', quote:'La Redención no consiste en buscar el sufrimiento, sino en decidir que, si este llega, servirá para avanzar en lugar de detenerse.', consonance2:'El primer ataque que realice el personaje activo en cada ronda inflige 2 puntos de daño adicionales.', consonance3:'El primer ataque que realice cualquier aliado en cada ronda inflige 3 puntos de daño adicionales.' },
-  ilusion: { emoji:'🎭', name:'Ilusión', tagline:'Cuestionar la realidad', desc:'Afrontan el sufrimiento cuestionando la realidad. Buscan nuevas perspectivas y alteran las condiciones del problema.', quote:'La Ilusión no consiste en engañar a los demás, sino en comprender que la realidad siempre ofrece más posibilidades de las que parecen existir a primera vista.', consonance2:'Al finalizar la fase de lanzamiento, al menos 2 de los dados serán del tipo de tu personaje activo u omnidados.', consonance3:'Al finalizar la fase de lanzamiento, al menos 4 de los dados serán del tipo de tu personaje activo u omnidados.' }
-};
-var CONSONANCE_ORDER = ['proteccion','comprension','expresion','transformacion','aceptacion','redencion','ilusion'];
-
-/* ═══ ENTORNOS ═══ */
-var ENVIRONMENTS = {
-  sobrecarga_epileptica: {
-    id: 'sobrecarga_epileptica',
-    name: 'Sobrecarga Epiléptica',
-    emoji: '⚡',
-    duration: 2,
-    effectText: 'Al final de la ronda, el aliado activo del equipo que estableció el entorno pasa al siguiente.'
-  },
-  campo_girasoles: {
-    id: 'campo_girasoles',
-    name: 'Campo de Girasoles',
-    emoji: '🌻',
-    duration: 2,
-    effectText: 'Todos los efectos curativos del equipo dueño del entorno aumentan en 1 punto.'
-  }
-};
-
-var combatEnvColor = null;
-
-function setCombatCanvasColor(element) {
-  if (!element) { combatEnvColor = null; return; }
-  var rgb = ELEMENT_COLORS[element];
-  if (!rgb) { combatEnvColor = null; return; }
-  var parts = rgb.split(',').map(function(x){ return parseInt(x.trim(), 10); });
-  combatEnvColor = { r: parts[0], g: parts[1], b: parts[2] };
-}
-
-function setEnvironment(envId, casterCs, ownerSideKey) {
-  if (!combatState) return;
-  var def = ENVIRONMENTS[envId];
-  if (!def) return;
-  var element = casterCs ? casterCs.character.element : 'ilusion';
-  var previous = combatState.environment ? combatState.environment.name : null;
-  combatState.environment = {
-    id: envId,
-    name: def.name,
-    element: element,
-    roundsLeft: def.duration,
-    ownerSide: ownerSideKey,
-    ownerCsId: casterCs ? casterCs.id : null,
-    def: def
-  };
-  if (previous) logCombat('🌍 El entorno "' + previous + '" es reemplazado por "' + def.name + '"');
-  else logCombat('🌍 Entorno establecido: ' + def.name + ' (' + def.duration + ' rondas)');
-  playSound('banner');
-  updateEnvironmentVisuals();
-}
-
-function clearEnvironment() {
-  if (!combatState || !combatState.environment) return;
-  logCombat('🌍 El entorno ' + combatState.environment.name + ' desaparece');
-  combatState.environment = null;
-  updateEnvironmentVisuals();
-}
-
-function updateEnvironmentVisuals() {
-  var display = document.getElementById('combatEnvironmentDisplay');
-  if (!display) return;
-  if (!combatState || !combatState.environment) {
-    display.hidden = true;
-    setCombatCanvasColor(null);
-    return;
-  }
-  var env = combatState.environment;
-  var col = ELEMENT_COLORS[env.element] || '240, 200, 96';
-  display.hidden = false;
-  display.style.setProperty('--env-color', col);
-
-  var icon   = document.getElementById('envIcon');
-  var name   = document.getElementById('envName');
-  var rounds = document.getElementById('envRounds');
-
-  if (icon)   icon.textContent   = env.def.emoji || '🌍';
-  if (name)   name.textContent   = env.name;
-  if (rounds) rounds.textContent = env.roundsLeft + (env.roundsLeft === 1 ? ' ronda' : ' rondas');
-
-  setCombatCanvasColor(env.element);
-}
