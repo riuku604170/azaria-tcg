@@ -9,9 +9,11 @@ var PATCHES = [
   title: 'Nuevos personajes, arreglos visuales y de menú',
   changes: [
     'Cartas de personaje ahora mejor diseñadas.',
-    'Añadidos X, YouTube y Traductor (BTC) a la tienda.',
+    'Añadidos X, YouTube0 y Traductor (BTC).',
+    'Añadida Sage (Eriks).',
     'Añadidos a próximos personajes: Whatsapp e Instagram (BTC).',
-    'Nota: Código de la tienda - AZARIATCG'
+    'Añadido apartado de Ayuda, pendiente.',  
+    'Nota: Código de la tienda - AZARIATCG.'
   ]  
 },
 {
@@ -101,7 +103,7 @@ var ANNOUNCEMENTS = [
     '-Manolo... Que han pasado días, Manolo.',
     '-Ni que nosotros fuéramos los del parte del día, de eso ya se encarga el colega.',
     '-Venga, hombre, venga...',
-    '-Bueno pues vamos a comentar, ¿no Antonio?',
+    '-Bueno pues vams a comentar, ¿no Antonio?',
     '-Pues claro que sí, Manolo. Tenemos rediseños, algunos ajustes, cambios, mejoras...',
     '-Yo creo que lo más importante tira para lo de la tienda, Antonio.',
     '-Casi que sí, Manolo. Me dicen que ahora el bot además es mejor.',
@@ -121,8 +123,8 @@ var ANNOUNCEMENTS = [
     '-¿Y esos están bien, Antonio?',
     '-Que no ha salido ninguno, hombre. Que parece que no escuchas, tontopolla.',
     '-Hombre, pero algún chivatazo habrá, ¿no?',
-    '-Pues fíjate que sí, Manolo. Personajes como Pepe el Siluro, Pete, Hector, y algunos más.',
-    '-De mientras, créete que me han dado otro chivatazo por el pinganillo, Antonio... Sobre los personajes de Azaria. Que hay un código para esos, dicen.',
+    'Pues fíjate que sí, Manolo. Personajes como Pepe el Siluro, Pete, Hector, y algunos más.',
+    '-De mientras, créete que me han dado otro chivatazo por el pinganillo, Antononio... Sobre los personajes de Azaria. Que hay un código para esos, dicen.',
     '-¿Y sabemos el código, Manolo?',
     '-De eso no tengo ni idea, Antonio.',
     '-Pues para eso no dices nada, adefesio. Que encima eres más feo que pegarle a un padre, Manolo.',
