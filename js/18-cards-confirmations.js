@@ -160,17 +160,19 @@ function playCardRequest(cardId) {
   if (!canHumanControlCurrentTurn()) return;
   if (isTurnDone()) return;
   var side = getTurnSide(); if (!side) return;
-  var card = CARD_DB[cardId] || PAINT_CARDS[cardId]; if (!card) return;
+  var card = CARD_DB[cardId] || PAINT_CARDS[cardId] || (typeof PLUSH_CARDS !== 'undefined' && PLUSH_CARDS[cardId]); if (!card) return;
 
-  // ✅ Cartas de peluche (Traductor): se usan sin coste
+  // ✅ Cartas de peluche (Traductor): confirmación normal, coste 0
   if (card.category === 'plush') {
-    applyPlushCard(cardId);
-    var hi = side.hand.indexOf(cardId);
-    if (hi >= 0) side.hand.splice(hi, 1);
-    if (!side.discardPile) side.discardPile = [];
-    side.discardPile.push(cardId);
-    playSound('card');
-    renderCombat();
+    showCardConfirmation(cardId, {}, function(selectedDice){
+      applyPlushCard(cardId);
+      var hi = side.hand.indexOf(cardId);
+      if (hi >= 0) side.hand.splice(hi, 1);
+      if (!side.discardPile) side.discardPile = [];
+      side.discardPile.push(cardId);
+      playSound('card');
+      renderCombat();
+    }, false);
     return;
   }
 
@@ -191,7 +193,7 @@ function playCardRequest(cardId) {
   }, artemisBlock);
 }
 function finalizeCardPlay(cardId) {
-  var card = CARD_DB[cardId] || PAINT_CARDS[cardId]; if (!card) return;
+  var card = CARD_DB[cardId] || PAINT_CARDS[cardId] || (typeof PLUSH_CARDS !== 'undefined' && PLUSH_CARDS[cardId]); if (!card) return;
   var player = getActiveSide(); if (!player) return;
   // ✅ Popup del nombre de la carta que se acaba de jugar
   showCardNamePopup(getTurnKey(), player.activeIndex, card);
@@ -210,7 +212,7 @@ function finalizeCardPlay(cardId) {
 function refundDice(spent){ var side = getActiveSide(); if (!spent || !side) return; spent.forEach(function(d){ d.justAdded = false; side.dice.push(d); }); }
 function applyCardPlay(cardId, spentDice) {
   if (!combatState) return;
-  var card = CARD_DB[cardId] || PAINT_CARDS[cardId]; if (!card) return;
+  var card = CARD_DB[cardId] || PAINT_CARDS[cardId] || (typeof PLUSH_CARDS !== 'undefined' && PLUSH_CARDS[cardId]); if (!card) return;
   var player = getActiveSide(); if (!player) return;
   if (card.category === 'pintura') {
     var erik = player.characters.find(function(c){ return c.id === 'erik' && !c.dead; });
@@ -316,7 +318,7 @@ function showSupportReplaceDialog(cardId, onConfirm, onCancel) {
 
 function showDiscardDieSelection(cardId, onConfirmDiscard) {
   var ov = document.getElementById('confirmOverlay'), content = document.getElementById('confirmContent'); if (!ov || !content) return;
-  var card = CARD_DB[cardId] || PAINT_CARDS[cardId]; if (!card) return;
+  var card = CARD_DB[cardId] || PAINT_CARDS[cardId] || (typeof PLUSH_CARDS !== 'undefined' && PLUSH_CARDS[cardId]); if (!card) return;
   var side = getActiveSide(); if (!side) return;
   var active = side.characters[side.activeIndex]; if (!active || active.dead) return;
   var targetElement = active.character.element;
@@ -380,7 +382,7 @@ function showDiscardDieSelection(cardId, onConfirmDiscard) {
 function showCardConfirmation(cardId, adjustedCost, onConfirm, artemisBlock) {
   var ov = document.getElementById('confirmOverlay'), content = document.getElementById('confirmContent'); if (!ov || !content) return;
   hideTooltip();
-  var card = CARD_DB[cardId] || PAINT_CARDS[cardId]; if (!card) return;
+  var card = CARD_DB[cardId] || PAINT_CARDS[cardId] || (typeof PLUSH_CARDS !== 'undefined' && PLUSH_CARDS[cardId]); if (!card) return;
   var side = getActiveSide(); if (!side) return;
   var totalCost = sumCost(adjustedCost);
   var active = side.characters[side.activeIndex];
@@ -391,7 +393,7 @@ function showCardConfirmation(cardId, adjustedCost, onConfirm, artemisBlock) {
     var sc = Object.keys(selectedIds).length, isFull = sc === totalCost;
     var isComplete = totalCost === 0 || (isFull && trySpendDice(getSel(), adjustedCost).ok);
     var canPlay = isComplete && !artemisBlock;
-    var catL = card.category === 'equipo' ? '⚔️ Equipo' : card.category === 'apoyo' ? '📜 Apoyo' : card.category === 'pintura' ? '🎨 Pintura' : '✨ Evento';
+    var catL = card.category === 'equipo' ? '⚔️ Equipo' : card.category === 'apoyo' ? '📜 Apoyo' : card.category === 'pintura' ? '🎨 Pintura' : card.category === 'plush' ? '🧸 Peluche' : '✨ Evento';
     var html = '<div class="confirm-title">' + catL + ' · ' + card.tag + '</div><div class="confirm-subtitle">' + card.emoji + ' ' + card.name + '</div><div class="confirm-body">' + card.effectText + '</div>';
     if (totalCost === 0) html += '<div class="confirm-cost-section"><div class="confirm-cost-label">Coste</div><div class="confirm-cost-dice"><span class="die die-energy">Sin coste</span></div></div>';
     else {
@@ -407,7 +409,7 @@ function showCardConfirmation(cardId, adjustedCost, onConfirm, artemisBlock) {
       html += '<div class="confirm-warning">🦅 Artemis no puede recibir energía. Puedes descartar esta carta, pero no jugarla.</div>';
     }
     html += '<div class="confirm-buttons"><button class="confirm-btn confirm-cancel" id="confirmCancelBtn">Cancelar</button>';
-    if (side.dice.length > 0) html += '<button class="confirm-btn confirm-discard" id="confirmDiscardBtn" title="Descartar esta carta para cambiar un dado al tipo del activo">🗑️ Descartar</button>';
+    if (side.dice.length > 0 && card.category !== 'plush') html += '<button class="confirm-btn confirm-discard" id="confirmDiscardBtn" title="...">🗑️ Descartar</button>';
     html += '<button class="confirm-btn confirm-accept" id="confirmAcceptBtn"' + (!canPlay ? ' disabled' : '') + '>Jugar</button></div>';
     content.innerHTML = html;                       // ← LÍNEA QUE FALTABA
     var picker = content.querySelector('.confirm-dice-pool');
@@ -813,6 +815,14 @@ function playerActionRequest(actionType) {
     var hasOptim = side.structures && side.structures.some(function(st){ return st.kind === 'optimizacion'; });
     if (!hasOptim) { playSound('error'); var btnIdU = actionType === 'ultimate' ? 'ultimateBtn' : (actionType === 'elemental' ? 'elementalBtn' : 'normalBtn'); var bU = document.getElementById(btnIdU); if (bU) { bU.classList.add('shake'); setTimeout(function(){ bU.classList.remove('shake'); }, 400); } return; }
   }
+  if (ability.kind === 'sageUltimate') {
+    if (!active.states || (active.states.decidida || 0) < 3) {
+      playSound('error');
+      var bUs = document.getElementById('ultimateBtn');
+      if (bUs) { bUs.classList.add('shake'); setTimeout(function(){ bUs.classList.remove('shake'); }, 400); }
+      return;
+    }
+  }
   if (ability.energyCost && active.energy < ability.energyCost && !active.cardNextAbilityFree) { playSound('error'); return; }
   var effCost = getEffectiveCostFull(active, ability);
   if (sumCost(effCost) > 0 && !trySpendDice(side.dice, effCost).ok) {
@@ -898,6 +908,22 @@ function playerChangeCharacterRequest(targetIndex) {
 
     // ✅ FIX Google EX: llamada que faltaba (la de 17a quedaba pisada)
     applyGoogleExOnChange(oldChar, side, targetIndex, turnKey);
+
+    // ✅ Sage: efectos de entrada/salida
+    var _newCs = side.characters[targetIndex];
+    var _oldIdx = side.characters.indexOf(oldChar);
+    if (oldChar && oldChar.id === 'sage' && _newCs.id !== 'sage' && oldChar.exActive && !oldChar.dead) {
+      dealDamageToChar(oldChar, 1, { targetSide:side, targetSideKey:turnKey, targetIdx:_oldIdx });
+      logCombat('🐴 EX Sage: pierde 1 HP al salir');
+    }
+    if (_newCs && _newCs.id === 'sage' && oldChar.id !== 'sage' && !_newCs.dead) {
+      csSetState(_newCs, 'sageEnteredThisTurn', true);
+      _newCs.states = _newCs.states || {};
+      _newCs.states.decidida = Math.min(3, (_newCs.states.decidida || 0) + 1);
+      logCombat('🐴 Sage: +1 Decidida (' + _newCs.states.decidida + '/3)');
+      dealDamageToChar(_newCs, 1, { targetSide:side, targetSideKey:turnKey, targetIdx:targetIndex });
+      logCombat('🐴 Sage: -1 HP al cambiar a ella');
+    }
 
     var sfx = rules.quick ? ' (acción rápida)' : (rules.discounted ? ' (gratis)' : '');
     var label = combatState.pvp ? (turnKey === 'player' ? 'J1' : 'J2') : 'Tú';
