@@ -98,6 +98,7 @@ function renderTeamCards(who) {
       if (cs.states.irritacion) badges.push('<span class="ccc-badge" data-status="irritacion" style="--bc: 255,140,60;">😤 Irritación</span>');
       if (cs.states.provocacion) badges.push('<span class="ccc-badge" data-status="provocacion" style="--bc: 255,80,120;">🎯 Provocación</span>');
       if (cs.states.paillettes) badges.push('<span class="ccc-badge" data-status="paillettes" style="--bc: 240,200,96;">✨ Paillettes</span>');
+      if (cs.states.decidida > 0) badges.push('<span class="ccc-badge" data-status="decidida" data-value="' + cs.states.decidida + '" style="--bc: 200,45,60;">🐴 Decidida ' + cs.states.decidida + '/3</span>');
     }
     if (cs.manuelStacks > 0) badges.push('<span class="ccc-badge" data-status="manuelStacks" data-value="' + cs.manuelStacks + '" style="--bc: 200,150,60;">📈 +' + cs.manuelStacks + '</span>');
     // ✅ YouTube
@@ -220,6 +221,10 @@ function updateCombatActions() {
   if (char.abilities.ultimate.kind === 'amorSuficiente') {
     if (active.hp <= 1) uOk = false;
     if (!side.characters.some(function(c){ return c.dead; })) uOk = false;
+  }
+  // ✅ Sage: la ulti requiere 3 cargas de Decidida
+  if (char.abilities.ultimate.kind === 'sageUltimate') {
+    if (!active.states || (active.states.decidida || 0) < 3) uOk = false;
   }
   var eN = getEffectiveCostFull(active, char.abilities.normal), eE = getEffectiveCostFull(active, char.abilities.elemental), eU = getEffectiveCostFull(active, char.abilities.ultimate);
   var nD = sumCost(eN) === 0 || trySpendDice(side.dice, eN).ok;
