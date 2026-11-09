@@ -2623,7 +2623,7 @@ function previewPlayerAction(actionType) {
     if (paint === 'roja') preview.notes.push('🔴 Pintura Roja: +2 daño');
     else if (paint === 'azul') { preview.shieldSelf = (preview.shieldSelf || 0) + 1; preview.notes.push('🔵 Pintura Azul: +1 escudo'); }
     else if (paint === 'verde') { var healV = Math.min(2, active.maxHp - active.hp); preview.healApplied = (preview.healApplied || 0) + healV; preview.notes.push('🟢 Pintura Verde: +' + healV + ' HP'); }
-    else preview.notes.push('🏷️ Marca con expresión');
+    else preview.notes.push('🏷️ Marca con Ilusión');
     if (paint) preview.notes.push('🎨 La pintura se consume');
   }
 
@@ -2973,7 +2973,7 @@ function previewPlayerAction(actionType) {
     ef.push({ type: 'state', icon: '💔', label: 'Vulnerable al aliado con menos vida', target: 'team' });
   }
   if (ability.kind === 'trazoVivo' && !active.paintEquipped) {
-    ef.push({ type: 'state', icon: '🌸', label: 'Marca con Expresión', target: 'enemy' });
+    ef.push({ type: 'state', icon: '🎭', label: 'Marca con Ilusión', target: 'enemy' });
   }
   if (ability.kind === 'graciaPicara' || ability.kind === 'flechazoTentador') {
     ef.push({ type: 'state', icon: '🔥', label: 'Marca con Transformación', target: 'enemy' });
