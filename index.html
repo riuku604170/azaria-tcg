@@ -18,6 +18,7 @@
 <link rel="stylesheet" href="css/11-sandbox.css">
 <link rel="stylesheet" href="css/12-misc.css">
 <link rel="stylesheet" href="css/14-shop.css">
+<link rel="stylesheet" href="css/15-help.css">
 <link rel="stylesheet" href="css/99-responsive.css">
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 </head>
@@ -37,6 +38,11 @@
         <span class="nav-action-icon">📢</span>
         <span class="nav-action-label">Avisos</span>
         <span class="patches-new-badge" id="patchesNewBadge" hidden aria-label="Nuevo aviso disponible">!</span>
+      </a>
+      <a href="#" id="helpNavBtn" class="nav-action-btn" title="La guía estará disponible próximamente" data-help-disabled="1">
+        <span class="nav-action-icon">📚</span>
+        <span class="nav-action-label">Ayuda</span>
+        <span class="nav-pronto-badge">Pronto</span>
       </a>
     </div>
   </div>
@@ -232,12 +238,12 @@
       <div class="card-bottom" title="Coste de su Habilidad Definitiva"><span class="ult-icon">💥</span><span class="cost">🌿 4</span><span class="cost">⚡ 3</span></div>
     </div>
 
-    <div class="char-card reveal" data-el="transformacion" data-character="sage" title="Próximamente">
-      <div class="card-top"><span class="el-badge">🔥</span><span class="hp-badge">?</span></div>
+    <div class="char-card reveal" data-el="redencion" data-character="sage" title="Erik">
+      <div class="card-top"><span class="el-badge">🩸</span><span class="hp-badge">12</span></div>
       <div class="portrait" data-fallback="🧙"><img src="img/sage.png" alt="Sage" class="portrait-img" style="opacity:0;" loading="lazy" onload="this.style.opacity=1;" onerror="this.style.display='none';"></div>
       <div class="card-name">Sage</div>
-      <div class="card-element">Transformación</div>
-      <div class="card-bottom" title="Coste de su Habilidad Definitiva"><span class="ult-icon">💥</span><span class="cost">🔥 ?</span><span class="cost">⚡ ?</span></div>
+      <div class="card-element">Redención</div>
+      <div class="card-bottom" title="Coste de su Habilidad Definitiva"><span class="ult-icon">💥</span><span class="cost">🩸 2</span><span class="cost">⚡ 3</span></div>
     </div>
 
     <div class="char-card reveal" data-el="redencion" data-character="david" title="Próximamente">
@@ -891,6 +897,78 @@
   </div>
 </div>
 
+<!-- ═══ Modal de Ayuda ═══ -->
+<div class="help-modal" id="helpModal">
+  <div class="help-backdrop" id="helpBackdrop"></div>
+  <div class="help-content">
+    <div class="help-header">
+      <div class="help-title">📚 Ayuda</div>
+      <div class="help-tabs">
+        <button class="help-tab active" data-help-tab="guide">📖 Guía</button>
+      </div>
+      <button class="help-close" id="helpCloseBtn" title="Cerrar">✕</button>
+    </div>
+    <div class="help-body">
+      <div class="help-panel active" id="helpPanelGuide">
+        <div class="help-guide-layout">
+          <aside class="help-guide-toc" id="helpGuideToc"></aside>
+          <div class="help-guide-content" id="helpGuideContent"></div>
+        </div>
+      </div>
+      <div class="help-panel" id="helpPanelTutorial">
+        <div class="tutorial-stage" id="tutorialStage">
+          <div class="tutorial-board">
+            <div class="tutorial-side tutorial-side-rival">
+              <div class="tutorial-side-label">⚔️ Rival</div>
+              <div class="tutorial-team" id="tutorialRivalTeam"></div>
+            </div>
+            <div class="tutorial-vs">VS</div>
+            <div class="tutorial-side tutorial-side-player">
+              <div class="tutorial-side-label">🛡️ Tú</div>
+              <div class="tutorial-team" id="tutorialPlayerTeam"></div>
+            </div>
+            <div class="tutorial-extra-row">
+              <div class="tutorial-zone" id="tutorialDiceZone">
+                <div class="tutorial-zone-label">🎲 Dados</div>
+                <div class="tutorial-dice" id="tutorialDice"></div>
+              </div>
+              <div class="tutorial-zone" id="tutorialEnergyZone">
+                <div class="tutorial-zone-label">⚡ Energía</div>
+                <div class="tutorial-energy" id="tutorialEnergy"></div>
+              </div>
+              <div class="tutorial-zone" id="tutorialHandZone">
+                <div class="tutorial-zone-label">🎴 Mano</div>
+                <div class="tutorial-hand" id="tutorialHand"></div>
+              </div>
+              <div class="tutorial-zone" id="tutorialLogZone">
+                <div class="tutorial-zone-label">📜 Registro</div>
+                <div class="tutorial-log" id="tutorialLog"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="tutorial-bubble" id="tutorialBubble">
+          <div class="tutorial-avatar">
+            <img src="img/gregorio.png" alt="Gregorio" onerror="this.style.display='none';this.parentNode.classList.add('no-img')">
+            <span class="tutorial-avatar-fallback">🗣️</span>
+          </div>
+          <div class="tutorial-speech">
+            <div class="tutorial-speaker-name">Gregorio</div>
+            <div class="tutorial-text" id="tutorialText"></div>
+            <div class="tutorial-controls">
+              <button class="tutorial-btn skip" id="tutorialSkipBtn" title="Saltar paso">⏭️</button>
+              <button class="tutorial-btn next" id="tutorialNextBtn">Siguiente →</button>
+            </div>
+            <div class="tutorial-progress">
+              <span id="tutorialProgress">1 / 25</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="hover-tooltip" id="hoverTooltip"></div>
 
 <script src="js/01-state-globals.js" defer></script>
@@ -915,6 +993,7 @@
 <script src="js/19-combat-render-bindings.js" defer></script>
 <script src="js/20-calculator-sandbox-init.js" defer></script>
 <script src="js/21-shop.js" defer></script>
+<script src="js/22-help.js" defer></script>
 
 </body>
 </html>
