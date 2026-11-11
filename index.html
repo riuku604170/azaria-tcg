@@ -19,6 +19,7 @@
 <link rel="stylesheet" href="css/12-misc.css">
 <link rel="stylesheet" href="css/14-shop.css">
 <link rel="stylesheet" href="css/15-help.css">
+<link rel="stylesheet" href="css/16-combat-stats.css">
 <link rel="stylesheet" href="css/99-responsive.css">
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 </head>
@@ -39,10 +40,9 @@
         <span class="nav-action-label">Avisos</span>
         <span class="patches-new-badge" id="patchesNewBadge" hidden aria-label="Nuevo aviso disponible">!</span>
       </a>
-      <a href="#" id="helpNavBtn" class="nav-action-btn" title="La guía estará disponible próximamente" data-help-disabled="1">
+      <a href="#" id="helpNavBtn" class="nav-action-btn" title="Ayuda y guía">
         <span class="nav-action-icon">📚</span>
         <span class="nav-action-label">Ayuda</span>
-        <span class="nav-pronto-badge">Pronto</span>
       </a>
     </div>
   </div>
@@ -56,6 +56,7 @@
     <li><a href="#resonancias">Resonancias</a></li>
     <li><a href="#calculadora">Calculadora</a></li>
     <li><a href="#jugar">Jugar</a></li>
+    <li><a href="#puzzles">Desafíos</a></li>
   </ul>
 </nav>
 
@@ -572,6 +573,12 @@
   </div>
 </section>
 
+<section class="content" id="puzzles">
+  <h2 class="section-title reveal">🧩 Desafíos</h2>
+  <p class="section-sub reveal">Combates pre-construidos con un objetivo claro. Demuestra que dominas el sistema.</p>
+  <div class="puzzles-grid reveal" id="puzzlesGrid"></div>
+</section>
+
 <section class="content" id="modos">
   <h2 class="section-title reveal">Modos de Juego</h2>
   <p class="section-sub reveal">Elige tu camino: entrena, compite o forja tu leyenda en los torneos.</p>
@@ -631,6 +638,31 @@
     <div class="combat-start-confirm-buttons">
       <button class="confirm-btn confirm-cancel" id="combatStartCancelBtn">Cancelar</button>
       <button class="confirm-btn confirm-accept" id="combatStartConfirmBtn">⚔️ Empezar Combate</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirmación al salir del combate -->
+<div class="combat-start-confirm" id="exitCombatConfirm" style="z-index: 2600;">
+  <div class="combat-start-confirm-content">
+    <div class="combat-start-confirm-title">🚪 ¿Salir del combate?</div>
+    <p class="combat-start-confirm-sub">Elige qué hacer con tu partida actual.</p>
+    <div class="combat-start-confirm-buttons" style="flex-wrap: wrap;">
+      <button class="confirm-btn confirm-cancel" id="exitCancelBtn">Cancelar</button>
+      <button class="confirm-btn confirm-discard-danger" id="exitDiscardBtn">🚪 Salir sin guardar</button>
+      <button class="confirm-btn confirm-accept" id="exitSaveBtn">💾 Guardar y salir</button>
+    </div>
+  </div>
+</div>
+
+<!-- Selección de ranura a sobrescribir (todas llenas) -->
+<div class="resume-combat-dialog" id="exitOverwriteDialog" style="z-index: 2600;">
+  <div class="resume-combat-content">
+    <div class="resume-combat-title">⚠️ Ranuras Llenas</div>
+    <p class="resume-combat-sub">Todas las ranuras están ocupadas. Elige cuál sobrescribir con el combate actual.</p>
+    <div class="slot-list" id="exitOverwriteList"></div>
+    <div class="resume-combat-buttons">
+      <button class="confirm-btn confirm-cancel" id="exitOverwriteCancelBtn">Cancelar</button>
     </div>
   </div>
 </div>
@@ -703,14 +735,14 @@
     <div class="combat-banner" id="combatBanner"><div class="combat-banner-text" id="combatBannerText"></div></div>
     <div class="diverso-toast" id="diversoToast">🌈 +2 OMNIDADOS</div>
 
-    <div class="combat-round-indicator">
-      <div class="combat-environment-display" id="combatEnvironmentDisplay" hidden>
-        <span class="env-icon" id="envIcon">🌍</span>
-        <span class="env-name" id="envName"></span>
-        <span class="env-rounds" id="envRounds"></span>
-      </div>
-      <span>Ronda <span id="combatRound">1</span></span>
+    <!-- Indicador vertical: cuadro en el centro-izquierda -->
+    <div class="combat-round-indicator" id="roundIndicator">
+      <div class="ri-round">Ronda <span id="combatRound">1</span></div>
       <span class="combat-turn-ind player" id="combatTurnInd">TU TURNO</span>
+      <div class="ri-buttons">
+        <button class="turn-timer-btn" id="turnTimerBtn" title="Sin límite de turno (clic para cambiar)">∞</button>
+        <button class="stats-btn" id="statsBtn" title="Ver estadísticas y replay">📊</button>
+      </div>
     </div>
 
     <button class="combat-close" id="combatCloseBtn" aria-label="Cerrar">✕</button>
@@ -764,6 +796,16 @@
       </div>
 
       <div class="combat-sidebar">
+
+        <div class="sidebar-section env-section" id="envSection">
+          <div class="sidebar-label"><span>🌍 Entorno activo</span></div>
+          <div class="combat-environment-display" id="combatEnvironmentDisplay" hidden>
+            <span class="env-icon" id="envIcon">🌍</span>
+            <span class="env-name" id="envName"></span>
+            <span class="env-rounds" id="envRounds"></span>
+          </div>
+        </div>
+
         <div class="sidebar-section">
           <div class="sidebar-label">
             <span>🎲 Dados disponibles</span>
@@ -775,6 +817,11 @@
         <div class="sidebar-section consonance-section">
           <div class="sidebar-label"><span>🎯 Consonancia activa</span></div>
           <div class="consonance-card-combat" id="consonanceCardCombat"></div>
+        </div>
+
+        <div class="sidebar-section stats-inline-section">
+          <div class="sidebar-label"><span>📊 Estadísticas</span></div>
+          <div id="combatStatsInline" class="combat-stats-inline"></div>
         </div>
 
         <div class="sidebar-section hand-section">
@@ -803,10 +850,6 @@
           <button class="combat-end-inline" id="endRoundBtn">🛑 Fin de ronda</button>
         </div>
 
-        <div class="sidebar-section log-section">
-          <div class="sidebar-label">📜 Registro</div>
-          <div class="combat-log" id="combatLog"></div>
-        </div>
       </div>
     </div>
 
@@ -836,6 +879,18 @@
     </div>
 
   </div>  <!-- cierra combatContent -->
+
+  <div class="stats-modal" id="statsModal">
+    <div class="stats-modal-backdrop" id="statsBackdrop"></div>
+    <div class="stats-modal-content">
+      <div class="stats-modal-header">
+        <h2 class="stats-modal-title">📊 Estadísticas de combate</h2>
+        <button class="stats-modal-close" id="statsCloseBtn">✕</button>
+      </div>
+      <div class="stats-modal-body" id="statsBody"></div>
+    </div>
+  </div>
+
 </div>    <!-- cierra combatModal -->
 
 <!-- ═══ Modal de Parches ═══ -->
@@ -905,6 +960,7 @@
       <div class="help-title">📚 Ayuda</div>
       <div class="help-tabs">
         <button class="help-tab active" data-help-tab="guide">📖 Guía</button>
+        <button class="help-tab" data-help-tab="tutorial">🎓 Tutorial</button>
       </div>
       <button class="help-close" id="helpCloseBtn" title="Cerrar">✕</button>
     </div>
@@ -956,7 +1012,7 @@
             <div class="tutorial-speaker-name">Gregorio</div>
             <div class="tutorial-text" id="tutorialText"></div>
             <div class="tutorial-controls">
-              <button class="tutorial-btn skip" id="tutorialSkipBtn" title="Saltar paso">⏭️</button>
+              <button class="tutorial-btn skip" id="tutorialSkipBtn" title="Saltar tutorial completo">⏭️ Saltar</button>
               <button class="tutorial-btn next" id="tutorialNextBtn">Siguiente →</button>
             </div>
             <div class="tutorial-progress">
@@ -994,6 +1050,8 @@
 <script src="js/20-calculator-sandbox-init.js" defer></script>
 <script src="js/21-shop.js" defer></script>
 <script src="js/22-help.js" defer></script>
+<script src="js/23-combat-stats.js" defer></script>
+<script src="js/24-puzzles.js" defer></script>
 
 </body>
 </html>
