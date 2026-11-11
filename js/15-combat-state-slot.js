@@ -93,11 +93,16 @@ function drawFromDeck(who) {
     } else return null;
   }
   var cid = side.deck.shift();
-  // ✅ Auto-trigger de cartas de peluche
+  // Plush auto-trigger: no ocupa slot de mano, siempre se procesa
   if (typeof PLUSH_CARDS !== 'undefined' && PLUSH_CARDS[cid] && PLUSH_CARDS[cid].autoTrigger) {
     side.discardPile.push(cid);
     if (typeof triggerPlushOnDraw === 'function') triggerPlushOnDraw(who, cid);
     return cid;
+  }
+  // ✅ Hand limit 10: si ya tiene 10, la carta vuelve al mazo
+  if (side.hand && side.hand.length >= 10) {
+    side.deck.unshift(cid);
+    return null;
   }
   side.hand.push(cid);
   return cid;
