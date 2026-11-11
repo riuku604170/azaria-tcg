@@ -357,7 +357,7 @@ function dealDamageToChar(targetCs, rawDamage, opts) {
       logCombat('🌐 Orgullo de la Creadora: Internet gana 1 energía al bajar a ' + targetCs.hp + ' HP');
     }
     triggerVibrate(sideKey, idx); playSound(opts.piercing ? 'pierce' : 'impact');
-    // ✅ YouTube: pierde 1 pop al recibir un ataque
+    // ✅ YouTube: pierde 1 popularidad al recibir un ataque
     if (targetCs.id === 'youtube' && typeof loseYouTubePop === 'function') {
       loseYouTubePop(targetCs, 1, 'recibe ataque');
     }
@@ -412,6 +412,9 @@ function dealDamageToChar(targetCs, rawDamage, opts) {
         logCombat('🌟 EX Eevee: contraataque marca con Protección');
       }
     }, 120);
+  }
+  if (typeof trackDamage === 'function' && res.overflow > 0) {
+    trackDamage(targetCs, res.overflow, opts.attackerCs);
   }
   return res.overflow;
 }
@@ -485,6 +488,7 @@ function healChar(cs, amount, opts) {
       sints.forEach(function(a){ csSetState(a, 'sintonia', false); });
     }
   }
+  if (eff > 0 && typeof trackHeal === 'function') trackHeal(cs, eff);
   return eff;
 }
 
