@@ -166,6 +166,17 @@ function handleDeath(who, index) {
   logCombat('💀 ' + t.character.name + ' ha caído');
   side.anyAllyDiedThisRound = true;
 
+  // ✅ Vittoria: notificar el nuevo estado de la pasiva al caer un aliado
+  var vittoriaCs = side.characters.find(function(c){ return c.id === 'vittoria' && !c.dead; });
+  if (vittoriaCs && t !== vittoriaCs) {
+    var deadAllies = side.characters.filter(function(c){ return c !== vittoriaCs && c.dead; }).length;
+    if (deadAllies >= 2) {
+      logCombat('👑 Vittoria (pasiva): 2 aliados caídos → habilidades a 1 dado (definitiva intacta)');
+    } else if (deadAllies === 1) {
+      logCombat('👑 Vittoria (pasiva): 1 aliado caído → -1 dado en sus habilidades');
+    }
+  }
+
   // ── Entorno del que era dueño ──
   if (combatState.environment && combatState.environment.ownerCsId === t.id) {
     logCombat('🌍 El entorno ' + combatState.environment.name + ' desaparece al caer ' + t.character.name);
