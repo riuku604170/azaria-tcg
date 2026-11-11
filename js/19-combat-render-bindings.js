@@ -306,7 +306,7 @@ bindOpenCombat('jugarPvpBtn', 'pvp');
 bindOpenCombat('jugarAutoBtn', 'auto');
 bindOpenCombat('jugarSandboxBtn', 'sandbox');
 
-var combatCloseBtn = document.getElementById('combatCloseBtn'); if (combatCloseBtn) combatCloseBtn.addEventListener('click', closeCombat);
+var combatCloseBtn = document.getElementById('combatCloseBtn'); if (combatCloseBtn) combatCloseBtn.addEventListener('click', requestCloseCombat);
 var combatEndBtn = document.getElementById('combatEndBtn'); if (combatEndBtn) combatEndBtn.addEventListener('click', function(){ clearSavedCombat(); closeCombat(); });
 var normalBtn = document.getElementById('normalBtn'); if (normalBtn) normalBtn.addEventListener('click', function(){ playerActionRequest('normal'); });
 var elementalBtn = document.getElementById('elementalBtn'); if (elementalBtn) elementalBtn.addEventListener('click', function(){ playerActionRequest('elemental'); });
@@ -353,10 +353,17 @@ var overwriteCancelBtn = document.getElementById('overwriteCancelBtn'); if (over
 
 document.addEventListener('keydown', function(e){
   if (e.key !== 'Escape') return;
+
+  var eo = document.getElementById('exitOverwriteDialog');
+  if (eo && eo.classList.contains('show')) { hideExitOverwriteDialog(); return; }
+
+  var ec = document.getElementById('exitCombatConfirm');
+  if (ec && ec.classList.contains('show')) { hideExitCombatConfirm(); return; }
+
   var ow = document.getElementById('overwriteDialog'); if (ow && ow.classList.contains('show')) { hideOverwriteDialog(); return; }
   var sl = document.getElementById('slotSelectionDialog'); if (sl && sl.classList.contains('show')) { hideSlotSelectionDialog(); return; }
   var st = document.getElementById('combatStartConfirm'); if (st && st.classList.contains('show')) { hideCombatStartConfirm(); return; }
   var cf = document.getElementById('confirmOverlay'); if (cf && cf.classList.contains('show')) { hideConfirmation(); return; }
   var pvp = document.getElementById('pvpSetupDialog'); if (pvp && pvp.classList.contains('show')) { pvp.classList.remove('show'); pendingPvpMode = false; return; }
-  var cm = document.getElementById('combatModal'); if (cm && cm.classList.contains('open')) closeCombat();
+  var cm = document.getElementById('combatModal'); if (cm && cm.classList.contains('open')) requestCloseCombat();
 });
