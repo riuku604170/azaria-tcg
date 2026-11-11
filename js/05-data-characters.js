@@ -139,7 +139,7 @@ var CHARACTERS = {
         attributes: ['Coste: 4 dados de Protección','Reducción de daño: 1'] },
       { type:'ultimate', icon:'💥', name:'Contraofensiva',
         description:'Golpea al enemigo activo e inflige daño moderado. Si Eevee estaba en estado de **Furia**, aumenta el daño del golpe. Si el enemigo activo es el que activó su estado de **Furia**, el daño aumenta aún más y marca al enemigo con Protección.',
-        attributes: ['Coste: 4 dados de Protección + 2 puntos si energía','Daño base: 3','Daño base en estado de Furia: 5','Daño base contra el enemigo que activó su Furia: 6'] },
+        attributes: ['Coste: 4 dados de Protección + 2 puntos de energía','Daño base: 3','Daño base en estado de Furia: 5','Daño base contra el enemigo que activó su Furia: 6'] },
       { type:'passive', icon:'🛡️', name:'Instinto de Supervivencia',
         description:'Cuando Eevee recibe un golpe que le inflige daño verdadero, entra en estado de **Furia**. No es acumulable.',
         attributes: null },
