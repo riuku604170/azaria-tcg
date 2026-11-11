@@ -17,6 +17,10 @@ function rollDiceForSide(who, first){
   }
   s.dice = rollCombatDice(Math.max(1, baseCount));
   applyIlusion(s, who);
+  // ✅ Bot: relanzar durante la fase de dados (igual que el jugador, al inicio de ronda)
+  if (who === 'bot' && !combatState.pvp && typeof botMaybeReroll === 'function') {
+    botMaybeReroll();
+  }
 }
 function applyIlusion(side, who) {
   var c = side.consonance;
@@ -585,10 +589,23 @@ function beginRoundPlay() {
     var pm = applyRoundStartEffects('player'), bm = applyRoundStartEffects('bot');
     if (combatState.round === 1) { var cm = applyComprensionStart('player'); if (cm) pm.push(cm); var cmb = applyComprensionStart('bot'); if (cmb) bm.push(cmb); }
     applyEquipmentRoundStartEffects('player'); applyEquipmentRoundStartEffects('bot');
+
+    // ✅ Solo y Auto: el bot roba aquí (en PvP y Sandbox ya roba durante su setup).
+    if (!combatState.pvp && combatState.mode !== 'sandbox') {
+      var _botDrawCount = (combatState.round === 1) ? 5 : 2;
+      var _botDrawn = 0;
+      for (var _bi = 0; _bi < _botDrawCount; _bi++) {
+        if (drawFromDeck('bot')) _botDrawn++;
+      }
+      if (_botDrawn > 0) logCombat('🎴 El rival roba ' + _botDrawn + ' carta(s)');
+    }
+
     applySupportRoundStartEffects('player'); applySupportRoundStartEffects('bot');
+
     combatState.player.characters.forEach(function(c){ if (c.states) c.states.acelerado = false; });
     combatState.bot.characters.forEach(function(c){ if (c.states) c.states.acelerado = false; });
     logCombat('⚔️ ¡Comienza el combate!'); pm.forEach(function(m){ logCombat(m); });
+
     // ✅ Reset del contador de "entradas" de YouTube esta ronda
     ['player','bot'].forEach(function(wk){
       combatState[wk].characters.forEach(function(c){
@@ -1054,10 +1071,15 @@ function executeAction(who, actionType, preSpentDice) {
     }
     diceSpentThisAction = res.spent || [];
     side.dice = res.remaining;
+    if (typeof trackDiceSpent === 'function' && diceSpentThisAction.length > 0) trackDiceSpent(who, diceSpentThisAction.length);   // ✅ NUEVO
   } else if (preSpentDice) {
     diceSpentThisAction = preSpentDice;
   }
-  if (effEnergyCost > 0) { active.energy -= effEnergyCost; logCombat('⚡ ' + active.character.name + ' gasta ' + effEnergyCost + ' energía'); }
+  if (effEnergyCost > 0) {
+    active.energy -= effEnergyCost;
+    logCombat('⚡ ' + active.character.name + ' gasta ' + effEnergyCost + ' energía');
+    if (typeof trackEnergySpent === 'function') trackEnergySpent(who, effEnergyCost);   // ✅ NUEVO
+  }
   var label = who === 'player' ? (combatState.pvp ? '🦋 J1' : '🦋 Tú') : (combatState.pvp ? '🦋 J2' : '📖 El rival');
   if (actionType === 'ultimate') { logCombat('💥 ¡' + label + ' desata ' + ability.name + '!'); playSound('ult'); flashUlt(); }
   else logCombat('▶️ ' + label + ' usa ' + ability.name);
@@ -1161,7 +1183,7 @@ function executeAction(who, actionType, preSpentDice) {
         }
         return;
       }
-      setTimeout(nextTurn, 400);
+      scheduleNextTurn(400);
     } catch (err) {
       console.error('[executeAction] Error en habilidad ' + (ability && ability.name) + ':', err);
       if (combatState) {
@@ -1190,10 +1212,10 @@ function processDeathsAtRoundEnd(who) {
 }
 function getChangeRules(who) {
   var side = combatState[who], cons = side.consonance;
-  var rules = { diceCost:1, quick:false, discounted:false };
+  var rules = { diceCost:1, quick:false, discounted:false, fromConsonance:false };
   if (cons && cons.type === 'single' && cons.element === 'transformacion' && !side.firstChangeUsed) {
-    if (cons.level === 2) { rules.diceCost = 0; rules.discounted = true; }
-    else if (cons.level === 3) { rules.diceCost = 0; rules.quick = true; rules.discounted = true; }
+    if (cons.level === 2) { rules.diceCost = 0; rules.discounted = true; rules.fromConsonance = true; }
+    else if (cons.level === 3) { rules.diceCost = 0; rules.quick = true; rules.discounted = true; rules.fromConsonance = true; }
   }
   return rules;
 }
@@ -1223,6 +1245,26 @@ function getChangeRulesForTarget(who, targetIndex) {
 
   return rules;
 }
+
+/* ═══ Transfiere buffs "del activo" del viejo al nuevo activo (al cambiar de personaje) ═══ */
+function transferActiveBuffs(oldCs, newCs) {
+  if (!oldCs || !newCs || oldCs === newCs) return;
+  var _numKeys = ['cardNextAttackBonus', 'cardNextAbilityDiscount', 'cardMarkBonus', 'nextCardDiscount'];
+  _numKeys.forEach(function(k) {
+    if (oldCs[k] > 0) {
+      newCs[k] = (newCs[k] || 0) + oldCs[k];
+      oldCs[k] = 0;
+    }
+  });
+  var _boolKeys = ['cardNextAttackPiercing', 'cardNextAttackDouble', 'cardNextAbilityFree'];
+  _boolKeys.forEach(function(k) {
+    if (oldCs[k]) {
+      newCs[k] = true;
+      oldCs[k] = false;
+    }
+  });
+}
+
 function tryChangeCharacter(who, targetIndex) {
   if (!combatState || combatState.phase !== 'playing') return false;
   var side = combatState[who];
@@ -1230,7 +1272,7 @@ function tryChangeCharacter(who, targetIndex) {
   if (side.characters[targetIndex].dead) return false;
   var rules = getChangeRulesForTarget(who, targetIndex);
   if (rules.diceCost > 0) { var r = trySpendDice(side.dice, { any:rules.diceCost }); if (!r.ok) return false; side.dice = r.remaining; }
-  if (rules.discounted) side.firstChangeUsed = true;
+  if (rules.fromConsonance) side.firstChangeUsed = true;
   var oldN = side.characters[side.activeIndex].character.name, newN = side.characters[targetIndex].character.name;
   var oldChar = side.characters[side.activeIndex];
   if (oldChar.id === 'jose') csSetState(oldChar, 'acelerado', false);
@@ -1238,6 +1280,8 @@ function tryChangeCharacter(who, targetIndex) {
   hungerOnEnter(who, side.characters[targetIndex], oldChar);
   if (side.characters[targetIndex].id === 'jose') csSetState(side.characters[targetIndex], 'acelerado', true);
   applyGoogleExOnChange(oldChar, side, targetIndex, who);
+  // ✅ Transferir buffs de "siguiente acción" del viejo al nuevo activo
+  transferActiveBuffs(oldChar, side.characters[targetIndex]);
   // ✅ Sage: efectos de entrada/salida (bot)
   var _newCs = side.characters[targetIndex];
   var _oldIdx = side.characters.indexOf(oldChar);
@@ -1257,6 +1301,12 @@ function tryChangeCharacter(who, targetIndex) {
   logCombat('🔄 ' + (who === 'player' ? (combatState.pvp ? 'J1' : 'Tú') : (combatState.pvp ? 'J2' : 'El rival')) + ': ' + oldN + ' → ' + newN + sfx);
   // ✅ Killer Tunes: cambio de personaje → 1 daño al enemigo activo
   if (typeof triggerKillerTunesDamage === 'function') triggerKillerTunesDamage(who);
+  // ✅ Si el enemigo entero ha caído por el efecto del cambio, declarar victoria
+  var _enemyKey = who === 'player' ? 'bot' : 'player';
+  if (combatState && combatState[_enemyKey] && combatState[_enemyKey].characters.every(function(c){ return c.dead; })) {
+    setTimeout(function(){ if (combatState) endCombat(who); }, 400);
+    return true;
+  }
   if (side.characters[targetIndex] && side.characters[targetIndex].id === 'youtube') {
     onYouTubeBecomeActive(side.characters[targetIndex]);
   }
@@ -1655,7 +1705,30 @@ function botScoreCard(cardId, card, active) {
       if (!bot.characters.some(function(c){ return c.dead; })) return -1;
       score += 12;
       break;
-    default: break;
+    default:
+      // ✅ Equipo y apoyo no tienen effectType: se puntúan por su card.effect
+      if (card.effect) {
+        var e = card.effect;
+        var _dur = card.duration || 1;
+        if (e.attackBonus)         score += e.attackBonus * 2;
+        if (e.teamAttackBonus)     score += e.teamAttackBonus * 1.5 * _dur;
+        if (e.shieldBonus)         score += e.shieldBonus * 1.4;
+        if (e.shieldPerRound)      score += e.shieldPerRound * 1.2 * _dur;
+        if (e.teamShieldPerRound)  score += e.teamShieldPerRound * 1.2 * _dur;
+        if (e.teamShieldInstant)   score += e.teamShieldInstant * 1.2;
+        if (e.damageReduction)     score += e.damageReduction * 1.5 * _dur;
+        if (e.teamDamageReduction) score += e.teamDamageReduction * 1.5 * _dur;
+        if (e.healBonus)           score += Math.min(e.healBonus, hpNeeded) * 1.5;
+        if (e.healPerRound)        score += Math.min(e.healPerRound, hpNeeded) * 1.2 * _dur;
+        if (e.teamHealPerRound)    score += e.teamHealPerRound * 1.2 * _dur;
+        if (e.energyBonus)         score += e.energyBonus * 1.5;
+        if (e.energyPerRound)      score += e.energyPerRound * 1.4 * _dur;
+        if (e.teamEnergyPerRound)  score += e.teamEnergyPerRound * 1.4 * _dur;
+        if (e.drawPerRound)        score += e.drawPerRound * 1.5 * _dur;
+        if (e.selfDamage)          score -= e.selfDamage * 2;
+        score += 1.5;
+      }
+      break;
   }
   if (card.category === 'equipo' && active.equipment && active.equipment.length >= 2) score -= 2;
   if (card.category === 'apoyo' && bot.supports && bot.supports.indexOf(null) === -1) score -= 2;
@@ -1730,16 +1803,45 @@ function botChooseAction() {
     candidates.push({ action: { type: type }, score: score });
   });
 
+  var canAttackWithActive = ['normal', 'elemental', 'ultimate'].some(function(type){
+    var ab = active.character.abilities[type];
+    if (!ab) return false;
+    if (ab.energyCost && active.energy < ab.energyCost) return false;
+    return botCanUseAbility(bot, active, ab, type);
+  });
+
   for (var i = 0; i < bot.characters.length; i++) {
     if (i === bot.activeIndex) continue;
     if (bot.characters[i].dead) continue;
     var chScore = botScoreChange(i, active, enemyActive);
+    // ✅ Si no puede atacar con el activo, priorizar cambio a quien sí pueda
+    if (!canAttackWithActive) {
+      var other = bot.characters[i];
+      var otherCanAttack = ['normal', 'elemental', 'ultimate'].some(function(type){
+        var ab = other.character.abilities[type];
+        if (!ab) return false;
+        if (ab.energyCost && other.energy < ab.energyCost) return false;
+        return botCanUseAbility(bot, other, ab, type);
+      });
+      if (otherCanAttack) chScore = Math.max(chScore, 6);
+    }
     if (chScore > 2.0) candidates.push({ action: { type: 'change', index: i }, score: chScore });
   }
 
-  // ✅ Si ninguna opción tiene score decente, terminar ronda
+  // ✅ Si ninguna opción tiene score decente, pero PUEDE atacar, que ataque
   var bestScore = candidates.reduce(function(a, c){ return Math.max(a, c.score); }, 0);
-  if (bestScore < 1.5) return { type: 'end' };
+  if (bestScore < 1.0) {
+    // Fallback: priorizar cualquier ataque pagable
+    var _normalAb = active.character.abilities.normal;
+    if (_normalAb && botCanUseAbility(bot, active, _normalAb, 'normal')) {
+      return { type: 'normal' };
+    }
+    var _elAb = active.character.abilities.elemental;
+    if (_elAb && botCanUseAbility(bot, active, _elAb, 'elemental')) {
+      return { type: 'elemental' };
+    }
+    return { type: 'end' };
+  }
 
   candidates.sort(function(a,b){ return b.score - a.score; });
   var top = candidates.slice(0, Math.min(2, candidates.length));
@@ -1750,63 +1852,77 @@ function botChooseAction() {
 }
 
 /* ─── Ejecución de cartas del bot ─── */
-function botPlayCard(cardId, card) {
+function botPlayCard(cardId, card, onComplete) {
   var bot = combatState.bot;
   var active = bot.characters[bot.activeIndex];
-  if (!active || active.dead) return false;
-  if (card.oncePerRound && bot.cardsUsedThisRound[cardId]) return false;
-  if (card.oncePerGame && bot.cardsUsedThisGame[cardId]) return false;
+  var fail = function() { if (onComplete) onComplete(false); return false; };
+
+  if (!active || active.dead) return fail();
+  if (card.oncePerRound && bot.cardsUsedThisRound[cardId]) return fail();
+  if (card.oncePerGame && bot.cardsUsedThisGame[cardId]) return fail();
   if (card.category === 'pintura') {
     var erik = bot.characters.find(function(c){ return c.id === 'erik' && !c.dead; });
-    if (!erik || erik.paintEquipped) return false;
+    if (!erik || erik.paintEquipped) return fail();
   }
   var cost = adjustCardCostForPassives(card, bot);
   var spendResult = trySpendDice(bot.dice, cost);
-  if (!spendResult.ok) return false;
-  // ✅ Popup del nombre de la carta ANTES de aplicarla
-  showCardNamePopup('bot', bot.activeIndex, card);
+  if (!spendResult.ok) return fail();
+
+  // ── Cambios de estado inmediatos (no visibles en la UI hasta el render) ──
   bot.dice = spendResult.remaining;
+  if (active && active.nextCardDiscount > 0) {
+    active.nextCardDiscount = 0;
+    logCombat('📘 Protocolo de Seguridad: descuento consumido por el rival');
+  }
   var hi = bot.hand.indexOf(cardId);
   if (hi >= 0) bot.hand.splice(hi, 1);
   if (card.oncePerRound) bot.cardsUsedThisRound[cardId] = true;
   if (card.oncePerGame) bot.cardsUsedThisGame[cardId] = true;
   if (!PAINT_CARDS[cardId]) { if (!bot.discardPile) bot.discardPile = []; bot.discardPile.push(cardId); }
 
-  if (card.category === 'pintura') {
-    var e2 = bot.characters.find(function(c){ return c.id === 'erik' && !c.dead; });
-    e2.paintEquipped = card.paintColor;
-    logCombat('🎨 Rival equipa ' + card.name + ' en ' + e2.character.name);
-  } else if (card.category === 'equipo') {
-    if (!active.equipment) active.equipment = [];
-    if (active.equipment.length >= 2) {
-      var removed = active.equipment.shift();
-      if (!bot.discardPile) bot.discardPile = [];
-      bot.discardPile.push(removed);
+  // ── Overlay primero, efecto después ──
+  showUsedCardOverlay(card, 'bot', function() {
+    if (!combatState || !canBotAct()) { if (onComplete) onComplete(false); return; }
+    var a = combatState.bot.characters[combatState.bot.activeIndex];
+    if (!a) { if (onComplete) onComplete(false); return; }
+    var b = combatState.bot;
+
+    if (card.category === 'pintura') {
+      var e2 = b.characters.find(function(c){ return c.id === 'erik' && !c.dead; });
+      if (e2) { e2.paintEquipped = card.paintColor; logCombat('🎨 Rival equipa ' + card.name + ' en ' + e2.character.name); }
+    } else if (card.category === 'equipo') {
+      if (!a.equipment) a.equipment = [];
+      if (a.equipment.length >= 2) {
+        var removed = a.equipment.shift();
+        if (!b.discardPile) b.discardPile = [];
+        b.discardPile.push(removed);
+      }
+      a.equipment.push(cardId);
+      if (card.effect) {
+        if (card.effect.shieldBonus) addOrRefreshShield(a, 'eq_' + cardId, card.effect.shieldBonus);
+        if (card.effect.energyBonus) a.energy = Math.min(a.maxEnergy, a.energy + card.effect.energyBonus);
+        if (card.effect.healBonus) healChar(a, card.effect.healBonus);
+        if (card.effect.selfDamage) { a.hp = Math.max(0, a.hp - card.effect.selfDamage); if (a.hp <= 0) handleDeath('bot', b.characters.indexOf(a)); }
+      }
+      logCombat('⚔️ Rival equipa ' + card.name);
+    } else if (card.category === 'apoyo') {
+      if (!b.supports) b.supports = [null, null, null, null];
+      var slot = b.supports.indexOf(null);
+      if (slot === -1) slot = 0;
+      b.supports[slot] = { cardId: cardId, duration: card.duration };
+      if (card.effect && card.effect.shieldInstant) addOrRefreshShield(a, 'support_' + cardId, card.effect.shieldInstant);
+      if (card.effect && card.effect.teamShieldInstant) b.characters.forEach(function(c){ if (!c.dead) addOrRefreshShield(c, 'support_' + cardId, card.effect.teamShieldInstant); });
+      logCombat('📜 Rival coloca ' + card.name);
+    } else {
+      var savedPvp = combatState.pvp, savedTurn = combatState.turn;
+      combatState.pvp = true; combatState.turn = 'bot';
+      try { if (typeof applyCardEffect === 'function') applyCardEffect(card); } finally { combatState.pvp = savedPvp; combatState.turn = savedTurn; }
+      logCombat('🎴 Rival usa ' + card.name);
     }
-    active.equipment.push(cardId);
-    if (card.effect) {
-      if (card.effect.shieldBonus) addOrRefreshShield(active, 'eq_' + cardId, card.effect.shieldBonus);
-      if (card.effect.energyBonus) active.energy = Math.min(active.maxEnergy, active.energy + card.effect.energyBonus);
-      if (card.effect.healBonus) healChar(active, card.effect.healBonus);
-      if (card.effect.selfDamage) { active.hp = Math.max(0, active.hp - card.effect.selfDamage); if (active.hp <= 0) handleDeath('bot', bot.characters.indexOf(active)); }
-    }
-    logCombat('⚔️ Rival equipa ' + card.name);
-  } else if (card.category === 'apoyo') {
-    if (!bot.supports) bot.supports = [null, null, null, null];
-    var slot = bot.supports.indexOf(null);
-    if (slot === -1) slot = 0;
-    bot.supports[slot] = { cardId: cardId, duration: card.duration };
-    if (card.effect && card.effect.shieldInstant && active) addOrRefreshShield(active, 'support_' + cardId, card.effect.shieldInstant);
-    if (card.effect && card.effect.teamShieldInstant) bot.characters.forEach(function(c){ if (!c.dead) addOrRefreshShield(c, 'support_' + cardId, card.effect.teamShieldInstant); });
-    logCombat('📜 Rival coloca ' + card.name);
-  } else {
-    var savedPvp = combatState.pvp, savedTurn = combatState.turn;
-    combatState.pvp = true; combatState.turn = 'bot';
-    try { if (typeof applyCardEffect === 'function') applyCardEffect(card); } finally { combatState.pvp = savedPvp; combatState.turn = savedTurn; }
-    logCombat('🎴 Rival usa ' + card.name);
-  }
-  playSound('card');
-  renderCombat();
+    playSound('card');
+    renderCombat();
+    if (onComplete) onComplete(true);
+  });
   return true;
 }
 
@@ -1822,6 +1938,38 @@ function _botBailSafety() {
   if (combatState._resolvingAbility) return;
   logCombat('🤖 El rival no puede actuar → fin de ronda');
   declareEnd('bot');
+}
+
+/* ═══ Bot: relanzar dados inservibles ═══ */
+function botMaybeReroll() {
+  var bot = combatState.bot;
+  if (bot.rerolled) return false;
+  var active = bot.characters[bot.activeIndex];
+  if (!active || active.dead) return false;
+  var el = active.character.element;
+  var teamEls = bot.characters
+    .filter(function(c){ return c !== active && !c.dead; })
+    .map(function(c){ return c.character.element; });
+  var useful = bot.dice.filter(function(d){ return d.type === el || d.type === 'omni'; }).length;
+  if (useful >= 5) return false;
+  // Candidatos a relanzar: no son del activo ni omni
+  var useless = bot.dice.filter(function(d){ return d.type !== el && d.type !== 'omni'; });
+  if (useless.length < 1) return false;
+  // Prioriza relanzar los que TAMPOCO son útiles para el resto del equipo
+  useless.sort(function(a, b){
+    var aTeam = teamEls.indexOf(a.type) !== -1 ? 1 : 0;
+    var bTeam = teamEls.indexOf(b.type) !== -1 ? 1 : 0;
+    return aTeam - bTeam;
+  });
+  // Relanzar los suficientes para llegar a ~5 dados útiles
+  var need = Math.min(3, Math.max(1, 5 - useful));
+  var toReroll = useless.slice(0, need);
+  toReroll.forEach(function(d){
+    d.type = Math.random() < 0.125 ? 'omni' : CONSONANCE_ORDER[Math.floor(Math.random() * 7)];
+  });
+  bot.rerolled = true;
+  logCombat('🤖 El rival relanza ' + toReroll.length + ' dado(s) (fase de dados)');
+  return true;
 }
 
 function botTurn(skipThink) {
@@ -1841,7 +1989,7 @@ function botTurn(skipThink) {
     logCombat('🤖 El rival está tardando demasiado → forzando fin de ronda');
     combatState._resolvingAbility = false;
     declareEnd('bot');
-  }, 8000);
+  }, 15000);   // antes 8000 — más margen con la nueva secuencia por carta
 
   updateBotMood();
   showBotThinkBubble('🤔 Pensando<span class="bt-dots"></span>');
@@ -1868,8 +2016,13 @@ function _botPlayCardsSequence(played, callback) {
   updateBotThinkBubble('🎴 ' + best.card.name);
   setTimeout(function() {
     if (!canBotAct()) { callback(); return; }
-    botPlayCard(best.cardId, best.card);
-    setTimeout(function() { _botPlayCardsSequence(played + 1, callback); }, 350);
+    botPlayCard(best.cardId, best.card, function() {
+      if (!canBotAct()) { callback(); return; }
+      // ✅ Pausa tras el efecto para que el usuario vea "cómo se coloca/equipa/hace efecto"
+      setTimeout(function() {
+        _botPlayCardsSequence(played + 1, callback);
+      }, 600);
+    });
   }, 400);
 }
 
@@ -1877,7 +2030,9 @@ function _botExecuteMainAction() {
   if (!canBotAct()) { _botBailSafety(); return; }
   var action = botChooseAction();
   if (!action || action.type === 'end') {
-    logCombat('🤖 El rival declara fin de ronda');
+    var _bactive = combatState.bot.characters[combatState.bot.activeIndex];
+    var _useful = combatState.bot.dice.filter(function(d){ return d.type === _bactive.character.element || d.type === 'omni'; }).length;
+    logCombat('🤖 El rival declara fin de ronda (activo: ' + _bactive.character.name + ', dados: ' + _bactive.character.element + '=' + _useful + '/' + combatState.bot.dice.length + ')');
     declareEnd('bot');
     return;
   }
@@ -1891,8 +2046,20 @@ function _botExecuteMainAction() {
     executeAction('bot', action.type);
   }
 }
+
+/* ═══ Scheduler de nextTurn que bloquea input durante la transición ═══ */
+function scheduleNextTurn(delay) {
+  if (!combatState) return;
+  combatState._pendingTurnAdvance = true;
+  setTimeout(function(){
+    if (combatState) combatState._pendingTurnAdvance = false;
+    nextTurn();
+  }, delay || 400);
+}
+
 function nextTurn() {
   if (!combatState || combatState.phase === 'ended') return;
+  combatState._pendingTurnAdvance = false;
   if (combatState.playerDone && combatState.botDone) { endRound(); return; }
   // ✅ Sandbox modo player-only: siempre vuelve a ser el turno del jugador
   if (currentGameMode === 'sandbox' && sandboxTurnMode === 'player-only') {
@@ -2334,10 +2501,9 @@ function endRound() {
   combatState.bot.neonUltChangeDamage = false;
   combatState.player.rerolled = false; combatState.player.selected = {}; combatState.player.rollingIds = {};
   combatState.player.cardsUsedThisRound = {};
-  if (combatState.pvp) {
-    combatState.bot.rerolled = false; combatState.bot.selected = {}; combatState.bot.rollingIds = {};
-    combatState.bot.cardsUsedThisRound = {};
-  }
+  // ✅ Antes solo se reseteaba en PvP; en Solo el bot se quedaba sin poder relanzar
+  combatState.bot.rerolled = false; combatState.bot.selected = {}; combatState.bot.rollingIds = {};
+  combatState.bot.cardsUsedThisRound = {};
   setTimeout(function(){
     combatState.roundEnding = false;               // ✅ libera input
     // ✅ Sandbox: saltar setup PvP entre rondas
@@ -2440,6 +2606,57 @@ function showAbilityNamePopup(who, idx, name, actionType, customIcon) {
 function showCardNamePopup(who, idx, card) {
   if (!card) return;
   showAbilityNamePopup(who, idx, card.name, 'card', card.emoji || '🎴');
+}
+
+/* ═══ Overlay de carta usada (grande, centrada) ═══ */
+var _usedCardOverlayTimerHold = null;
+var _usedCardOverlayTimerFade = null;
+
+function _usedCardOverlayCleanup() {
+  if (_usedCardOverlayTimerHold) { clearTimeout(_usedCardOverlayTimerHold); _usedCardOverlayTimerHold = null; }
+  if (_usedCardOverlayTimerFade) { clearTimeout(_usedCardOverlayTimerFade); _usedCardOverlayTimerFade = null; }
+  var ov = document.getElementById('usedCardOverlay');
+  if (ov && ov.parentNode) ov.parentNode.removeChild(ov);
+}
+
+function showUsedCardOverlay(card, who, onComplete) {
+  if (!card) { if (onComplete) onComplete(); return; }
+  var ov = document.getElementById('usedCardOverlay');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'usedCardOverlay';
+    ov.className = 'used-card-overlay';
+    document.body.appendChild(ov);
+  }
+  // ✅ Cancelar cualquier timer pendiente de una carta anterior
+  if (_usedCardOverlayTimerHold) { clearTimeout(_usedCardOverlayTimerHold); _usedCardOverlayTimerHold = null; }
+  if (_usedCardOverlayTimerFade) { clearTimeout(_usedCardOverlayTimerFade); _usedCardOverlayTimerFade = null; }
+
+  var meta = (typeof CARD_CATEGORY_META !== 'undefined' && CARD_CATEGORY_META[card.category]) || { label: 'Evento', icon: '✨', color: '165,131,255' };
+  var catIcon = card.category === 'equipo' ? '⚔️ ' : card.category === 'apoyo' ? '📜 ' : card.category === 'pintura' ? '🎨 ' : card.category === 'plush' ? '🧸 ' : '✨ ';
+  var costText = (typeof formatCardCost === 'function') ? formatCardCost(card) : '';
+  var durationText = card.duration ? ' · ⏳ ' + card.duration + ' ronda(s)' : '';
+  var isEnemy = (who === 'bot');
+  ov.className = 'used-card-overlay' + (isEnemy ? ' from-bot' : ' from-player');
+  ov.innerHTML =
+    '<div class="used-card" style="--dc: ' + (card.color || '165,131,255') + '; --cat: ' + meta.color + ';">' +
+      '<div class="used-card-top"><span class="used-card-cat">' + catIcon + meta.label + '</span><span class="used-card-tag">' + (card.tag || '') + '</span></div>' +
+      '<div class="used-card-emoji">' + (card.emoji || '🎴') + '</div>' +
+      '<div class="used-card-name">' + (card.name || '') + '</div>' +
+      '<div class="used-card-cost">🎲 ' + costText + durationText + '</div>' +
+      '<div class="used-card-effect">' + (card.effectText || '') + '</div>' +
+    '</div>';
+  requestAnimationFrame(function(){ ov.classList.add('show'); });
+
+  _usedCardOverlayTimerHold = setTimeout(function(){
+    _usedCardOverlayTimerHold = null;
+    ov.classList.remove('show');
+    _usedCardOverlayTimerFade = setTimeout(function(){
+      _usedCardOverlayTimerFade = null;
+      if (ov.parentNode) ov.parentNode.removeChild(ov);
+      if (onComplete) onComplete();
+    }, 300);
+  }, 1400);
 }
 
 /* ═══ MARÍA / EX-MARÍA: helpers ═══ */
@@ -3215,7 +3432,7 @@ function playerChangeCharacterRequest(targetIndex) {
   if (rules.diceCost > 0 && !trySpendDice(side.dice, { any:rules.diceCost }).ok) { playSound('error'); return; }
   showChangeConfirmation(targetIndex, function(selectedDice){
     if (rules.diceCost > 0) { var spentIds = {}; selectedDice.forEach(function(d){ spentIds[d.id] = true; }); side.dice = side.dice.filter(function(d){ return !spentIds[d.id]; }); }
-    if (rules.discounted) side.firstChangeUsed = true;
+    if (rules.fromConsonance) side.firstChangeUsed = true;
     var oldN = side.characters[side.activeIndex].character.name;
     var newN = side.characters[targetIndex].character.name;
     var oldChar = side.characters[side.activeIndex];
@@ -3228,6 +3445,13 @@ function playerChangeCharacterRequest(targetIndex) {
     var label = combatState.pvp ? (turnKey === 'player' ? 'J1' : 'J2') : 'Tú';
     logCombat('🔄 ' + label + ': ' + oldN + ' → ' + newN + sfx);
     if (typeof triggerKillerTunesDamage === 'function') triggerKillerTunesDamage(turnKey);
+    // ✅ Si el enemigo entero ha caído por el efecto del cambio, declarar victoria
+    var _enemyKey2 = turnKey === 'player' ? 'bot' : 'player';
+    if (combatState && combatState[_enemyKey2] && combatState[_enemyKey2].characters.every(function(c){ return c.dead; })) {
+      playSound('change'); renderCombat();
+      setTimeout(function(){ if (combatState) endCombat(turnKey); }, 400);
+      return;
+    }
     playSound('change'); renderCombat();
     if (!rules.quick) setTimeout(nextTurn, 400);
   });
