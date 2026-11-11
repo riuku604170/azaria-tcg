@@ -109,8 +109,11 @@ function clearEnvironment() {
 function updateEnvironmentVisuals() {
   var display = document.getElementById('combatEnvironmentDisplay');
   if (!display) return;
+  var envSection = document.getElementById('envSection');
+
   if (!combatState || !combatState.environment) {
     display.hidden = true;
+    if (envSection) envSection.style.display = 'none';
     setCombatCanvasColor(null);
     return;
   }
@@ -118,6 +121,7 @@ function updateEnvironmentVisuals() {
   var col = ELEMENT_COLORS[env.element] || '240, 200, 96';
   display.hidden = false;
   display.style.setProperty('--env-color', col);
+  if (envSection) envSection.style.display = '';
 
   var icon   = document.getElementById('envIcon');
   var name   = document.getElementById('envName');
