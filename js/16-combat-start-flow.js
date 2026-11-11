@@ -1,5 +1,4 @@
 function renderCombatStartTeamPreview(who) {
-  // who: 'player' (J1 / no-PvP) o 'p2' (J2 en PvP)
   var prev = document.getElementById('combatStartTeamPreview'); if (!prev) return;
   var teamIds, chosen;
   if (who === 'p2') {
@@ -15,15 +14,25 @@ function renderCombatStartTeamPreview(who) {
     var hasEx = !!(COMBAT_CHARS[id] && COMBAT_CHARS[id].abilities && COMBAT_CHARS[id].abilities.ex);
     var showExBtn = exCombatEnabled && hasEx;
     var isOn = (chosen === id);
+
+    // ✅ Nombre de la EX para title/aria
+    var exAbility = (c.abilities || []).find(function(a){ return a.type === 'ex'; });
+    var exName = exAbility ? exAbility.name : 'EX';
+    var exTitle = (isOn ? 'EX activa' : 'Ver') + ': ' + exName;
+
     var exBtnHtml = showExBtn
-      ? '<button class="start-preview-ex-btn' + (isOn ? ' selected' : '') + '" data-ex-char="' + id + '" title="Activar EX de ' + c.name + '">🌟</button>'
+      ? '<button class="start-preview-ex-btn' + (isOn ? ' selected' : '') + '" data-ex-char="' + id + '" data-ex-name="' + exName.replace(/"/g, '&quot;') + '" title="' + exTitle.replace(/"/g, '&quot;') + '" aria-label="' + exTitle.replace(/"/g, '&quot;') + '">🌟</button>'
       : '';
     return '<div class="start-preview-card' + (isOn ? ' ex-on' : '') + '" data-char="' + id + '" style="--el: ' + col + ';">' + exBtnHtml + '<div class="start-preview-img" data-fallback="' + c.emoji + '"><img src="' + c.img + '" alt="' + c.name + '" onerror="this.style.display=\'none\';" style="width:100%;height:100%;object-fit:cover;border-radius:8px;"></div><div class="start-preview-name">' + c.name + '</div><div class="start-preview-element">' + ELEMENT_EMOJI[c.element] + ' ' + ELEMENT_NAMES[c.element] + '</div></div>';
   }).join('');
+
   if (exCombatEnabled) {
     prev.querySelectorAll('.start-preview-ex-btn').forEach(function(btn){
+      // Click: toggle
       btn.addEventListener('click', function(e){
         e.stopPropagation();
+        // ✅ Ocultar tooltip antes de re-renderizar (el botón viejo desaparece)
+        if (typeof hideTooltip === 'function') hideTooltip();
         var cid = btn.dataset.exChar;
         if (who === 'p2') {
           pendingExChoiceP2 = (pendingExChoiceP2 === cid) ? null : cid;
@@ -34,8 +43,47 @@ function renderCombatStartTeamPreview(who) {
         }
         updateCombatStartConfirmState();
       });
+      // Hover: mostrar info de la EX
+      btn.addEventListener('mouseenter', function(){ showExPreviewTooltip(btn, btn.dataset.exChar); });
+      btn.addEventListener('mouseleave', function(){ if (typeof scheduleHideTooltip === 'function') scheduleHideTooltip(250); });
+      // Foco por teclado (accesibilidad)
+      btn.addEventListener('focus', function(){ showExPreviewTooltip(btn, btn.dataset.exChar); });
+      btn.addEventListener('blur', function(){ if (typeof scheduleHideTooltip === 'function') scheduleHideTooltip(200); });
     });
   }
+}
+
+/* Tooltip de la EX al hacer hover sobre el botón 🌟 */
+function showExPreviewTooltip(btn, charId) {
+  if (!btn || !charId) return;
+  var char = CHARACTERS[charId];
+  if (!char) return;
+  var exAbility = (char.abilities || []).find(function(a){ return a.type === 'ex'; });
+  if (!exAbility) return;
+
+  var html = buildAbilityInfoHTML(charId, 'ex');
+  if (!html) return;
+
+  // ✅ Cabecera con el nombre del personaje como contexto
+  var col = ELEMENT_COLORS[char.element] || '240,200,96';
+  var header =
+    '<div style="font-size:0.6rem; font-weight:800; letter-spacing:0.12em; text-transform:uppercase; color:rgb(' + col + '); margin-bottom:0.35rem;">' +
+      ELEMENT_EMOJI[char.element] + ' ' + char.name + ' · EX' +
+    '</div>';
+
+  hoverTooltip.innerHTML = header + html;
+  hoverTooltip.classList.add('show');
+  if (typeof cancelHideTooltip === 'function') cancelHideTooltip();
+
+  // ✅ Términos clicables (los que aparezcan como **...**)
+  if (hoverTooltip.innerHTML.indexOf('clickable-term') !== -1) {
+    hoverTooltip.classList.add('interactive');
+    if (typeof attachAbilityTermListeners === 'function') attachAbilityTermListeners(hoverTooltip, charId);
+  } else {
+    hoverTooltip.classList.remove('interactive');
+  }
+
+  positionTooltip(hoverTooltip, btn.getBoundingClientRect(), 'above');
 }
 
 function refreshExToggleBtnForConfirm() {
@@ -83,7 +131,8 @@ function showCombatStartConfirm(slotNum) {
   var sub = document.getElementById('combatStartConfirmSub');
   if (sub) {
     var modeTxt = pendingPvpMode ? 'PvP Local' : 'vs Rival';
-    sub.textContent = 'Ranura ' + (slotNum + 1) + ' · ' + modeTxt + ' · Tu equipo y mazo están listos';
+    var slotTxt = (typeof slotNum === 'number' && slotNum >= 0) ? ('Ranura ' + (slotNum + 1)) : 'Nuevo combate';
+    sub.textContent = slotTxt + ' · ' + modeTxt + ' · Tu equipo y mazo están listos';
   }
   ov.classList.add('show'); playSound('banner');
   updateCombatStartConfirmState();
@@ -97,7 +146,10 @@ function showCombatStartConfirmForP2(slotNum) {
   renderCombatStartTeamPreview('p2');
   refreshExToggleBtnForConfirm();
   var sub = document.getElementById('combatStartConfirmSub');
-  if (sub) sub.textContent = 'Ranura ' + (slotNum + 1) + ' · PvP Local · Jugador 2';
+  if (sub) {
+    var p2SlotTxt = (typeof slotNum === 'number' && slotNum >= 0) ? ('Ranura ' + (slotNum + 1)) : 'Nuevo combate';
+    sub.textContent = p2SlotTxt + ' · PvP Local · Jugador 2';
+  }
   ov.classList.add('show'); playSound('banner');
   updateCombatStartConfirmState();
   refreshGameModeBtn();
@@ -151,7 +203,11 @@ function updateCombatStartConfirmState() {
     content.appendChild(exWarn);
   }
 }
-function hideCombatStartConfirm(){ var ov = document.getElementById('combatStartConfirm'); if (ov) ov.classList.remove('show'); }
+function hideCombatStartConfirm(){
+  var ov = document.getElementById('combatStartConfirm');
+  if (ov) ov.classList.remove('show');
+  if (typeof hideTooltip === 'function') hideTooltip();
+}
 
 function showSlotSelectionDialog(){ initAudio(); var ov = document.getElementById('slotSelectionDialog'); if (!ov) return; renderSlotSelectionDialog(); ov.classList.add('show'); playSound('banner'); }
 function hideSlotSelectionDialog(){ var ov = document.getElementById('slotSelectionDialog'); if (ov) ov.classList.remove('show'); }
@@ -274,12 +330,9 @@ function startCombatWithTemplatePicker(){
       return;
     }
 
-    var s = findEmptyCombatSlot();
-    if (s === -1) { showOverwriteDialog(); return; }
-    currentCombatSlot = s;
-
-    // ✅ Mostrar SIEMPRE la confirmación del J1 (Solo y PvP)
-    showCombatStartConfirm(s);
+    // ✅ Nuevo combate: NO reserva ranura. Solo se guardará si el usuario lo pide al salir.
+    currentCombatSlot = null;
+    showCombatStartConfirm(null);
   });
 }
 
@@ -667,8 +720,8 @@ function actuallyStartCombat() {
   }
   startCombat();
 }
-function closeCombat() {
-  saveCombatState();
+/* ═══ Cierre del combate — cuerpo común + puntos de entrada ═══ */
+function _closeCombatBody() {
   var m = document.getElementById('combatModal'); if (!m) return;
   m.classList.remove('open'); document.body.style.overflow = '';
   combatState = null; combatEnvColor = null; currentCombatSlot = null;
@@ -677,13 +730,167 @@ function closeCombat() {
   exCombatEnabled = false;
   pendingExChoice = null;
   pendingExChoiceP2 = null;
-  currentGameMode = 'normal';   // ✅ AÑADIR
-  // ✅ Ocultar el panel y el toggle del sandbox al cerrar el combate
+  currentGameMode = 'normal';
   var sp = document.getElementById('sandboxPanel'); if (sp) sp.hidden = true;
   var st = document.getElementById('sandboxToggleBtn'); if (st) st.style.display = 'none';
   sandboxOpen = false;
-  hideBanner(); hideSelectOverlay(); hideTooltip(); hideConfirmation(); hideRollOverlay(); hideDrawOverlay(); refreshGameModeBtn();          // ✅ AÑADIR (refresca el botón del diálogo de inicio)
+  hideBanner(); hideSelectOverlay(); hideTooltip(); hideConfirmation(); hideRollOverlay(); hideDrawOverlay();
+  hideExitCombatConfirm(); hideExitOverwriteDialog();
+  refreshGameModeBtn();
 }
+
+/* Cierre directo con auto-guardado (compatibilidad con llamadas antiguas) */
+function closeCombat() {
+  saveCombatState();
+  _closeCombatBody();
+}
+
+/* Cierre sin guardar (para flujos internos: fin de combate, errores de equipo…) */
+function finalizeCloseCombat() {
+  _closeCombatBody();
+}
+
+/* ═══ Punto de entrada para X y Esc ═══ */
+function requestCloseCombat() {
+  if (!combatState || combatState.phase === 'ended') {
+    finalizeCloseCombat();
+    return;
+  }
+  showExitCombatConfirm();
+}
+
+function showExitCombatConfirm() {
+  var ov = document.getElementById('exitCombatConfirm');
+  if (!ov) { finalizeCloseCombat(); return; }
+
+  // Deshabilitar Save si el modo actual no permite guardar
+  var saveBtn = document.getElementById('exitSaveBtn');
+  if (saveBtn) {
+    var canSave = (currentCombatSlot !== null) || (currentSlotMode !== null);
+    saveBtn.disabled = !canSave;
+    saveBtn.textContent = canSave ? '💾 Guardar y salir' : '💾 No disponible';
+    saveBtn.title = canSave ? '' : 'No se puede guardar la partida en este modo de juego';
+  }
+
+  ov.classList.add('show');
+  playSound('banner');
+}
+
+function hideExitCombatConfirm() {
+  var ov = document.getElementById('exitCombatConfirm');
+  if (ov) ov.classList.remove('show');
+}
+
+function hideExitOverwriteDialog() {
+  var ov = document.getElementById('exitOverwriteDialog');
+  if (ov) ov.classList.remove('show');
+}
+
+/* ═══ Guardar y salir ═══ */
+function handleExitSave() {
+  if (!combatState || combatState.phase === 'ended') {
+    hideExitCombatConfirm();
+    finalizeCloseCombat();
+    return;
+  }
+
+  // 1) Ya tenemos ranura asignada → guardar ahí
+  if (currentCombatSlot !== null) {
+    saveCombatState();
+    hideExitCombatConfirm();
+    playSound('confirm');
+    finalizeCloseCombat();
+    return;
+  }
+
+  // 2) Sin ranura + modo guardable → buscar hueco
+  if (currentSlotMode === null) {
+    hideExitCombatConfirm();
+    playSound('error');
+    if (typeof showTeamMissingToast === 'function') {
+      showTeamMissingToast('⚠️ No se puede guardar la partida en este modo de juego.');
+    }
+    return;
+  }
+
+  var freeSlot = findEmptyCombatSlot();
+  if (freeSlot !== -1) {
+    saveCombatToSlot(freeSlot);
+    hideExitCombatConfirm();
+    playSound('confirm');
+    finalizeCloseCombat();
+    return;
+  }
+
+  // 3) Sin hueco → elegir sobrescritura
+  hideExitCombatConfirm();
+  showExitOverwriteDialog();
+}
+
+/* ═══ Salir sin guardar ═══ */
+function handleExitDiscard() {
+  var ok = confirm('⚠️ ¿Seguro que quieres salir sin guardar?\n\nSe perderá todo el progreso de este combate.');
+  if (!ok) return;
+
+  if (currentCombatSlot !== null) {
+    clearCombatSlot(currentCombatSlot);
+  }
+  hideExitCombatConfirm();
+  playSound('deselect');
+  finalizeCloseCombat();
+}
+
+/* ═══ Sobrescribir ranura ═══ */
+function showExitOverwriteDialog() {
+  var ov = document.getElementById('exitOverwriteDialog');
+  var list = document.getElementById('exitOverwriteList');
+  if (!ov || !list) return;
+
+  var html = '';
+  for (var i = 0; i < COMBAT_SLOT_COUNT; i++) {
+    var sv = getSavedCombat(i);
+    if (!sv) continue;
+    var chh = (sv.player.characters || []).map(function(c){ return c.character.emoji + ' ' + c.character.name; }).join(' · ');
+    html += '<div class="slot-item">' +
+      '<div class="slot-item-header">' +
+        '<span class="slot-item-title">Ranura ' + (i + 1) + '</span>' +
+        '<span class="slot-item-round">Ronda ' + sv.round + '</span>' +
+      '</div>' +
+      '<div class="slot-item-preview">' + chh + '</div>' +
+      '<div class="slot-item-actions">' +
+        '<button class="slot-action slot-overwrite" data-slot="' + i + '">⚠️ Sobrescribir</button>' +
+      '</div>' +
+    '</div>';
+  }
+
+  list.innerHTML = html;
+  list.querySelectorAll('.slot-overwrite').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var s = parseInt(btn.dataset.slot, 10);
+      if (!confirm('¿Sobrescribir la ranura ' + (s + 1) + ' con el combate actual?')) return;
+      saveCombatToSlot(s);
+      hideExitOverwriteDialog();
+      playSound('confirm');
+      finalizeCloseCombat();
+    });
+  });
+
+  ov.classList.add('show');
+  playSound('banner');
+}
+
+/* ═══ Wiring de botones del diálogo ═══ */
+document.addEventListener('click', function(e){
+  if (e.target.closest('#exitCancelBtn')) { e.preventDefault(); hideExitCombatConfirm(); playSound('deselect'); return; }
+  if (e.target.closest('#exitDiscardBtn')) { e.preventDefault(); handleExitDiscard(); return; }
+  if (e.target.closest('#exitSaveBtn')) { e.preventDefault(); handleExitSave(); return; }
+  if (e.target.closest('#exitOverwriteCancelBtn')) {
+    e.preventDefault();
+    hideExitOverwriteDialog();
+    showExitCombatConfirm();
+    return;
+  }
+});
 function startCombat() {
   if (pendingPvpMode) { startPvpLocalCombat(); return; }
   var pids = getPlayerTeamIds(), bids = getRandomBotTeam();
@@ -715,6 +922,7 @@ function startCombat() {
   combatState.player.consonance = getConsonanceForIds(pids); combatState.bot.consonance = getConsonanceForIds(bids);
   var useDeck = (pendingCombatDeck && pendingCombatDeck.length === 30) ? pendingCombatDeck : deck;
   combatState.player.deck = shuffleArray(useDeck.slice());
+  combatState.bot.deck = shuffleArray(generateRandomDeck());   // ✅ AÑADIR: mazo del bot
   combatState.player.hand = []; combatState.player.discardPile = [];
   combatState.player.cardsUsedThisRound = {}; combatState.player.cardsUsedThisGame = {}; combatState.player.drawSelection = {};
   combatState.bot.hand = []; combatState.bot.discardPile = [];
