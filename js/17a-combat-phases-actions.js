@@ -785,11 +785,6 @@ function applyVittoriaCostModifier(cs, baseCost, ability) {
     var elem = cs.character.element;
     var newCost = {};
     newCost[elem] = 1;
-    // ✅ Solo log si REALMENTE cambia el coste
-    var origTotal = sumCost(baseCost);
-    if (origTotal !== 1) {
-      logCombat('👑 Pasiva Vittoria: 2 aliados caídos → coste fijo de 1 dado');
-    }
     return newCost;
   }
 
@@ -811,12 +806,15 @@ function applyVittoriaCostModifier(cs, baseCost, ability) {
       if (result[k] <= 0) delete result[k];
     }
   }
-  logCombat('👑 Pasiva Vittoria: 1 aliado caído → -1 dado (' + total + ' → ' + sumCost(result) + ')');
   return result;
 }
 
 function getEffectiveCostFull(active, ability) {
   var base = getEffectiveAbilityCost(active, ability.cost);
+  // ✅ Vittoria: pasiva de coste reducido con aliados caídos
+  if (active.id === 'vittoria') {
+    base = applyVittoriaCostModifier(active, base, ability);
+  }
   if (active.id === 'manuel' && ability.kind === 'degradacion' && active.manuelStacks > 0) {
     var reduction = active.manuelStacks, newCost = {}, keys = Object.keys(base);
     for (var i = 0; i < keys.length && reduction > 0; i++) {
