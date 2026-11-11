@@ -3,6 +3,21 @@
 // ═══════════ NOVEDADES (parches) ═══════════
 var PATCHES = [
 {
+  version: 'BETA 1.6',
+  date: '2026-11-11',
+  type: 'mayor',
+  title: 'Mejoras de combate, opciones y guía para el jugador',
+  changes: [
+    'Guía, tutorial y botón orientativo disponibles.',
+    'Mejorado el bot (Ahora sí).',
+    'Añadidas estadísticas y tiempo por turno.',
+    'Mejorado visualmente el combate (Cartas y redistribución).',
+    'Desafíos próximamente.',
+    'Ex visibles antes de seleccionar.',
+    'Confirmación que permite guardado al salir del combate y no antes.'
+  ]  
+},
+{
   version: 'BETA 1.5',
   date: '2026-11-09',
   type: 'mayor',
