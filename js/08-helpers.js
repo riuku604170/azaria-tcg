@@ -35,7 +35,8 @@ function canHumanControlCurrentTurn() {
   if (combatState.phase !== 'playing') return false;
   if (combatState.roundStarting) return false;
   if (combatState.roundEnding) return false;
-  if (combatState._resolvingAbility) return false;   // ✅ NUEVO: bloquea input mientras se resuelve una habilidad
+  if (combatState._resolvingAbility) return false;
+  if (combatState._pendingTurnAdvance) return false;   // ✅ Bloquea durante la transición a nextTurn
   if (isTurnDone()) return false;
   if (combatState.pvp) return true;
   return combatState.turn === 'player';
