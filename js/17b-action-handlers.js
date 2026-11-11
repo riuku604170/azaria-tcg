@@ -470,7 +470,7 @@ var ACTION_HANDLERS = {
     a.pendingBuff = (a.pendingBuff || 0) + 2;
     logCombat('💪 Impulso: +2 al siguiente ataque normal (persiste hasta consumirse)');
     var jr = getNextAliveIndex(side, side.activeIndex);
-    if (jr >= 0) { logCombat('🦋 Jose a reserva'); side.activeIndex = jr; triggerKillerTunesDamage(who); ctx.shouldEndTurn = false; }
+    if (jr >= 0) { logCombat('🦋 Jose a reserva'); side.activeIndex = jr; triggerKillerTunesDamage(who); }
   },
 
   instinto: function(ctx) {
