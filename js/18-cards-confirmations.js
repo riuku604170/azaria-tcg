@@ -165,6 +165,7 @@ function playCardRequest(cardId) {
   // ✅ Cartas de peluche (Traductor): confirmación normal, coste 0
   if (card.category === 'plush') {
     showCardConfirmation(cardId, {}, function(selectedDice){
+      if (typeof showUsedCardOverlay === 'function') showUsedCardOverlay(card, getTurnKey());
       applyPlushCard(cardId);
       var hi = side.hand.indexOf(cardId);
       if (hi >= 0) side.hand.splice(hi, 1);
@@ -195,8 +196,8 @@ function playCardRequest(cardId) {
 function finalizeCardPlay(cardId) {
   var card = CARD_DB[cardId] || PAINT_CARDS[cardId] || (typeof PLUSH_CARDS !== 'undefined' && PLUSH_CARDS[cardId]); if (!card) return;
   var player = getActiveSide(); if (!player) return;
-  // ✅ Popup del nombre de la carta que se acaba de jugar
-  showCardNamePopup(getTurnKey(), player.activeIndex, card);
+  // ✅ Overlay grande de carta usada
+  showUsedCardOverlay(card, getTurnKey());
   // ✅ Facebook: consumir el descuento de carta
   var actDisc = player.characters[player.activeIndex];
   if (actDisc && actDisc.nextCardDiscount > 0) {
@@ -908,6 +909,9 @@ function playerChangeCharacterRequest(targetIndex) {
 
     // ✅ FIX Google EX: llamada que faltaba (la de 17a quedaba pisada)
     applyGoogleExOnChange(oldChar, side, targetIndex, turnKey);
+  
+    // ✅ Transferir buffs de "siguiente acción" del viejo al nuevo activo
+    transferActiveBuffs(oldChar, side.characters[targetIndex]);
 
     // ✅ Sage: efectos de entrada/salida
     var _newCs = side.characters[targetIndex];
@@ -928,6 +932,29 @@ function playerChangeCharacterRequest(targetIndex) {
     var sfx = rules.quick ? ' (acción rápida)' : (rules.discounted ? ' (gratis)' : '');
     var label = combatState.pvp ? (turnKey === 'player' ? 'J1' : 'J2') : 'Tú';
     logCombat('🔄 ' + label + ': ' + oldN + ' → ' + newN + sfx);
+    // ✅ YouTube: ganancia de pop al entrar activo (vía cambio del jugador)
+    if (side.characters[targetIndex] && side.characters[targetIndex].id === 'youtube') {
+      if (typeof onYouTubeBecomeActive === 'function') onYouTubeBecomeActive(side.characters[targetIndex]);
+    }
+    // ✅ Sage: efectos de entrada/salida (jugador)
+    var _newCs = side.characters[targetIndex];
+    var _oldIdx = side.characters.indexOf(oldChar);
+    if (oldChar && oldChar.id === 'sage' && _newCs.id !== 'sage' && oldChar.exActive && !oldChar.dead) {
+      dealDamageToChar(oldChar, 1, { targetSide:side, targetSideKey:turnKey, targetIdx:_oldIdx });
+      logCombat('🐴 EX Sage: pierde 1 HP al salir');
+    }
+    if (_newCs && _newCs.id === 'sage' && oldChar.id !== 'sage' && !_newCs.dead) {
+      csSetState(_newCs, 'sageEnteredThisTurn', true);
+      _newCs.states = _newCs.states || {};
+      _newCs.states.decidida = Math.min(3, (_newCs.states.decidida || 0) + 1);
+      logCombat('🐴 Sage: +1 Decidida (' + _newCs.states.decidida + '/3)');
+      dealDamageToChar(_newCs, 1, { targetSide:side, targetSideKey:turnKey, targetIdx:targetIndex });
+      logCombat('🐴 Sage: -1 HP al cambiar a ella');
+    }
+    // ✅ YouTube: ganancia de pop al entrar activo (jugador)
+    if (_newCs && _newCs.id === 'youtube') {
+      if (typeof onYouTubeBecomeActive === 'function') onYouTubeBecomeActive(_newCs);
+    }
     if (typeof triggerKillerTunesDamage === 'function') triggerKillerTunesDamage(turnKey);
     playSound('change'); renderCombat();
     if (!rules.quick) setTimeout(nextTurn, 400);
