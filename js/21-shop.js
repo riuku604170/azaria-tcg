@@ -16,14 +16,19 @@ var SHOP_ACTIVE_TAB = 'characters';
 function getShopItemsForTab(tab) {
   if (tab === 'characters') {
     return Object.keys(CHARACTERS).filter(function(id){
-      return id !== 'hunger' && id !== 'exmaria';   // ✅ Excluir formas alternativas
+      return id !== 'hunger' && id !== 'exmaria';
     }).map(function(id){ return { id: id, category: 'characters', kind: 'character', data: CHARACTERS[id] }; });
   }
   if (tab === 'cards') {
-    // ✅ Solo cartas del pool jugable (CARD_DB). Excluidas PAINT_CARDS (generadas por Erik en combate).
     if (typeof CARD_DB === 'undefined') return [];
     return Object.keys(CARD_DB).map(function(id){
       return { id: id, category: 'cards', kind: 'card', data: CARD_DB[id] };
+    });
+  }
+  if (tab === 'themes') {
+    if (typeof THEMES === 'undefined') return [];
+    return Object.keys(THEMES).filter(function(id){ return !THEMES[id].isDefault; }).map(function(id){
+      return { id: id, category: 'themes', kind: 'theme', data: THEMES[id] };
     });
   }
   return [];
@@ -93,13 +98,24 @@ function renderShopBody() {
     });
     Object.keys(byCat2).forEach(function(cat){ if (byCat2[cat].length) html += renderShopGroup(getCardCategoryLabel(cat), byCat2[cat]); });
   }
-  else {
+  else if (SHOP_ACTIVE_TAB === 'themes') {
     var sorted = items.slice().sort(function(a, b){
       var nA = (a.data.name || a.id).toLowerCase();
       var nB = (b.data.name || b.id).toLowerCase();
       return nA.localeCompare(nB);
     });
-    html = '<div class="shop-grid">' + sorted.map(function(it){ return renderShopItem(it, isUnlocked(it.id)); }).join('') + '</div>';
+    html = '<div class="shop-grid">' + sorted.map(function(it){
+      var un = (typeof isThemeUnlocked === 'function') ? isThemeUnlocked(it.id) : false;
+      return renderShopItem(it, un);
+    }).join('') + '</div>';
+  }
+  else {
+    var sorted2 = items.slice().sort(function(a, b){
+      var nA = (a.data.name || a.id).toLowerCase();
+      var nB = (b.data.name || b.id).toLowerCase();
+      return nA.localeCompare(nB);
+    });
+    html = '<div class="shop-grid">' + sorted2.map(function(it){ return renderShopItem(it, isUnlocked(it.id)); }).join('') + '</div>';
   }
 
   body.innerHTML = html;
@@ -129,9 +145,17 @@ function renderShopGroup(title, items) {
   html += '</div></div>';
   return html;
 }
+
+function getItemPrice(it) {
+  if (it.data && typeof it.data.price === 'number') return it.data.price;
+  return SHOP_DEFAULT_PRICE;
+}
+
 function renderShopItem(it, isUn) {
   var cls = 'shop-item' + (isUn ? ' unlocked' : '');
+  var price = getItemPrice(it);
   var html = '<div class="' + cls + '" data-shop-id="' + it.id + '" data-shop-category="' + it.category + '">';
+
   if (it.kind === 'character') {
     var c = it.data;
     html += '<div class="shop-item-img">';
@@ -140,22 +164,56 @@ function renderShopItem(it, isUn) {
     html += '</div>';
     html += '<div class="shop-item-name">' + (c.name || it.id) + '</div>';
     html += '<div class="shop-item-category">' + (c.category || '') + '</div>';
+  } else if (it.kind === 'theme') {
+    var th = it.data;
+    html += '<div class="shop-item-img" style="font-size:3rem;">' + (th.emoji || '🎨') + '</div>';
+    html += '<div class="shop-item-name">' + (th.name || it.id) + '</div>';
+    html += '<div class="shop-item-category">Tema</div>';
   } else {
     var card = it.data;
     html += '<div class="shop-item-img" style="font-size:3rem;">' + (card.emoji || '🎴') + '</div>';
     html += '<div class="shop-item-name">' + (card.name || it.id) + '</div>';
     html += '<div class="shop-item-category">' + (card.tag || card.category || '') + '</div>';
   }
+
   if (isUn) html += '<div class="shop-item-status">✓ Ya lo tienes</div>';
-  else html += '<div class="shop-item-price">💎 ' + SHOP_DEFAULT_PRICE + '</div>';
+  else html += '<div class="shop-item-price">💎 ' + price + '</div>';
   html += '</div>';
   return html;
 }
+
 function showShopItemDetail(id, category) {
   if (category === 'characters') { if (typeof openCharacter === 'function') openCharacter(id, null, { shopMode: true }); }
   else if (category === 'cards') { if (typeof showCardInfo === 'function') showCardInfo(id, { shopMode: true }); }
+  else if (category === 'themes') { if (typeof showThemeDetail === 'function') showThemeDetail(id); }
 }
+
 function buyShopItem(id, category) {
+  // ✅ Temas
+  if (category === 'themes') {
+    if (typeof THEMES === 'undefined' || !THEMES[id]) return false;
+    if (typeof isThemeUnlocked === 'function' && isThemeUnlocked(id)) {
+      if (typeof showTeamMissingToast === 'function') showTeamMissingToast('Ya tienes este tema.');
+      return false;
+    }
+    var priceT = THEMES[id].price || SHOP_DEFAULT_PRICE;
+    if (playerMoney < priceT) {
+      if (typeof showTeamMissingToast === 'function') showTeamMissingToast('No tienes suficiente dinero (<strong>' + playerMoney + '</strong> / ' + priceT + ').');
+      if (typeof playSound === 'function') playSound('error');
+      return false;
+    }
+    if (!confirm('¿Comprar el tema "' + THEMES[id].name + '" por 💎 ' + priceT + '?')) return false;
+    playerMoney -= priceT;
+    if (typeof unlockTheme === 'function') unlockTheme(id);
+    saveShopState();
+    if (typeof playSound === 'function') playSound('confirm');
+    if (typeof showTeamMissingToast === 'function') showTeamMissingToast('✅ ¡Tema "' + THEMES[id].name + '" comprado!');
+    renderShop();
+    var cd = document.getElementById('cardInfoDialog'); if (cd) cd.classList.remove('show');
+    return true;
+  }
+
+  // ✅ Personajes / Cartas (comportamiento original)
   if (isUnlocked(id)) { if (typeof showTeamMissingToast === 'function') showTeamMissingToast('Ya tienes este artículo.'); return false; }
   if (playerMoney < SHOP_DEFAULT_PRICE) {
     if (typeof showTeamMissingToast === 'function') showTeamMissingToast('No tienes suficiente dinero (<strong>' + playerMoney + '</strong> / ' + SHOP_DEFAULT_PRICE + ').');
@@ -196,8 +254,13 @@ function redeemCode(rawCode) {
     if (typeof CARD_DB !== 'undefined') Object.keys(CARD_DB).forEach(function(id){
       if (!unlockedIds[id]) { unlockedIds[id] = true; count++; }
     });
+    // ✅ Temas: desbloquear todos excepto el default
+    if (typeof THEMES !== 'undefined') Object.keys(THEMES).forEach(function(id){
+      if (THEMES[id].isDefault) return;
+      if (!unlockedIds['theme_' + id]) { unlockedIds['theme_' + id] = true; count++; }
+    });
     redeemedCodes[code] = true; saveShopState();
-    return { ok: true, msg: 'Código AZARIATCG canjeado. Todos los personajes y cartas (excepto Azaria) desbloqueados.' };
+    return { ok: true, msg: 'Código AZARIATCG canjeado. Todos los personajes y cartas (excepto Azaria) y todos los temas desbloqueados.' };
   }
   if (code === 'ALAYANOEXISTE') {
     var count2 = 0;
@@ -228,7 +291,6 @@ function resetShopProgress() {
   shopForceLocked = true;
   saveShopState();
 
-  // ✅ Vaciar equipo y mazo (sus IDs ahora están bloqueados)
   try {
     if (typeof team !== 'undefined') { team = []; if (typeof saveTeam === 'function') saveTeam(); }
     if (typeof deck !== 'undefined') { deck = []; if (typeof saveDeck === 'function') saveDeck(); }
@@ -271,7 +333,6 @@ function initShop() {
   var codeInput = document.getElementById('shopCodeInput');
   if (codeInput) codeInput.addEventListener('keydown', function(e){ if (e.key === 'Enter') { var ab = document.getElementById('shopCodeAccept'); if (ab) ab.click(); } });
 
-  // Console helpers
   window.redeemAlayanoexiste = function() {
     var res = redeemCode('alayanoexiste');
     console.log(res.msg);
