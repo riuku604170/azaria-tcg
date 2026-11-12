@@ -258,8 +258,16 @@ function dealDamageToChar(targetCs, rawDamage, opts) {
         logCombat('👑 Capa real: David pasa a activo y contraataca');
         setTimeout(function(){
           if (!combatState || !_davidCs || _davidCs.dead) return;
-          combatState._currentIsCounterAttack = true;
-          executeAction(_crS.key, 'normal', null);
+          var _eKey = _crS.key === 'player' ? 'bot' : 'player';
+          var _eSide = combatState[_eKey];
+          var _eActive = _eSide.characters[_eSide.activeIndex];
+          if (_eActive && !_eActive.dead) {
+            // ✅ Contraataque GRATIS: no consume dados ni energía, no cede turno
+            var _dmg = 2; // 1 base + 1 por Comandado
+            _dmg = applyGenericDamageMods(_davidCs, _dmg);
+            applyDamageWithMods(_eActive, _dmg, false, _eKey, _eSide.activeIndex, _davidCs);
+            logCombat('👑 David contraataca con Le Coup Violent comandado (+1 daño)');
+          }
         }, 200);
       }
     }
