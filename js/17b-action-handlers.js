@@ -1232,6 +1232,271 @@ var ACTION_HANDLERS = {
     }
   },
 
+  feliciaNormal: function(ctx) {
+    var a = ctx.active, ea = ctx.enemyActive, es = ctx.enemySide, ek = ctx.enemyKey, side = ctx.side, at = ctx.actionType, ab = ctx.ability;
+    var dmg = 1;
+    if (csHasState(a, 'drogada')) { dmg += 2; logCombat('🩸 Drogada: +2 daño'); }
+    var isDouble = csHasState(a, 'doubleDown');
+    if (isDouble) { dmg *= 2; logCombat('🎲 Double Down: daño ×2'); }
+    dmg = applyGenericDamageMods(a, dmg);
+    if (a.pendingBuff) ctx.pendingBuffConsumed = true;
+    if (at === 'normal') { var ob = getOptimizationBonus(side); if (ob > 0) { dmg += ob; logCombat('🏛️ Optimización: +' + ob); } }
+    applyDamageWithMods(ea, dmg, predictPiercing(a, ab), ek, es.activeIndex, a);
+    if (isDouble) {
+      csSetState(a, 'doubleDown', false);
+      logCombat('🎲 Double Down consumido');
+    }
+  },
+
+  feliciaElemental: function(ctx) {
+    var a = ctx.active, side = ctx.side, who = ctx.who, ea = ctx.enemyActive, es = ctx.enemySide, ek = ctx.enemyKey;
+    var hadDrogada = csHasState(a, 'drogada');
+    var isDouble = csHasState(a, 'doubleDown');
+    var targetHp = isDouble ? 8 : 4;
+    var beforeHp = a.hp;
+    var diff = targetHp - a.hp;
+    a.hp = targetHp;
+    if (diff > 0) {
+      logCombat('🎲 Hit: +' + diff + ' HP → ' + a.hp + ' (objetivo: ' + targetHp + ')');
+      if (typeof trackHeal === 'function') trackHeal(a, diff);
+    } else if (diff < 0) {
+      logCombat('🎲 Hit: ' + diff + ' HP → ' + a.hp + ' (objetivo: ' + targetHp + ')');
+      if (typeof trackDamage === 'function') trackDamage(a, -diff, null);
+    } else {
+      logCombat('🎲 Hit: ya estaba a ' + targetHp + ' HP');
+    }
+    if (isDouble) { csSetState(a, 'doubleDown', false); logCombat('🎲 Double Down consumido'); }
+    if (typeof updateFeliciaDrogada === 'function') updateFeliciaDrogada(a);
+    if (hadDrogada) {
+      var draws = isDouble ? 4 : 2;
+      for (var i = 0; i < draws; i++) drawFromDeck(who);
+      logCombat('🩸 Drogada: roba ' + draws + ' carta(s)');
+      if (ea && !ea.dead) triggerMarkOrResonance(ea, 'expresion', who, ek, es.activeIndex);
+    }
+    if (a.hp <= 0) handleDeath(who, side.characters.indexOf(a));
+  },
+
+  feliciaUltimate: function(ctx) {
+    var a = ctx.active;
+    csSetState(a, 'doubleDown', true);
+    logCombat('🎲 Double Down: activo · normal +1 exp, elemental +1 exp · próxima habilidad dobla efectos');
+  },
+
+  evePrision: function(ctx) {
+    var a = ctx.active, side = ctx.side;
+    if (!side.structures) side.structures = [];
+    var existing = side.structures.find(function(s){ return s.kind === 'prisionEterea'; });
+    if (existing) { existing.duration = 3; logCombat('🔮 Prisión etérea refrescada (3 rondas)'); }
+    else { side.structures.push({ kind:'prisionEterea', duration:3, ownerId:'eve' }); logCombat('🔮 Prisión etérea colocada (3 rondas)'); }
+    csSetState(a, 'prisionActiva', true);
+  },
+
+  eveUlt: function(ctx) {
+    var a = ctx.active, side = ctx.side, who = ctx.who;
+    var prision = side.structures && side.structures.find(function(s){ return s.kind === 'prisionEterea'; });
+    if (!prision) {
+      var healed = healChar(a, 4);
+      logCombat('🍎 Lágrimas como rocío: +' + healed + ' HP');
+      return;
+    }
+    // Cadáveres como hojas de otoño
+    var safety = 0;
+    while (safety < 30) {
+      safety++;
+      if (a.hp <= 1) break;
+      var allies = side.characters.filter(function(c){ return c !== a && !c.dead && c.hp < c.maxHp; });
+      if (!allies.length) break;
+      allies.forEach(function(ally){ if (a.hp > 1) { healChar(ally, 1); a.hp -= 1; } });
+    }
+    logCombat('🍎 Cadáveres: Eve a ' + a.hp + ' HP');
+    if (a.hp > 1) {
+      var enemySide = ctx.enemySide;
+      var enemigo = enemySide.characters[enemySide.activeIndex];
+      if (enemigo && !enemigo.dead) {
+        var maxDmg = Math.min(a.hp - 1, enemigo.hp - 1);
+        if (maxDmg > 0) {
+          applyDamageWithMods(enemigo, maxDmg, true, ctx.enemyKey, enemySide.activeIndex, a);
+          logCombat('🍎 Cadáveres: ' + maxDmg + ' daño penetrante');
+        }
+      }
+    }
+    if (a.hp <= 1) {
+      var nx = getNextAliveIndex(side, side.activeIndex);
+      if (nx >= 0 && nx !== side.activeIndex) { side.activeIndex = nx; logCombat('🔄 Eve a reserva'); }
+      if (ctx.enemyActive && !ctx.enemyActive.dead) triggerMarkOrResonance(ctx.enemyActive, 'comprension', who, ctx.enemyKey, ctx.enemySide.activeIndex);
+    } else {
+      var nxE = getNextAliveIndex(ctx.enemySide, ctx.enemySide.activeIndex);
+      if (nxE >= 0 && nxE !== ctx.enemySide.activeIndex) {
+        ctx.enemySide.activeIndex = nxE;
+        var nEa = ctx.enemySide.characters[nxE];
+        if (nEa && !nEa.dead) triggerMarkOrResonance(nEa, 'comprension', who, ctx.enemyKey, nxE);
+      }
+    }
+    var pIdx = side.structures.indexOf(prision);
+    if (pIdx >= 0) side.structures.splice(pIdx, 1);
+    csSetState(a, 'prisionActiva', false);
+  },
+
+  opalNormal: function(ctx) {
+    var a = ctx.active, ea = ctx.enemyActive, es = ctx.enemySide, ek = ctx.enemyKey, side = ctx.side, who = ctx.who;
+    var eq = a.equipment || [];
+    if (a.exActive && eq.length > 0) {
+      drawFromDeck(who);
+      logCombat('🌟 EX Opal: +1 carta (tenía equipación)');
+    }
+    if (eq.length === 0) {
+      var d0 = applyGenericDamageMods(a, 1);
+      applyDamageWithMods(ea, d0, false, ek, es.activeIndex, a);
+      if (!ea.dead) triggerMarkOrResonance(ea, 'expresion', who, ek, es.activeIndex);
+      return;
+    }
+    var armas = 0, armaduras = 0, accesorios = 0;
+    eq.forEach(function(eqId){
+      var cd = CARD_DB[eqId] || (typeof OPAL_GEAR !== 'undefined' && OPAL_GEAR[eqId]);
+      if (!cd) return;
+      if (cd.tag === 'Arma') armas++;
+      else if (cd.tag === 'Armadura') armaduras++;
+      else if (cd.tag === 'Accesorio') accesorios++;
+    });
+    var dmg = 1 + armas;
+    if (!side.discardPile) side.discardPile = [];
+    eq.forEach(function(eqId){ side.discardPile.push(eqId); });
+    a.equipment = [];
+    dmg = applyGenericDamageMods(a, dmg);
+    applyDamageWithMods(ea, dmg, false, ek, es.activeIndex, a);
+    if (armaduras > 0) addOrRefreshShield(a, 'opal_normal', armaduras);
+    if (accesorios > 0) healChar(a, accesorios);
+    logCombat('🎨 Brochazo: ' + dmg + ' daño · +' + armaduras + ' escudo · +' + accesorios + ' HP');
+  },
+
+  opalElemental: function(ctx) {
+    var a = ctx.active, side = ctx.side, who = ctx.who;
+    var eq = a.equipment || [];
+    var has = function(tag){ return eq.some(function(id){ var cd = CARD_DB[id] || OPAL_GEAR[id]; return cd && cd.tag === tag; }); };
+    var hasA = has('Arma'), hasAr = has('Armadura'), hasAc = has('Accesorio');
+    var complete = hasA && hasAr && hasAc;
+    if (!side.hand) side.hand = [];
+    if (complete) {
+      if (!side.discardPile) side.discardPile = [];
+      eq.forEach(function(id){ side.discardPile.push(id); });
+      a.equipment = [];
+      side.hand.push('opal_auriculares', 'opal_mochila', 'opal_lapiz');
+      addOrRefreshShield(a, 'opal_ult_set', 2);
+      logCombat('🎨 Set completo: inventario perdido, 3 equipaciones en mano, +2 escudo');
+      return;
+    }
+    if (!hasAr) { side.hand.push('opal_auriculares'); logCombat('🎨 Generada: Auriculares blancos'); }
+    if (!hasAc) { side.hand.push('opal_mochila'); logCombat('🎨 Generada: Mochila conveniente'); }
+    if (!hasA) { side.hand.push('opal_lapiz'); logCombat('🎨 Generada: Lápiz de bocetos'); }
+  },
+
+  opalUlt: function(ctx) {
+    var side = ctx.side, who = ctx.who, es = ctx.enemySide, ek = ctx.enemyKey;
+    side.resonanciasCuran = { amount:1, roundsLeft:2 };
+    logCombat('🎨 Por un mundo lleno de color: resonancias curan 1 HP (2 rondas)');
+    es.characters.forEach(function(c, i){
+      if (c.dead) return;
+      triggerMarkOrResonance(c, 'expresion', who, ek, i);
+    });
+  },
+
+  /* ═══ DAVID ═══ */
+  davidNormal: function(ctx) {
+    var a = ctx.active, ea = ctx.enemyActive, es = ctx.enemySide, ek = ctx.enemyKey;
+    var isCounter = !!ctx.isCounterAttack;
+    var dmg = 1 + (isCounter ? 1 : 0);
+    dmg = applyGenericDamageMods(a, dmg);
+    applyDamageWithMods(ea, dmg, false, ek, es.activeIndex, a);
+    if (isCounter) logCombat('👑 Le Coup comandado: +1 daño');
+  },
+
+  davidElemental: function(ctx) {
+    var a = ctx.active, side = ctx.side, who = ctx.who;
+    var nx = getNextAliveIndex(side, side.activeIndex);
+    if (nx < 0 || nx === side.activeIndex) { logCombat('❌ Sin aliados a los que cambiar'); ctx.shouldEndTurn = false; return; }
+    var target = side.characters[nx];
+    side.activeIndex = nx;
+    addOrRefreshShield(target, 'capa_real', 2);
+    if (!target.states) target.states = {};
+    target.states.capaReal = true;
+    logCombat('👑 Escudo humano: ' + target.character.name + ' recibe Capa real');
+    if (typeof triggerKillerTunesDamage === 'function') triggerKillerTunesDamage(who);
+  },
+
+  davidUlt: function(ctx) {
+    var a = ctx.active, side = ctx.side;
+    var activeAlly = side.characters[side.activeIndex];
+    if (!activeAlly || activeAlly.dead) { ctx.shouldEndTurn = false; return; }
+    var hasEspada = activeAlly.equipment && activeAlly.equipment.indexOf('david_espada') >= 0;
+    if (!hasEspada) {
+      if (!activeAlly.equipment) activeAlly.equipment = [];
+      var maxEq = (typeof getMaxEquipment === 'function') ? getMaxEquipment(activeAlly) : 2;
+      if (activeAlly.equipment.length >= maxEq) {
+        logCombat('❌ ' + activeAlly.character.name + ' no tiene slot libre para Corona');
+      } else if (activeAlly.equipment.indexOf('david_corona') < 0) {
+        activeAlly.equipment.push('david_corona');
+        logCombat('👑 Corona Dorada equipada a ' + activeAlly.character.name);
+      }
+    } else {
+      var aSide = sideOfChar(activeAlly);
+      applyDamageWithMods(activeAlly, 2, true, aSide.key, aSide.side.activeIndex, a);
+      if (!a.states) a.states = {};
+      a.states.davidBuff = (a.states.davidBuff || 0) + 1;
+      logCombat('👑 Fragmentos: 2 daño a ' + activeAlly.character.name + ' · +1 a Espada/Corona (nivel ' + a.states.davidBuff + ')');
+    }
+  },
+
+  /* ═══ ERIKXD ═══ */
+  erikxdNormal: function(ctx) {
+    var a = ctx.active, ea = ctx.enemyActive, es = ctx.enemySide, ek = ctx.enemyKey, side = ctx.side;
+    var dmg = 2;
+    applyDamageWithMods(ea, dmg, false, ek, es.activeIndex, a);
+    if (a.equipment && a.equipment.indexOf('erikxd_camara_confiable') >= 0 && a.states && a.states.cameraUsos > 0) {
+      a.states.cameraUsos -= 1;
+      if (!ea.dead) triggerMarkOrResonance(ea, 'proteccion', ctx.who, ek, es.activeIndex);
+      logCombat('📷 Cámara confiable: marca Protección · usos: ' + a.states.cameraUsos);
+      if (a.states.cameraUsos <= 0) {
+        var ci = a.equipment.indexOf('erikxd_camara_confiable');
+        if (ci >= 0) { a.equipment.splice(ci, 1); if (!side.discardPile) side.discardPile = []; side.discardPile.push('erikxd_camara_confiable'); logCombat('📷 Cámara confiable agotada'); }
+      }
+    }
+    ctx.shouldEndTurn = false;
+  },
+
+  erikxdSetup: function(ctx) {
+    var a = ctx.active, side = ctx.side;
+    if (!a.equipment) a.equipment = [];
+    if (a.equipment.indexOf('erikxd_camara_confiable') >= 0) {
+      var ci = a.equipment.indexOf('erikxd_camara_confiable');
+      a.equipment.splice(ci, 1);
+      if (!side.discardPile) side.discardPile = [];
+      side.discardPile.push('erikxd_camara_confiable');
+      if (!side.structures) side.structures = [];
+      side.structures.push({ kind:'camaraProfesional', duration:3, ownerId:'erikxd' });
+      logCombat('📸 Setup: Cámara confiable → Cámara profesional (3 rondas)');
+    } else {
+      var maxEq = (typeof getMaxEquipment === 'function') ? getMaxEquipment(a) : 2;
+      if (a.equipment.length >= maxEq) {
+        logCombat('❌ ErikXD no tiene slot libre para la Cámara confiable');
+        return;
+      }
+      a.equipment.push('erikxd_camara_confiable');
+      a.states = a.states || {};
+      a.states.cameraUsos = 3;
+      logCombat('📷 Cámara confiable equipada (3 usos)');
+    }
+  },
+
+  erikxdUlt: function(ctx) {
+    var a = ctx.active, side = ctx.side;
+    side.characters.forEach(function(c){
+      if (c === a || c.dead) return;
+      addOrRefreshShield(c, 'erikxd_ult', 3);
+    });
+    logCombat('📸 Nostalgia-Bait: +3 escudo a aliados');
+    side.nostalgiaBaitActive = true;
+  },
+
 };
 
 /* ═══ Sage: contar y limpiar efectos (marcas NO cuentan) ═══ */
