@@ -32,7 +32,7 @@ var CHARACTERS = {
   oliver: { name:'Óliver', element:'comprension', set:'Refinamiento', category:'Usuarios', hp:10, emoji:'🧠', img:'img/oliver.png',
     concept:'Su función es servir como soporte ofensivo potenciando a sus aliados.',
     terms: [
-      { key:'portatil', name:'Portátil', definition:'Estructura de Óliver. Inflige 1 de daño al enemigo al final de la ronda, marcándolo con Comprensión. A partir de la segunda ronda de su duración, los ataques normales y habilidades elementales de los aliados reciben un aumento de daño. Volver a usar la habilidad elemental extiende su tiempo de vida.' }
+      { key:'portatil', name:'Portátil', definition:'Estructura de Óliver. Inflige 1 de daño al enemigo al final de la ronda, marcándolo con Comprensión. A partir de la segunda ronda de su duración, los ataques normales de los aliados reciben un aumento de daño. Volver a usar la habilidad elemental extiende su tiempo de vida.' },
     ],
     abilities: [
       { type:'normal', icon:'⚔️', name:'Corrección',
@@ -40,7 +40,7 @@ var CHARACTERS = {
         attributes: ['Coste: 1 dado de Comprensión + 1 dado cualquiera','Daño base: 1'] },
       { type:'elemental', icon:'🔮', name:'Optimización',
         description:'Coloca la estructura **Portátil**.',
-        attributes: ['Coste: 3 dados de Comprensión','Daño de la estructura: 1','Duración inicial de la estructura: 2 rondas','Aumento de daño de ataques normales y habilidades elementales: +2 (a partir de la 2ª ronda de la estructura)','Extensión de duración por cada uso: +1 ronda','Duración máxima de la estructura: 3 rondas'] },
+        attributes: ['Coste: 3 dados de Comprensión','Daño de la estructura: 1','Duración inicial de la estructura: 2 rondas','Aumento de daño de ataques normales: +2 (a partir de la 2ª ronda de la estructura)','Extensión de duración por cada uso: +1 ronda','Duración máxima de la estructura: 3 rondas'] },
       { type:'ultimate', icon:'💥', name:'Obra Maestra',
         description:'Las habilidades definitivas de los aliados duplican su daño base, siempre y cuando la estructura **Portátil** permanezca en el campo.',
         attributes: ['Coste: 4 dados de Comprensión + 2 puntos de energía','Duración del efecto: 2 rondas','Multiplicador del daño base de las habilidades definitivas: ×2','Activaciones por habilidad definitiva: 1'] },
