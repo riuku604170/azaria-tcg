@@ -243,10 +243,14 @@ function getOptimizationBonus(side) {
   for (var i = 0; i < side.structures.length; i++) {
     var st = side.structures[i];
     if (st.kind === 'optimizacion') {
-      // Portátil: buff a partir de la ronda 2 de vida de la estructura.
-      // Se considera que "ronda 2" es cuando su duración restante sea menor que la inicial (2).
-      // st.durationInicial = 2; si st.duration < 2 → ya ha pasado 1 ronda → activo.
-      if (st.duration <= 1) return 2;
+      // ✅ Bono desde la 2ª ronda de vida de la estructura.
+      // Usamos `roundsActive` (rondas transcurridas) para que extender la
+      // duración NO reinicie el bono. Saves antiguos sin `roundsActive` se
+      // deducen de `duration` (compatibilidad hacia atrás).
+      var roundsActive = (typeof st.roundsActive === 'number')
+        ? st.roundsActive
+        : Math.max(0, 2 - (st.duration || 2));
+      if (roundsActive >= 1) return 2;
       return 0;
     }
   }
