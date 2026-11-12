@@ -95,7 +95,7 @@ var ACTION_HANDLERS = {
     }
     dmg = applyGenericDamageMods(a, dmg, at === 'elemental');
     if (a.pendingBuff) ctx.pendingBuffConsumed = true;
-    if (at === 'normal' || at === 'elemental') { var ob = getOptimizationBonus(side); if (ob > 0) { dmg += ob; logCombat('🏛️ Optimización: +' + ob); } }
+    if (at === 'normal') { var ob = getOptimizationBonus(side); if (ob > 0) { dmg += ob; logCombat('🏛️ Optimización: +' + ob); } }
     if (a.id === 'erik') { var eb = applyErikPassive(a); if (eb > 0) { dmg += eb; logCombat('🩸 Inspiración: +' + eb); } }
     if (a.id === 'eevee' && csHasState(a, 'furia') && a.states.furiaTarget === ea.id && at === 'normal') { dmg += 1; logCombat('🔥 Furia: +1'); }
     applyDamageWithMods(ea, dmg, predictPiercing(a, ab), ek, es.activeIndex, a);
@@ -539,9 +539,20 @@ var ACTION_HANDLERS = {
     var side = ctx.side;
     if (!side.structures) side.structures = [];
     var existing = null;
-    for (var i = 0; i < side.structures.length; i++) { if (side.structures[i].kind === 'optimizacion') { existing = side.structures[i]; break; } }
-    if (existing) { existing.duration = Math.min(3, existing.duration + 1); logCombat('🏛️ Optimización extendida a ' + existing.duration + ' rondas'); }
-    else { side.structures.push({ kind:'optimizacion', duration:2, initialDuration:2 }); logCombat('🏛️ Optimización colocada (2 rondas)'); }
+    for (var i = 0; i < side.structures.length; i++) {
+      if (side.structures[i].kind === 'optimizacion') { existing = side.structures[i]; break; }
+    }
+    if (existing) {
+      // ✅ Extiende duración SIN tocar roundsActive
+      existing.duration = Math.min(3, existing.duration + 1);
+      if (typeof existing.roundsActive !== 'number') {
+        existing.roundsActive = Math.max(0, 2 - (existing.duration - 1)); // reconstruir si viene de un save viejo
+      }
+      logCombat('🏛️ Optimización extendida a ' + existing.duration + ' rondas');
+    } else {
+      side.structures.push({ kind:'optimizacion', duration:2, initialDuration:2, roundsActive:0 });
+      logCombat('🏛️ Optimización colocada (2 rondas)');
+    }
   },
 
   obraMaestra: function(ctx) {
