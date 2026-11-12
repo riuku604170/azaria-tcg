@@ -211,7 +211,7 @@ function showStructureTooltip(anchor, st) {
   if (!st) return;
   var html = '<div class="ht-header">🏛️ Estructura</div>';
   if (st.kind === 'optimizacion') {
-    html += '<div class="ht-name">🧠 Optimización</div><div class="ht-sub">' + st.duration + ' ronda(s) · de Óliver</div><div class="ht-effect">+2 daño a ataques normales y elementales de los aliados. Inflige 1 de daño al enemigo al final de la ronda y lo marca con comprensión.</div>';
+    html += '<div class="ht-name">🧠 Optimización</div><div class="ht-sub">' + st.duration + ' ronda(s) · de Óliver</div><div class="ht-effect">+2 daño a los ataques normales de los aliados (desde la 2ª ronda de la estructura). Inflige 1 de daño al enemigo al final de la ronda y lo marca con Comprensión.</div>';
   } else if (st.kind === 'cruzMadera') {
     html += '<div class="ht-name">✝️ Cruz de Madera</div><div class="ht-sub">Estructura de Orath</div><div class="ht-effect">Causa 1 punto de daño al enemigo activo al ser destruida. Al final de la ronda, si Orath está activa, marca al enemigo activo con redención y se destruye.</div>';
   } else if (st.kind === 'cruzSangre') {
