@@ -26,7 +26,12 @@ function renderHand() {
       if (card.oncePerRound && side.cardsUsedThisRound[cid]) disabled = true;
       else if (card.oncePerGame && side.cardsUsedThisGame[cid]) disabled = true;
     } else disabled = true;
-    var canPay = canAct && !disabled && canPayCardCost(adjustCardCostForPassives(card, side));
+    var canPay = canAct && !disabled && (
+      canPayCardCost(adjustCardCostForPassives(card, side)) ||
+      (card.category === 'equipo' && side.characters.some(function(c){
+        return !c.dead && c.id === 'opal' && canPayCardCost(adjustCardCostForPassives(card, side, c));
+      }))
+    );
     var meta = CARD_CATEGORY_META[card.category] || CARD_CATEGORY_META.evento;
     return '<div class="combat-card cat-' + card.category + (disabled ? ' disabled' : '') + (canPay ? ' ca-can-pay' : '') + '" data-card-id="' + cid + '" data-category="' + card.category + '" style="--dc: ' + card.color + '; --cat: ' + meta.color + '; position: relative;" title="' + meta.label + ' · ' + card.name + '">' +
       (canPay ? '<span style="position:absolute;top:2px;right:4px;color:#4ec26b;font-weight:900;font-size:0.75rem;text-shadow:0 0 6px rgba(78,194,107,0.8);">✓</span>' : '') +
