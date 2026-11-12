@@ -924,6 +924,44 @@ console.log('Azaria TCG — init completado');
   });
 })();
 
+/* ═══ Menú desplegable del nav ═══ */
+(function initNavMenu() {
+  var toggle = document.getElementById('navMenuToggle');
+  var actions = document.getElementById('navActions');
+  if (!toggle || !actions) return;
+
+  function openMenu() {
+    actions.classList.add('open');
+    toggle.setAttribute('aria-expanded', 'true');
+  }
+  function closeMenu() {
+    actions.classList.remove('open');
+    toggle.setAttribute('aria-expanded', 'false');
+  }
+
+  toggle.addEventListener('click', function(e) {
+    e.stopPropagation();
+    if (actions.classList.contains('open')) closeMenu();
+    else openMenu();
+  });
+
+  document.addEventListener('click', function(e) {
+    if (!actions.classList.contains('open')) return;
+    if (actions.contains(e.target)) return;
+    if (toggle.contains(e.target)) return;
+    closeMenu();
+  });
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && actions.classList.contains('open')) closeMenu();
+  });
+
+  // Cerrar al pulsar cualquier acción del menú
+  actions.querySelectorAll('.nav-action-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() { closeMenu(); });
+  });
+})();
+
 /* ═══ Diagnóstico de almacenamiento (aviso al usuario si el navegador bloquea localStorage) ═══ */
 (function storageHealthCheck(){
   var issues = [];
@@ -959,11 +997,8 @@ console.log('Azaria TCG — init completado');
   }
 })();
 
-var canvas = document.getElementById('stars'), ctx = canvas ? canvas.getContext('2d') : null;
-var stars = [], W, H;
-function resizeBg(){ if (!canvas) return; W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; stars = []; for (var i = 0; i < 160; i++) stars.push({ x:Math.random()*W, y:Math.random()*H, r:Math.random()*1.4+0.3, vx:(Math.random()-0.5)*0.12, vy:(Math.random()-0.5)*0.12, a:Math.random()*0.5+0.2 }); }
-function drawBg(){ if (!ctx) return; ctx.clearRect(0,0,W,H); for (var i = 0; i < stars.length; i++){ var s = stars[i]; s.x += s.vx; s.y += s.vy; if (s.x<0) s.x=W; if (s.x>W) s.x=0; if (s.y<0) s.y=H; if (s.y>H) s.y=0; ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2); ctx.fillStyle='rgba(240,220,180,'+s.a+')'; ctx.fill(); } for (var p=0;p<stars.length;p++) for (var q=p+1;q<stars.length;q++){ var dx=stars[p].x-stars[q].x, dy=stars[p].y-stars[q].y, d=Math.sqrt(dx*dx+dy*dy); if (d<120){ ctx.beginPath(); ctx.moveTo(stars[p].x,stars[p].y); ctx.lineTo(stars[q].x,stars[q].y); ctx.strokeStyle='rgba(240,200,96,'+((1-d/120)*0.12)+')'; ctx.lineWidth=0.5; ctx.stroke(); } } requestAnimationFrame(drawBg); }
-window.addEventListener('resize', resizeBg); resizeBg(); drawBg();
+// ✅ Fondo delegado al sistema de temas (js/25-themes.js)
+if (typeof restartBackground === 'function') restartBackground();
 
 var observer = new IntersectionObserver(function(entries){ entries.forEach(function(e, i){ if (e.isIntersecting) { setTimeout(function(){ e.target.classList.add('visible'); }, i * 60); observer.unobserve(e.target); } }); }, { threshold:0.1 });
 document.querySelectorAll('.reveal').forEach(function(el){ observer.observe(el); });
