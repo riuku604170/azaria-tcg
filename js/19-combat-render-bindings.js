@@ -99,6 +99,11 @@ function renderTeamCards(who) {
       if (cs.states.provocacion) badges.push('<span class="ccc-badge" data-status="provocacion" style="--bc: 255,80,120;">🎯 Provocación</span>');
       if (cs.states.paillettes) badges.push('<span class="ccc-badge" data-status="paillettes" style="--bc: 240,200,96;">✨ Paillettes</span>');
       if (cs.states.decidida > 0) badges.push('<span class="ccc-badge" data-status="decidida" data-value="' + cs.states.decidida + '" style="--bc: 200,45,60;">🐴 Decidida ' + cs.states.decidida + '/3</span>');
+      if (cs.states.drogada) badges.push('<span class="ccc-badge" data-status="drogada" style="--bc: 200,45,60;">🩸 Drogada</span>');
+      if (cs.states.doubleDown) badges.push('<span class="ccc-badge" data-status="doubleDown" style="--bc: 240,200,96;">🎲 Double Down</span>');
+      if (cs.states.prisionActiva) badges.push('<span class="ccc-badge" data-status="prisionEterea" style="--bc: 140,100,230;">🔮 Prisión</span>');
+      if (cs.states.capaReal) badges.push('<span class="ccc-badge" data-status="capaReal" style="--bc: 255,215,100;">🤝 Capa real</span>');
+      if (cs.states.cameraUsos > 0 && cs.equipment && cs.equipment.indexOf('erikxd_camara_confiable') >= 0) badges.push('<span class="ccc-badge" style="--bc: 200,45,60;">📷 ' + cs.states.cameraUsos + ' usos</span>');
     }
     if (cs.manuelStacks > 0) badges.push('<span class="ccc-badge" data-status="manuelStacks" data-value="' + cs.manuelStacks + '" style="--bc: 200,150,60;">📈 +' + cs.manuelStacks + '</span>');
     // ✅ YouTube
@@ -128,7 +133,8 @@ function renderTeamCards(who) {
       badges.push('<span class="ccc-badge alter-buff" title="Tu definitiva Omnes Deam Salutate está activa">💥 Buff activo (' + side.alterUltBuff.roundsLeft + ')</span>');
     }
     html += '<div class="ccc-equip-row">';
-    for (var ei = 0; ei < 2; ei++) { var eqId = cs.equipment[ei]; if (eqId && CARD_DB[eqId]) html += '<div class="ccc-equip-slot filled" title="' + CARD_DB[eqId].name + '">' + CARD_DB[eqId].emoji + '</div>'; else html += '<div class="ccc-equip-slot"></div>'; }
+    var _maxEq = (typeof getMaxEquipment === 'function') ? getMaxEquipment(cs) : 2;
+    for (var ei = 0; ei < _maxEq; ei++) { var eqId = cs.equipment[ei]; if (eqId && CARD_DB[eqId]) html += '<div class="ccc-equip-slot filled" title="' + CARD_DB[eqId].name + '">' + CARD_DB[eqId].emoji + '</div>'; else html += '<div class="ccc-equip-slot"></div>'; }
     if (cs.paintEquipped && PAINT_CARDS['paint_' + cs.paintEquipped]) html += '<div class="ccc-equip-slot filled" title="Pintura ' + cs.paintEquipped + '">' + PAINT_CARDS['paint_' + cs.paintEquipped].emoji + '</div>';
     html += '</div></div>';
     return html;
@@ -154,16 +160,18 @@ function renderSupports(uiWho) {
   var actualWho = uiWho;
   var gridId = uiWho === 'player' ? 'playerSupportsGrid' : 'botSupportsGrid';
   var grid = document.getElementById(gridId); if (!grid || !combatState) return;
-  var side = combatState[actualWho]; if (!side.supports) side.supports = [null,null,null,null];
+  var side = combatState[actualWho]; if (!side.supports) side.supports = [null,null,null,null,null];
+  var _maxSup = (typeof getMaxSupports === 'function') ? getMaxSupports(actualWho) : 4;
   var html = '';
-  for (var i = 0; i < 4; i++) { var sp = side.supports[i]; if (sp && CARD_DB[sp.cardId]) { var card = CARD_DB[sp.cardId]; html += '<div class="side-slot-filled" data-slot="' + i + '" style="--dc: ' + card.color + ';">' + card.emoji + '<span class="side-slot-duration">' + sp.duration + '</span></div>'; } else html += '<div class="side-slot-empty">+</div>'; }
+  for (var i = 0; i < _maxSup; i++) { var sp = side.supports[i]; if (sp && CARD_DB[sp.cardId]) { var card = CARD_DB[sp.cardId]; html += '<div class="side-slot-filled" data-slot="' + i + '" style="--dc: ' + card.color + ';">' + card.emoji + '<span class="side-slot-duration">' + sp.duration + '</span></div>'; } else html += '<div class="side-slot-empty">+</div>'; }
   grid.innerHTML = html;
   grid.querySelectorAll('.side-slot-filled').forEach(function(el){ el.addEventListener('mouseenter', function(){ var i = parseInt(el.dataset.slot, 10); var sp = side.supports[i]; if (!sp) return; showSupportTooltip(el, sp); }); el.addEventListener('mouseleave', hideTooltip); });
   var structId = uiWho === 'player' ? 'playerStructuresGrid' : 'botStructuresGrid';
   var sg = document.getElementById(structId);
   if (sg) {
   var structs = side.structures || []; var sHtml = '';
-  for (var si = 0; si < 4; si++) {
+  var _maxStr = (typeof getMaxStructures === 'function') ? getMaxStructures(actualWho) : 4;
+  for (var si = 0; si < _maxStr; si++) {
     var st = structs[si];
     if (st) {
       // ✅ Sin duración si es 999 (estructuras permanentes tipo Cruz de Madera/Sangre)
@@ -235,10 +243,18 @@ function updateCombatActions() {
   if (uB) { uB.disabled = !isTurn || !uOk; uB.classList.toggle('ca-can-pay', isTurn && uOk && uD); }
   if (enB) enB.disabled = !isTurn;
   var nn = document.getElementById('normalName'); if (nn) nn.textContent = '⚔️ ' + char.abilities.normal.name;
-  var nc = document.getElementById('normalCost'); if (nc) nc.textContent = formatCost(eN);
+  var nc = document.getElementById('normalCost'); if (nc) nc.textContent = formatCost(eN, active.cardNextAbilityFree ? 0 : char.abilities.normal.energyCost);
   var en = document.getElementById('elementalName'); if (en) en.textContent = '🔮 ' + char.abilities.elemental.name;
   var ec = document.getElementById('elementalCost'); if (ec) ec.textContent = formatCost(eE);
-  var un = document.getElementById('ultName'); if (un) un.textContent = '💥 ' + char.abilities.ultimate.name;
+  var un = document.getElementById('ultName');
+  if (un) {
+    var _ultDisplayName = char.abilities.ultimate.name;
+    // ✅ Eve: si tiene Prisión etérea, la ulti se muestra como "Cadáveres como hojas de otoño"
+    if (char.id === 'eve' && side.structures && side.structures.some(function(s){ return s.kind === 'prisionEterea'; })) {
+      _ultDisplayName = 'Cadáveres como hojas de otoño';
+    }
+    un.textContent = '💥 ' + _ultDisplayName;
+  }
   var uc = document.getElementById('ultCost'); if (uc) uc.textContent = formatCost(eU, active.cardNextAbilityFree ? 0 : char.abilities.ultimate.energyCost);
 
   // ── Botón EX (pasiva permanente) ──
