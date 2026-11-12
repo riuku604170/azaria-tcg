@@ -119,3 +119,27 @@ var PLUSH_CARDS = {
   plush_katze: { id:'plush_katze', category:'plush', name:'Plüschkatze', emoji:'🐱', color:'130,220,140', cost:{}, autoTrigger:true,
     effectText:'Al robarla: cura 1 HP a todo el equipo del que la robó.' }
 };
+
+var OPAL_GEAR = {
+  opal_auriculares: { id:'opal_auriculares', category:'equipo', name:'Auriculares blancos', tag:'Armadura', emoji:'🎧', color:'140,180,230', cost:{expresion:2, any:1},
+    effectText:'Usos: 1. El siguiente ataque rival tiene una reducción de daño de 2 puntos. Se consume tras usarse.', effect:{damageReduction:2}, _opalGear:true, _uses:1 },
+  opal_mochila: { id:'opal_mochila', category:'equipo', name:'Mochila conveniente', tag:'Accesorio', emoji:'🎒', color:'255,215,100', cost:{expresion:2, any:1},
+    effectText:'Usos: 1. Al final de la ronda genera 1 carta. Se consume tras usarse.', effect:{drawPerRound:1}, _opalGear:true, _uses:1 },
+  opal_lapiz: { id:'opal_lapiz', category:'equipo', name:'Lápiz de bocetos', tag:'Arma', emoji:'✏️', color:'200,45,60', cost:{expresion:2, any:1},
+    effectText:'Usos: 1. Al inicio de la siguiente ronda aumenta en 1 el daño base del ataque normal. Se consume tras usarse.', effect:{nextNormalBonus:1}, _opalGear:true, _uses:1 }
+};
+Object.assign(CARD_DB, OPAL_GEAR);
+
+var ERIKXD_GEAR = {
+  erikxd_camara_confiable: { id:'erikxd_camara_confiable', category:'equipo', name:'Cámara confiable', tag:'Arma', emoji:'📷', color:'200,45,60', cost:null,
+    effectText:'3 usos. Al final de ronda en reserva: 1 daño al enemigo. Al usar la normal: marca con Protección. Se destruye al agotar usos.', _erikxdGear:true }
+};
+Object.assign(CARD_DB, ERIKXD_GEAR);
+
+var DAVID_GEAR = {
+  david_espada: { id:'david_espada', category:'equipo', name:'Espada Dorada', tag:'Armadura', emoji:'⚔️', color:'255,215,100', cost:{redencion:4},
+    effectText:'No desequipable. Aumenta en 1 el daño si David está en el equipo.', _davidGear:true, _noUnequip:true },
+  david_corona: { id:'david_corona', category:'equipo', name:'Corona Dorada', tag:'Armadura', emoji:'👑', color:'255,215,100', cost:{redencion:4},
+    effectText:'No desequipable. Causa 1 daño al portador al final de la ronda si David no está en el equipo. Reduce en 1 el daño que recibe el portador si David está en el equipo.', _davidGear:true, _noUnequip:true }
+};
+Object.assign(CARD_DB, DAVID_GEAR);
