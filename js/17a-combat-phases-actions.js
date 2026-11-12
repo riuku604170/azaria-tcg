@@ -452,8 +452,12 @@ function applyStructureEndOfRoundEffects(who) {
         logCombat('🏛️ Optimización: 1 daño y marca comprensión');
         _flashStruct(i, '−1 HP', '#ff8a98');
       }
+      st.roundsActive = (typeof st.roundsActive === 'number' ? st.roundsActive : Math.max(0, 2 - st.duration)) + 1;
       st.duration--;
-      if (st.duration <= 0) { logCombat('🏛️ Optimización se desvanece'); side.structures.splice(i, 1); }
+      if (st.duration <= 0) {
+        logCombat('🏛️ Optimización se desvanece');
+        side.structures.splice(i, 1);
+      }
     }
 
     if (st.kind === 'android') {
@@ -1347,7 +1351,7 @@ function botEstimateEffectiveDamage(active, ability, actionType) {
   est += eq.bonus;
   if (eq.piercing) piercing = true;
   est += getSupportAttackBonus(combatState.bot);
-  if (actionType === 'normal' || actionType === 'elemental') est += getOptimizationBonus(combatState.bot);
+  if (actionType === 'normal') est += getOptimizationBonus(combatState.bot);
   if (active.id === 'erik') est += applyErikPassive(active);
   if (actionType === 'ultimate') est = applyObraMaestraToBase(active, ability, actionType, est);
   est = Math.max(0, est - getDamageReduction(enemyActive, combatState.player));
@@ -2723,7 +2727,7 @@ function previewPlayerAction(actionType) {
       preview.cardBonus = gb.cardBonus;
       preview.equipDmg = gb.equipBonus;
       preview.supportDmg = getSupportAttackBonus(side);
-      if (actionType === 'normal' || actionType === 'elemental') preview.optimizationDmg = getOptimizationBonus(side);
+      if (actionType === 'normal') preview.optimizationDmg = getOptimizationBonus(side);
       if (active.id === 'erik') preview.erikBonus = applyErikPassive(active);
       if (active.id === 'eevee' && csHasState(active, 'furia') && active.states.furiaTarget === target.id && actionType === 'normal') preview.notes.push('🔥 Furia: +1');
       var consR = side.consonance;
@@ -2918,7 +2922,14 @@ function previewPlayerAction(actionType) {
   }
   if (ability.kind === 'decadencia') preview.notes.push('📈 +1 stack (Degradación: +1 daño, -1 coste)');
 
-  if (ability.kind === 'optimizacion') preview.notes.push('🏛️ Coloca estructura (2 rondas): +2 daño aliados, 1 daño final de ronda + marca comprensión');
+  if (ability.kind === 'optimizacion') {
+    var hasOptim = side.structures && side.structures.some(function(st){ return st.kind === 'optimizacion'; });
+    if (hasOptim) {
+      preview.notes.push('🏛️ Extiende la estructura +1 ronda (máx 3) · +2 daño a ataques normales (mantiene bono si ya estaba activa)');
+    } else {
+      preview.notes.push('🏛️ Coloca estructura (2 rondas): +2 daño a ataques normales desde su 2ª ronda · 1 daño final de ronda + marca Comprensión');
+    }
+  }
   if (ability.kind === 'obraMaestra') {
     var hasOpt = side.structures && side.structures.some(function(st){ return st.kind === 'optimizacion'; });
     if (hasOpt) preview.notes.push('💥 Definitivas x2 daño (2 rondas)');
