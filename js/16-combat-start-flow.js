@@ -922,11 +922,21 @@ function startCombat() {
   if (pendingPvpMode) { startPvpLocalCombat(); return; }
   var pids = getPlayerTeamIds(), bids = getRandomBotTeam();
   if (!pids) {
-    if (currentCombatSlot !== null) clearCombatSlot(currentCombatSlot);  // ✅ NUEVO
+    if (currentCombatSlot !== null) clearCombatSlot(currentCombatSlot);
     if (currentGameMode === 'sandbox') {
-      // En Sandbox no cerramos: dejamos que el panel permita montar el combate a mano.
       console.warn('[Sandbox] Sin equipo válido para arrancar el combate.');
       return;
+    }
+    // ✅ Diagnóstico: muestra por qué falla en vez de cerrar silenciosamente
+    var _src = (pendingCombatTeam && pendingCombatTeam.length === 3) ? pendingCombatTeam : team;
+    console.error('[startCombat] Equipo inválido:', {
+      pendingCombatTeam: pendingCombatTeam,
+      team: team,
+      valid: _src.filter(function(id){ return COMBAT_CHARS[id] && id !== 'hunger'; }),
+      invalid: _src.filter(function(id){ return !COMBAT_CHARS[id] || id === 'hunger'; })
+    });
+    if (typeof showTeamMissingToast === 'function') {
+      showTeamMissingToast('⚠️ Tu equipo tiene personajes inválidos. Ve a la colección y vuelve a seleccionar tu equipo.');
     }
     closeCombat();
     return;
@@ -950,6 +960,11 @@ function startCombat() {
   var useDeck = (pendingCombatDeck && pendingCombatDeck.length === 30) ? pendingCombatDeck : deck;
   combatState.player.deck = shuffleArray(useDeck.slice());
   combatState.bot.deck = shuffleArray(getSmartBotDeck(bids));   // ✅ AÑADIR: mazo del bot
+  // ✅ EX David: inyectar Espada y Corona al mazo del jugador
+  (function(){
+    var dx = combatState.player.characters.find(function(c){ return c.id === 'david' && c.exActive; });
+    if (dx) { combatState.player.deck.push('david_espada', 'david_corona'); logCombat('🌟 EX David: Espada y Corona añadidas al mazo'); }
+  })();
   combatState.player.hand = []; combatState.player.discardPile = [];
   combatState.player.cardsUsedThisRound = {}; combatState.player.cardsUsedThisGame = {}; combatState.player.drawSelection = {};
   combatState.bot.hand = []; combatState.bot.discardPile = [];
