@@ -271,6 +271,11 @@ function buildSideState(ids, exCharId) {
         neonUltChangeDamage: false
       };
       if (actualId === 'exmaria') applyExmariaEnergyWrapper(cs);
+      if (actualId === 'david') {
+        cs.equipment = ['david_espada'];
+        cs.states = cs.states || {};
+        cs.states.davidBuff = 0;
+      }
       return cs;
     }),
     activeIndex: 0,
@@ -285,7 +290,7 @@ function buildSideState(ids, exCharId) {
     deck: [],
     hand: [],
     discardPile: [],
-    supports: [null, null, null, null],
+    supports: [null, null, null, null, null],
     structures: [],
     initialDrawThisRound: [],
     mulliganUsed: false,
@@ -379,4 +384,19 @@ function botSmartMulligan() {
 
   var word = (toSwap.length === 1) ? 'carta cambiada' : 'cartas cambiadas';
   logCombat('🤖 El rival ajusta su mano inicial (' + toSwap.length + ' ' + word + ')');
+}
+
+function getMaxEquipment(cs) {
+  if (!cs) return 2;
+  return (cs.id === 'opal') ? 3 : 2;
+}
+function getMaxSupports(sideKey) {
+  if (!combatState) return 4;
+  var side = combatState[sideKey];
+  if (!side) return 4;
+  var ex = side.characters.find(function(c){ return c.id === 'erikxd' && c.exActive && !c.dead; });
+  return ex ? 5 : 4;
+}
+function getMaxStructures(sideKey) {
+  return getMaxSupports(sideKey);
 }
