@@ -15,22 +15,190 @@ function getPlayerTeamIds() {
   }
   return null;
 }
-function getRandomBotTeam() {
+/* ═══════════════════════════════════════════════════════════════════
+   BOT BUILDER — Equipo y mazo por puntuación ponderada
+   ═══════════════════════════════════════════════════════════════════ */
+
+function _botPickWeighted(candidates) {
+  if (!candidates || !candidates.length) return null;
+  var total = 0;
+  candidates.forEach(function(c){ total += Math.max(0.1, c.score); });
+  if (total <= 0) return candidates[Math.floor(Math.random() * candidates.length)].item;
+  var r = Math.random() * total;
+  for (var i = 0; i < candidates.length; i++) {
+    r -= Math.max(0.1, candidates[i].score);
+    if (r <= 0) return candidates[i].item;
+  }
+  return candidates[candidates.length - 1].item;
+}
+
+function _botScoreCharacterForTeam(candidateId, currentTeamIds) {
+  var cand = COMBAT_CHARS[candidateId];
+  var candData = CHARACTERS[candidateId];
+  if (!cand || !candData) return 0;
+  if (currentTeamIds.indexOf(candidateId) !== -1) return 0;
+
+  var score = 10;
+  var candEl = cand.element;
+  var elCounts = {};
+  currentTeamIds.forEach(function(id){
+    var ch = COMBAT_CHARS[id];
+    if (ch) elCounts[ch.element] = (elCounts[ch.element] || 0) + 1;
+  });
+  var sameCount = elCounts[candEl] || 0;
+
+  // Consonancia
+  if (currentTeamIds.length === 1) {
+    if (sameCount === 1) score += 35;
+    else score += 10;
+  } else if (currentTeamIds.length === 2) {
+    if (sameCount === 2) score += 55;
+    else if (sameCount === 1) score += 20;
+    else {
+      var a = COMBAT_CHARS[currentTeamIds[0]];
+      var b = COMBAT_CHARS[currentTeamIds[1]];
+      if (a && b && a.element !== b.element && candEl !== a.element && candEl !== b.element) {
+        score += 40;
+      }
+    }
+  }
+
+  // Resonancias desbloqueadas
+  currentTeamIds.forEach(function(id){
+    var ch = COMBAT_CHARS[id];
+    if (!ch) return;
+    var found = RESONANCES.find(function(r){ 
+      return (r.a === ch.element && r.b === candEl) || (r.a === candEl && r.b === ch.element);
+    });
+    if (found) score += 8;
+  });
+
+  // HP (prioriza algo con aguante)
+  score += cand.hp * 0.6;
+
+  // Variedad de categoría
+  var sameCatCount = currentTeamIds.filter(function(id){
+    return CHARACTERS[id] && CHARACTERS[id].category === candData.category;
+  }).length;
+  if (sameCatCount === 0) score += 5;
+
+  return score;
+}
+
+function _botScoreCardForTeam(cardId, teamIds) {
+  var card = CARD_DB[cardId] || PAINT_CARDS[cardId];
+  if (!card) return 0;
+  var score = 5;
+
+  var teamElements = teamIds.map(function(id){
+    var ch = COMBAT_CHARS[id];
+    return ch ? ch.element : null;
+  }).filter(Boolean);
+
+  // Match de coste
+  if (card.cost) {
+    Object.keys(card.cost).forEach(function(k){
+      if (k === 'any' || k === 'same') return;
+      var matches = teamElements.filter(function(te){ return te === k; }).length;
+      score += matches * 4;
+    });
+    if (card.cost.same) score += 3;
+  }
+
+  // Sinergias por personaje
+  if (teamIds.indexOf('erik') !== -1 && cardId.indexOf('paint_') === 0) score += 50;
+  if (teamIds.indexOf('noah') !== -1 && card.tag === 'Curación') score += 15;
+  if (teamIds.indexOf('maria') !== -1 && card.tag === 'Curación') score += 10;
+  if (teamIds.indexOf('eloy') !== -1 && (card.tag === 'Defensa' || card.tag === 'Dados')) score += 8;
+  if (teamIds.indexOf('adela') !== -1 && cardId === 'c_cafe_solo') score += 25;
+  if (teamIds.indexOf('oliver') !== -1 && card.category === 'equipo') score += 8;
+  if (teamIds.indexOf('tenshi') !== -1 && card.tag === 'Defensa') score += 6;
+  if (teamIds.indexOf('alaya') !== -1 && (card.tag === 'Curación' || card.effectType === 'heal')) score += 6;
+
+  // Etiqueta
+  if (card.tag === 'Ataque') score += 3;
+  if (card.tag === 'Potente') score += 5;
+  if (card.tag === 'Curación') score += 2;
+  if (card.tag === 'Defensa') score += 2;
+
+  // Sin coste = utilidad general
+  if (!card.cost || Object.keys(card.cost).length === 0) score += 4;
+
+  return score;
+}
+
+function getSmartBotTeam() {
   var pool = Object.keys(COMBAT_CHARS).filter(function(id){
     if (id === 'hunger' || id === 'exmaria') return false;
     if (typeof isUnlocked === 'function' && !isUnlocked(id)) return false;
+    if (CHARACTERS[id] && CHARACTERS[id].comingSoon) return false;
     return true;
   });
-  // Fallback al pool completo si el jugador no tiene 3 personajes desbloqueados
-  // (si no, el bot no tendría equipo y el combate no arrancaría)
   if (pool.length < 3) {
-    pool = Object.keys(COMBAT_CHARS).filter(function(id){ return id !== 'hunger' && id !== 'exmaria'; });
+    pool = Object.keys(COMBAT_CHARS).filter(function(id){
+      return id !== 'hunger' && id !== 'exmaria';
+    });
   }
-  for (var i = pool.length - 1; i > 0; i--) {
-    var j = Math.floor(Math.random() * (i + 1));
-    var t = pool[i]; pool[i] = pool[j]; pool[j] = t;
+  if (pool.length < 3) return pool.slice();
+
+  // Pick 1 — cualquiera (aleatorio)
+  var first = pool[Math.floor(Math.random() * pool.length)];
+  var team = [first];
+
+  // Pick 2 — ponderado por puntuación con el 1º
+  var c2 = pool.filter(function(id){ return id !== first; }).map(function(id){
+    return { item: id, score: _botScoreCharacterForTeam(id, team) };
+  });
+  team.push(_botPickWeighted(c2));
+
+  // Pick 3 — ponderado por puntuación con el 1º y 2º
+  var c3 = pool.filter(function(id){ return team.indexOf(id) === -1; }).map(function(id){
+    return { item: id, score: _botScoreCharacterForTeam(id, team) };
+  });
+  team.push(_botPickWeighted(c3));
+
+  return team;
+}
+
+function getSmartBotDeck(teamIds) {
+  teamIds = teamIds || [];
+  var pool = CARD_ORDER.filter(function(id){
+    return (typeof isUnlocked !== 'function' || isUnlocked(id));
+  });
+  var scored = pool.map(function(id){
+    return { item: id, score: _botScoreCardForTeam(id, teamIds) };
+  });
+  var deck = [];
+  var copyCount = {};
+  var safety = 0;
+
+  while (deck.length < 30 && safety < 500) {
+    var available = scored.filter(function(s){ return (copyCount[s.item] || 0) < 2; });
+    if (!available.length) break;
+    var picked = _botPickWeighted(available);
+    if (!picked) break;
+    deck.push(picked);
+    copyCount[picked] = (copyCount[picked] || 0) + 1;
+    safety++;
   }
-  return pool.slice(0, 3);
+
+  // Safety: rellenar hasta 30
+  safety = 0;
+  while (deck.length < 30 && safety < 500) {
+    var id = CARD_ORDER[Math.floor(Math.random() * CARD_ORDER.length)];
+    if ((copyCount[id] || 0) < 2) {
+      deck.push(id);
+      copyCount[id] = (copyCount[id] || 0) + 1;
+    }
+    safety++;
+  }
+
+  return deck;
+}
+
+/* ✅ Alias retro-compatible: los flujos que llamaban a getRandomBotTeam ahora usan el smart builder */
+function getRandomBotTeam() {
+  return getSmartBotTeam();
 }
 function getMaxEnergyFor(char){ if (char.abilities.ultimate && char.abilities.ultimate.energyCost) return char.abilities.ultimate.energyCost; return 3; }
 
@@ -136,3 +304,79 @@ function buildSideState(ids, exCharId) {
   };
 }
 function preloadCombatImages(){ Object.keys(COMBAT_CHARS).forEach(function(id){ var img = new Image(); img.src = 'img/' + id + '.png'; }); }
+
+/* ═══════════════════════════════════════════════════════════════════
+   BOT MULLIGAN — cambios inteligentes en mano inicial
+   ═══════════════════════════════════════════════════════════════════ */
+
+function _botMulliganScore(cid, teamIds) {
+  var s = _botScoreCardForTeam(cid, teamIds);
+  var card = CARD_DB[cid] || PAINT_CARDS[cid];
+  if (!card) return s;
+
+  // ✅ Penalizar costes de elementos que el equipo NO tiene.
+  //    Una carta {ilusion:2} en un equipo sin Ilusión es casi injugable.
+  if (card.cost) {
+    var teamEls = teamIds.map(function(id){
+      return COMBAT_CHARS[id] ? COMBAT_CHARS[id].element : null;
+    }).filter(Boolean);
+    Object.keys(card.cost).forEach(function(k){
+      if (k === 'any' || k === 'same') return;
+      if (teamEls.indexOf(k) === -1) s -= 4;
+    });
+  }
+
+  // ✅ Premiar utilidad universal (van bien en cualquier mazo)
+  if (card.tag === 'Energía') s += 3;
+  if (card.tag === 'Dados') s += 2;
+  if (card.tag === 'Utilidad') s += 2;
+
+  return s;
+}
+
+function botSmartMulligan() {
+  if (!combatState || !combatState.bot) return;
+  var bot = combatState.bot;
+  if (bot.mulliganUsed) return;
+  if (combatState.round !== 1) return;
+  if (combatState.pvp) return;
+  if (combatState.mode === 'sandbox') return;
+
+  var teamIds = bot.characters.map(function(c){ return c.id; });
+  var scored = bot.hand.map(function(cid){
+    return { cid: cid, score: _botMulliganScore(cid, teamIds) };
+  });
+  scored.sort(function(a, b){ return a.score - b.score; });
+
+  var diff = (typeof BOT_DIFFICULTY !== 'undefined') ? BOT_DIFFICULTY : 'normal';
+  var thresholds = { easy: 3, normal: 6, hard: 8, nightmare: 10 };
+  var maxSwaps   = { easy: 1, normal: 2, hard: 3, nightmare: 4 };
+  var thr = thresholds[diff] || 6;
+  var mx  = maxSwaps[diff]   || 2;
+
+  var toSwap = [];
+  for (var i = 0; i < scored.length && toSwap.length < mx; i++) {
+    if (scored[i].score < thr) toSwap.push(scored[i].cid);
+  }
+
+  bot.mulliganUsed = true;
+
+  if (toSwap.length === 0) {
+    logCombat('🤖 El rival mantiene su mano inicial');
+    return;
+  }
+
+  // Devolver al mazo, barajar, robar
+  toSwap.forEach(function(cid){
+    var idx = bot.hand.indexOf(cid);
+    if (idx >= 0) {
+      bot.hand.splice(idx, 1);
+      bot.deck.push(cid);
+    }
+  });
+  bot.deck = shuffleArray(bot.deck);
+  for (var i = 0; i < toSwap.length; i++) drawFromDeck('bot');
+
+  var word = (toSwap.length === 1) ? 'carta cambiada' : 'cartas cambiadas';
+  logCombat('🤖 El rival ajusta su mano inicial (' + toSwap.length + ' ' + word + ')');
+}
