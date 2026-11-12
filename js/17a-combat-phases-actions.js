@@ -598,6 +598,7 @@ function beginRoundPlay() {
         if (drawFromDeck('bot')) _botDrawn++;
       }
       if (_botDrawn > 0) logCombat('🎴 El rival roba ' + _botDrawn + ' carta(s)');
+      if (combatState.round === 1) botSmartMulligan();   // ✅ NUEVO
     }
 
     applySupportRoundStartEffects('player'); applySupportRoundStartEffects('bot');
@@ -1534,7 +1535,10 @@ function botScoreAbility(actionType, active, enemyActive) {
   // Daño estimado
   var dmgInfo = botEstimateEffectiveDamage(active, ability, actionType);
   score += dmgInfo.damage * 2.2 * personality.offense;
-  if (dmgInfo.kill) score += 30;   // matar es prioritario
+  if (dmgInfo.kill) {
+    var _kP = (typeof getBotDifficultyInfo === 'function') ? getBotDifficultyInfo().killPriority : 30;
+    score += _kP;
+  }
 
   // Curación
   var heal = predictHeal(ability, active);
@@ -1774,11 +1778,7 @@ function botChooseBestCard() {
   if (!candidates.length) return null;
   candidates.sort(function(a,b){ return b.score - a.score; });
   // Elige entre las 2 mejores con probabilidad ponderada (no siempre la misma)
-  var top = candidates.slice(0, Math.min(2, candidates.length));
-  var total = top.reduce(function(a,c){ return a + c.score; }, 0);
-  var roll = Math.random() * total;
-  for (var i = 0; i < top.length; i++) { roll -= top[i].score; if (roll <= 0) return top[i]; }
-  return top[0];
+  return botPickBestWeighted(candidates);
 }
 
 function botChooseAction() {
@@ -1841,12 +1841,8 @@ function botChooseAction() {
     return { type: 'end' };
   }
 
-  candidates.sort(function(a,b){ return b.score - a.score; });
-  var top = candidates.slice(0, Math.min(2, candidates.length));
-  var total = top.reduce(function(a,c){ return a + Math.max(0.1, c.score); }, 0);
-  var roll = Math.random() * total;
-  for (var j = 0; j < top.length; j++) { roll -= Math.max(0.1, top[j].score); if (roll <= 0) return top[j].action; }
-  return top[0].action;
+  var chosen = botPickBestWeighted(candidates);
+  return chosen ? chosen.action : { type: 'end' };
 }
 
 /* ─── Ejecución de cartas del bot ─── */
@@ -1992,7 +1988,8 @@ function botTurn(skipThink) {
   updateBotMood();
   showBotThinkBubble('🤔 Pensando<span class="bt-dots"></span>');
 
-  var thinkTime = skipThink ? 300 : (BOT_THINK_MIN_MS + Math.random() * (BOT_THINK_MAX_MS - BOT_THINK_MIN_MS));
+  var _thinkMult = (typeof getBotDifficultyInfo === 'function') ? getBotDifficultyInfo().thinkMultiplier : 1;
+  var thinkTime = skipThink ? 300 : (BOT_THINK_MIN_MS + Math.random() * (BOT_THINK_MAX_MS - BOT_THINK_MIN_MS)) * _thinkMult;
 
   setTimeout(function() {
     if (!canBotAct()) { clearBotThinkBubble(); _botBailSafety(); return; }
@@ -2004,6 +2001,47 @@ function botTurn(skipThink) {
       }, 200);
     });
   }, thinkTime);
+}
+
+/* ═══ Selección ponderada por dificultad ═══ */
+function botPickBestWeighted(candidates) {
+  if (!candidates || !candidates.length) return null;
+  candidates.sort(function(a, b){ return b.score - a.score; });
+  var diff = (typeof BOT_DIFFICULTY !== 'undefined') ? BOT_DIFFICULTY : 'normal';
+
+  if (diff === 'nightmare') return candidates[0];
+
+  if (diff === 'hard') {
+    var topH = candidates.slice(0, Math.min(2, candidates.length));
+    var totalH = topH.reduce(function(a,c){ return a + Math.max(0.1, c.score * c.score); }, 0);
+    var rollH = Math.random() * totalH;
+    for (var i = 0; i < topH.length; i++) {
+      rollH -= Math.max(0.1, topH[i].score * topH[i].score);
+      if (rollH <= 0) return topH[i];
+    }
+    return topH[0];
+  }
+
+  if (diff === 'easy') {
+    var topE = candidates.slice(0, Math.min(3, candidates.length));
+    var totalE = topE.reduce(function(a,c){ return a + Math.max(0.5, Math.sqrt(Math.max(0, c.score))); }, 0);
+    var rollE = Math.random() * totalE;
+    for (var j = 0; j < topE.length; j++) {
+      rollE -= Math.max(0.5, Math.sqrt(Math.max(0, topE[j].score)));
+      if (rollE <= 0) return topE[j];
+    }
+    return topE[0];
+  }
+
+  // normal
+  var top = candidates.slice(0, Math.min(2, candidates.length));
+  var total = top.reduce(function(a,c){ return a + Math.max(0.1, c.score); }, 0);
+  var roll = Math.random() * total;
+  for (var k = 0; k < top.length; k++) {
+    roll -= Math.max(0.1, top[k].score);
+    if (roll <= 0) return top[k];
+  }
+  return top[0];
 }
 
 function _botPlayCardsSequence(played, callback) {
