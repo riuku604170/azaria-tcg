@@ -20,6 +20,7 @@
 <link rel="stylesheet" href="css/14-shop.css">
 <link rel="stylesheet" href="css/15-help.css">
 <link rel="stylesheet" href="css/16-combat-stats.css">
+<link rel="stylesheet" href="css/17-themes.css">
 <link rel="stylesheet" href="css/99-responsive.css">
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 </head>
@@ -29,8 +30,9 @@
 
 <nav>
   <div class="nav-brand">
+    <button class="nav-menu-toggle" id="navMenuToggle" aria-label="Abrir menú de acciones" aria-expanded="false">≡</button>
     <a href="#" class="logo" id="logoHome" title="Volver al inicio">AZARIA</a>
-    <div class="nav-actions">
+    <div class="nav-actions" id="navActions">
       <a href="#" id="shopNavBtn" class="nav-action-btn" title="Abrir tienda">
         <span class="nav-action-icon">🛒</span>
         <span class="nav-action-label">Tienda</span>
@@ -39,6 +41,10 @@
         <span class="nav-action-icon">📢</span>
         <span class="nav-action-label">Avisos</span>
         <span class="patches-new-badge" id="patchesNewBadge" hidden aria-label="Nuevo aviso disponible">!</span>
+      </a>
+      <a href="#" id="settingsNavBtn" class="nav-action-btn" title="Ajustes">
+        <span class="nav-action-icon">⚙️</span>
+        <span class="nav-action-label">Ajustes</span>
       </a>
       <a href="#" id="helpNavBtn" class="nav-action-btn" title="Ayuda y guía">
         <span class="nav-action-icon">📚</span>
@@ -994,6 +1000,23 @@
   </div>
 </div>
 
+<!-- ═══ Modal de Ajustes ═══ -->
+<div class="settings-modal" id="settingsModal">
+  <div class="settings-backdrop" id="settingsBackdrop"></div>
+  <div class="settings-content">
+    <div class="settings-header">
+      <div class="settings-title">⚙️ Ajustes</div>
+      <button class="settings-close" id="settingsCloseBtn" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="settings-tabs" id="settingsTabs">
+      <button class="settings-tab active" data-settings-tab="apariencia">🎨 Apariencia</button>
+    </div>
+    <div class="settings-body">
+      <div class="settings-panel active" id="settingsPanelApariencia"></div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ Modal de Ayuda ═══ -->
 <div class="help-modal" id="helpModal">
   <div class="help-backdrop" id="helpBackdrop"></div>
@@ -1094,6 +1117,7 @@
 <script src="js/22-help.js" defer></script>
 <script src="js/23-combat-stats.js" defer></script>
 <script src="js/24-puzzles.js" defer></script>
+<script src="js/25-themes.js" defer></script> 
 
 </body>
 </html>
