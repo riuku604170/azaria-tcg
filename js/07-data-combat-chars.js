@@ -53,7 +53,12 @@ var COMBAT_CHARS = {
     ultimate: { name:'Retribución Final', cost:{redencion:4}, energyCost:3, target:'enemy', kind:'retribucionFinal' },
     ex: { name:'EX · Sangría Persistente', kind:'ex', target:'self' }
   }},
-  manuel: { name:'Manuel', element:'redencion', emoji:'⚡', hp:11, abilities: { normal:{ name:'Ruptura', cost:{redencion:2, any:2}, target:'enemy', kind:'damage', damage:3, energy:1 }, elemental:{ name:'Degradación', cost:{redencion:5}, target:'enemy', kind:'degradacion', energy:1 }, ultimate:{ name:'Decadencia', cost:{redencion:3}, energyCost:2, target:'self', kind:'decadencia' }, ex: { name:'EX · Caos Acelerado', kind:'ex', target:'self' } }},
+  manuel: { name:'Manuel', element:'redencion', emoji:'⚡', hp:11, abilities: {
+    normal:{ name:'Ruptura', cost:{redencion:2, any:2}, target:'enemy', kind:'damage', damage:3, energy:1 },
+    elemental:{ name:'Degradación', cost:{redencion:5}, target:'enemy', kind:'degradacion', energy:1 },
+    ultimate:{ name:'Decadencia', cost:{redencion:3}, energyCost:2, target:'self', kind:'decadencia' },
+    ex: { name:'EX · Caos Acelerado', kind:'ex', target:'self' }
+  }},
   jose: { name:'Jose', element:'transformacion', emoji:'🦋', hp:9, abilities: {
     normal: { name:'Acelerón', cost:{transformacion:2, any:1}, target:'enemy', kind:'aceleron', energy:1 },
     elemental: { name:'Impulso', cost:{transformacion:3}, target:'self', kind:'impulso', energy:1 },
@@ -66,9 +71,9 @@ var COMBAT_CHARS = {
     ultimate: { name:'Canon', cost:{expresion:5}, energyCost:2, target:'self', kind:'canon' },
     ex: { name:'EX · Arquitectura Creativa', kind:'ex', target:'self' }
   }},
-  artemis: { name:'Artemis', element:'aceptacion', emoji:'🦅', hp:11, abilities: { 
-    normal: { name:'Disparo divino', cost:{aceptacion:2, any:2}, target:'enemy', kind:'damage', damage:3, energy:1 }, 
-    elemental: { name:'Carrerilla', cost:{aceptacion:3}, target:'self', kind:'carrerilla', energy:0 }, 
+  artemis: { name:'Artemis', element:'aceptacion', emoji:'🦅', hp:11, abilities: {
+    normal: { name:'Disparo divino', cost:{aceptacion:2, any:2}, target:'enemy', kind:'damage', damage:3, energy:1 },
+    elemental: { name:'Carrerilla', cost:{aceptacion:3}, target:'self', kind:'carrerilla', energy:0 },
     ultimate: { name:'Mis dedos palpan el borde de la estratosfera', cost:{aceptacion:6}, energyCost:3, target:'enemy', kind:'estratosfera' },
     ex: { name:'EX · Estratosfera Mejorada', kind:'ex', target:'self' }
   }},
@@ -76,9 +81,6 @@ var COMBAT_CHARS = {
     normal: { name:'Ojo por ojo', cost:{redencion:2, any:1}, target:'enemy', kind:'ojoPorOjo', damage:1, energy:1 },
     elemental: { name:'Minuto de silencio', cost:{redencion:4}, target:'self', kind:'minutoSilencio', energy:1 },
     ultimate: { name:'Dios te ampare, maldito pecador', cost:{redencion:3}, energyCost:2, target:'enemy', kind:'diosTeAmpare' },
-    // ✅ EX: Cruz de Sangre. Sus efectos viven en handleDeath, gateados por
-    // exSystemEnabled && orathCs.exActive. Aquí solo la declaramos para que
-    // aparezca el botón EX del sidebar.
     ex: { name:'EX · Cruz de Sangre', kind:'ex', target:'self' }
   }},
   alter: { name:'Alter', element:'ilusion', emoji:'🎭', hp:12, abilities: {
@@ -175,5 +177,35 @@ var COMBAT_CHARS = {
     elemental: { name:"Relincho al coro del infierno entero", cost:{redencion:4}, target:'enemy', kind:'sageElemental', energy:1 },
     ultimate: { name:"Mis caenas', prendidas fuego, sobre to' sus muertos", cost:{redencion:2}, energyCost:3, target:'enemy', kind:'sageUltimate' },
     ex: { name:'EX · Brava caída desde la torre de Babel', kind:'ex', target:'self' }
+  }},
+  felicia: { name:'Felicia', element:'expresion', emoji:'🎀', hp:7, abilities: {
+    normal: { name:'Roll', cost:{expresion:1, any:1}, target:'enemy', kind:'feliciaNormal', damage:1, energy:1 },
+    elemental: { name:'Hit', cost:{expresion:5}, target:'self', kind:'feliciaElemental', energy:1 },
+    ultimate: { name:'Double Down', cost:{expresion:4}, energyCost:3, target:'self', kind:'feliciaUltimate' },
+    ex: { name:'EX · WIN, WIN, WIN', kind:'ex', target:'self' }
+  }},
+  eve: { name:'Eve', element:'comprension', emoji:'🍎', hp:9, abilities: {
+    normal: { name:'Forcejeo', cost:{comprension:1, any:1}, target:'enemy', kind:'damage', damage:1, energy:1 },
+    elemental: { name:'Reafirmación de sumisión', cost:{comprension:4}, target:'self', kind:'evePrision', energy:1 },
+    ultimate: { name:'Lágrimas como rocío de primavera', cost:{comprension:4}, energyCost:3, target:'self', kind:'eveUlt' },
+    ex: { name:'EX · Rendimiento++', kind:'ex', target:'self' }
+  }},
+  opal: { name:'Opal', element:'expresion', emoji:'💠', hp:10, abilities: {
+    normal: { name:'Brochazo artístico', cost:{expresion:2, any:1}, target:'enemy', kind:'opalNormal', damage:1, energy:1 },
+    elemental: { name:'Rebuscada desesperada', cost:{expresion:5}, target:'self', kind:'opalElemental', energy:1 },
+    ultimate: { name:'Por un mundo lleno de color', cost:{expresion:6}, energyCost:3, target:'self', kind:'opalUlt' },
+    ex: { name:'EX · Desborde de energía', kind:'ex', target:'self' }
+  }},
+  erikxd: { name:'ErikXD', element:'proteccion', emoji:'😎', hp:10, abilities: {
+    normal: { name:'Toma exitosa', cost:{proteccion:1, any:2}, energyCost:1, target:'enemy', kind:'erikxdNormal', damage:2, energy:0 },
+    elemental: { name:'Setup profesional', cost:{proteccion:3}, target:'self', kind:'erikxdSetup', energy:1 },
+    ultimate: { name:'Nostalgia-Bait', cost:{proteccion:5}, energyCost:4, target:'self', kind:'erikxdUlt' },
+    ex: { name:'EX · Set de decorado', kind:'ex', target:'self' }
+  }},
+  david: { name:'David', element:'redencion', emoji:'🏹', hp:10, abilities: {
+    normal: { name:'Le Coup Violent', cost:{redencion:2, any:2}, target:'enemy', kind:'davidNormal', damage:1, energy:1 },
+    elemental: { name:'Escudo humano', cost:{redencion:5}, target:'self', kind:'davidElemental', energy:0 },
+    ultimate: { name:'Fragmentos de vidriera sobre piel virgen', cost:{redencion:5}, energyCost:3, target:'self', kind:'davidUlt' },
+    ex: { name:'EX · Midas', kind:'ex', target:'self' }
   }},
 };
