@@ -17,7 +17,6 @@ function rollDiceForSide(who, first){
   }
   s.dice = rollCombatDice(Math.max(1, baseCount));
   applyIlusion(s, who);
-  // ✅ Bot: relanzar durante la fase de dados (igual que el jugador, al inicio de ronda)
   if (who === 'bot' && !combatState.pvp && typeof botMaybeReroll === 'function') {
     botMaybeReroll();
   }
@@ -28,14 +27,11 @@ function applyIlusion(side, who) {
   var active = side.characters[side.activeIndex];
   if (!active || active.dead) return;
   var el = active.character.element;
-  // ✅ 2 personajes → 2 dados garantizados. 3 personajes → 4 dados garantizados.
   var need = (c.level === 3) ? 4 : 2;
-  // Contar dados válidos actuales: del tipo del activo u omnidados
   var valid = 0;
   side.dice.forEach(function(d){ if (d.type === el || d.type === 'omni') valid++; });
   var miss = need - valid;
   if (miss <= 0) return;
-  // Convertir dados "inservibles" (ni del tipo del activo ni omni) al tipo del activo
   var conv = 0;
   for (var i = 0; i < side.dice.length && conv < miss; i++) {
     if (side.dice[i].type !== el && side.dice[i].type !== 'omni') {
@@ -77,7 +73,6 @@ function showRollOverlay() {
   if (startBtn) startBtn.textContent = combatState.pvp ? '✓ Continuar' : '⚔️ Comenzar combate';
   ov.classList.add('show'); playSound('roll');
   side.isRollingAnim = true;
-  // Forzamos ambos botones deshabilitados ANTES del primer render.
   if (startBtn) startBtn.disabled = true;
   var rrB = document.getElementById('rollRerollBtn');
   if (rrB) rrB.disabled = true;
@@ -85,8 +80,6 @@ function showRollOverlay() {
   setTimeout(function(){
     if (!combatState) return;
     combatState[sideKey].isRollingAnim = false;
-    // ✅ renderRollOverlay se encarga de habilitar/deshabilitar cada botón
-    // según el estado real (isRollingAnim, rollingIds, selección, rerolled).
     renderRollOverlay();
     playSound('diceReveal');
   }, 900);
@@ -108,8 +101,6 @@ function renderRollOverlay() {
   var isRolling = player.isRollingAnim;
   var hasRolling = !!(player.rollingIds && Object.keys(player.rollingIds).length > 0);
   if (rerollBtn) { var sc = Object.keys(player.selected).length; rerollBtn.disabled = player.rerolled || sc === 0 || isRolling || hasRolling; rerollBtn.textContent = player.rerolled ? '🎲 Ya relanzado' : (sc > 0 ? '🎲 Relanzar ' + sc : '🎲 Relanzar seleccionados'); }
-  // ✅ "Comenzar" solo se habilita cuando la tirada inicial ha terminado
-  // Y no hay un relanzamiento en curso. Así el jugador ve los dados antes.
   if (startBtn) startBtn.disabled = isRolling || hasRolling;
   var selAllBtn = document.getElementById('selectNonOmniBtn');
   if (selAllBtn) { selAllBtn.disabled = player.rerolled || isRolling || hasRolling; }
@@ -128,7 +119,6 @@ function rerollSelected() {
   if (!combatState) return;
   var side = combatState[combatState.turn];
   if (side.rerolled || side.isRollingAnim) return;
-  // ✅ Guard extra: no permitir relanzar mientras los dados estén en animación
   if (side.rollingIds && Object.keys(side.rollingIds).length > 0) return;
   var selected = Object.keys(side.selected);
   selected = selected.filter(function(id){
@@ -173,7 +163,6 @@ function startDrawPhase() {
   if (combatState.round === 1) side.mulliganUsed = false;
   var base = combatState.round === 1 ? 5 : 2;
   var bonus = getCardDrawBonus(side, combatState.round === 1);
-  // ✅ Adela EX: roba 3 cartas menos en la mano inicial
   if (combatState.round === 1) {
     var adelaCs = side.characters.find(function(c){ return c.id === 'adela'; });
     if (adelaCs && adelaCs.exActive) {
@@ -184,7 +173,6 @@ function startDrawPhase() {
   var dc = base + bonus, drawn = [];
   for (var i = 0; i < dc; i++) { var c = drawFromDeck(sideKey); if (c) drawn.push(c); }
   side.initialDrawThisRound = drawn;
-  // ✅ Adela EX: 2 Café solo en la mano (si están en el mazo)
   if (combatState.round === 1) {
     var adelaCs2 = side.characters.find(function(c){ return c.id === 'adela'; });
     if (adelaCs2 && adelaCs2.exActive) {
@@ -261,7 +249,6 @@ function onDrawContinue() {
   if (combatState.pvp && pvpSetupPhase) { advancePvpSetup(); return; }
   if (combatState.round === 1 && !combatState.starterChosen) { renderCombat(); showSelectOverlay(); }
   else {
-    // ✅ Quien declara antes el fin de la ronda, empieza la siguiente
     if (!combatState.pvp && combatState.firstDeclarer) {
       combatState.turn = combatState.firstDeclarer;
       combatState.firstDeclarer = null;
@@ -288,42 +275,31 @@ function showSelectDetail(idx) {
   c.style.display = 'none';
   var cd = CHARACTERS[cs.id]; if (!cd) return;
   var col = ELEMENT_COLORS[cd.element];
-  // ✅ Incluir también pasiva y EX
   var vis = ['normal','elemental','ultimate','passive','ex'];
   var abh = '';
-
-  // Orden visual: normal → elemental → ultimate → pasiva → EX
   var order = { normal:0, elemental:1, ultimate:2, passive:3, ex:4 };
-  var sorted = cd.abilities.slice().sort(function(a, b){
-    return (order[a.type] || 99) - (order[b.type] || 99);
-  });
-
+  var sorted = cd.abilities.slice().sort(function(a, b){ return (order[a.type] || 99) - (order[b.type] || 99); });
   sorted.forEach(function(ab){
     if (vis.indexOf(ab.type) === -1) return;
     var brd;
-    if (ab.type === 'ultimate')      brd = 'rgba(240,200,96,0.9)';    // dorado
-    else if (ab.type === 'passive')  brd = 'rgba(165,131,255,0.85)';  // violeta
-    else if (ab.type === 'ex')       brd = 'rgba(240,200,96,1)';      // dorado brillante
-    else                             brd = 'rgba(' + col + ', 0.6)';  // color elemental
+    if (ab.type === 'ultimate')      brd = 'rgba(240,200,96,0.9)';
+    else if (ab.type === 'passive')  brd = 'rgba(165,131,255,0.85)';
+    else if (ab.type === 'ex')       brd = 'rgba(240,200,96,1)';
+    else                             brd = 'rgba(' + col + ', 0.6)';
     abh += '<div class="ht-ab-item" style="border-left-color: ' + brd + '; background: rgba(255,255,255,0.04); padding: 0.8rem 1rem; margin-bottom: 0.7rem; border-radius: 10px;">';
     abh += buildAbilityInfoHTML(cs.id, ab);
     abh += '</div>';
   });
-
   var html = '<div class="select-detail-inner" style="--el: ' + col + ';">';
   html += '<div class="select-detail-portrait" data-fallback="' + cd.emoji + '"><img src="img/' + cs.id + '.png" alt="' + cd.name + '" style="width:100%; height:100%; object-fit:cover; border-radius:14px;" onerror="this.style.display=\'none\';"><div style="position:absolute; bottom:10px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.85); padding: 0.25rem 0.8rem; border-radius: 20px; font-weight: 800; font-size: 0.8rem; color: rgb(' + col + '); border: 1px solid rgba(' + col + ', 0.6); white-space: nowrap; z-index: 3;">❤️ ' + cs.hp + '/' + cs.maxHp + ' HP</div></div>';
   html += '<div class="select-detail-info"><div style="font-size: 0.75rem; font-weight: 800; letter-spacing: 0.18em; text-transform: uppercase; color: rgb(' + col + '); margin-bottom: 0.6rem;">' + ELEMENT_EMOJI[cd.element] + ' ' + ELEMENT_NAMES[cd.element] + ' · ' + (cd.category || cd.set) + '</div>';
   html += '<h2 style="font-size: 2rem; font-weight: 900; margin-bottom: 0.5rem; background: linear-gradient(90deg, #fff, rgb(' + col + ')); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: -0.02em;">' + cd.name + '</h2>';
   html += '<p style="color: var(--muted); font-style: italic; font-size: 0.88rem; line-height: 1.6; margin-bottom: 1.2rem; border-left: 2px solid rgba(' + col + ', 0.4); padding-left: 0.8rem;">"' + cd.concept + '"</p>';
-  // ✅ Más alto porque ahora hay 5 bloques (normal + elemental + ult + pasiva + EX)
   html += '<div style="max-height: 440px; overflow-y: auto; padding-right: 0.4rem; scrollbar-width: thin;">' + abh + '</div></div></div>';
   html += '<div style="display: flex; gap: 1rem; margin-top: 1.5rem; justify-content: center; flex-wrap: wrap;"><button class="btn btn-outline" id="selectBackBtn" style="padding: 0.8rem 2rem;">← Volver</button><button class="btn" id="selectConfirmBtn" style="padding: 0.8rem 2.5rem;">✓ Comenzar con ' + cd.name + '</button></div>';
   d.innerHTML = html;
   d.classList.add('show');
-
-  // ✅ Términos clicables para los 12 usuarios
   attachAbilityTermListeners(d, cs.id);
-
   document.getElementById('selectBackBtn').addEventListener('click', function(){ hideSelectDetail(); playSound('deselect'); });
   document.getElementById('selectConfirmBtn').addEventListener('click', function(){
     hideTooltip();
@@ -333,9 +309,7 @@ function showSelectDetail(idx) {
     playSound('confirm');
     logCombat('🦋 ' + (who ? who + ' empieza' : 'Empiezas') + ' con ' + cs.character.name);
     hideSelectOverlay(); renderCombat();
-
     if (combatState.pvp && pvpSetupPhase) { advancePvpSetup(); return; }
-
     combatState.starterChosen = true;
     logCombat('▶️ Ronda 1 · Lanza tus dados');
     rollDiceForSide('player', true);
@@ -380,7 +354,8 @@ function applyEquipmentRoundStartEffects(who) {
 function applySupportRoundStartEffects(who) {
   var side = combatState[who], active = side.characters[side.activeIndex];
   if (!side.supports) return;
-  for (var i = 0; i < 4; i++) {
+  var _maxSupStart = (typeof getMaxSupports === 'function') ? getMaxSupports(who) : 4;
+  for (var i = 0; i < _maxSupStart; i++) {
     var sp = side.supports[i]; if (!sp) continue;
     var card = CARD_DB[sp.cardId]; if (!card || !card.effect) continue;
     var e = card.effect;
@@ -400,7 +375,8 @@ function applySupportRoundStartEffects(who) {
 function applySupportEndOfRoundEffects(who) {
   var side = combatState[who], active = side.characters[side.activeIndex];
   if (!side.supports) return;
-  for (var i = 0; i < 4; i++) {
+  var _maxSupEnd = (typeof getMaxSupports === 'function') ? getMaxSupports(who) : 4;
+  for (var i = 0; i < _maxSupEnd; i++) {
     var sp = side.supports[i]; if (!sp) continue;
     var card = CARD_DB[sp.cardId]; if (!card || !card.effect) continue;
     var e = card.effect;
@@ -413,6 +389,42 @@ function applySupportEndOfRoundEffects(who) {
     if (e.teamHealPerRound) { side.characters.forEach(function(cs){ if (!cs.dead) cs.hp = Math.min(cs.maxHp, cs.hp + e.teamHealPerRound); }); _flashSupp('+' + e.teamHealPerRound + ' equipo', '#7aff9a'); }
     sp.duration--; if (sp.duration <= 0) { logCombat('📜 ' + card.name + ' se desvanece'); side.supports[i] = null; }
   }
+
+  // ✅ DAVID: Corona Dorada — 1 daño al portador si no hay David vivo en su equipo
+  side.characters.forEach(function(c){
+    if (c.dead || !c.equipment) return;
+    if (c.equipment.indexOf('david_corona') < 0) return;
+    var hasD = side.characters.some(function(x){ return x.id === 'david' && !x.dead; });
+    if (!hasD) {
+      dealDamageToChar(c, 1, { targetSide:side, targetSideKey:who, targetIdx:side.characters.indexOf(c) });
+      logCombat('👑 Corona Dorada: 1 daño al portador (sin David en el equipo)');
+    }
+  });
+
+  // ✅ ERIKXD: Cámara confiable — si está en reserva y tiene usos, 1 daño al enemigo activo
+  side.characters.forEach(function(c){
+    if (c.dead || !c.equipment) return;
+    if (c.equipment.indexOf('erikxd_camara_confiable') < 0) return;
+    if (!(c.states && c.states.cameraUsos > 0)) return;
+    if (side.activeIndex === side.characters.indexOf(c)) return;
+    var eKey = who === 'player' ? 'bot' : 'player';
+    var eSide = combatState[eKey];
+    var eActive = eSide.characters[eSide.activeIndex];
+    if (eActive && !eActive.dead) {
+      dealDamageToChar(eActive, 1, { targetSide:eSide, targetSideKey:eKey, targetIdx:eSide.activeIndex });
+      c.states.cameraUsos -= 1;
+      logCombat('📷 Cámara confiable (en reserva): 1 daño a ' + eActive.character.name + ' · usos: ' + c.states.cameraUsos);
+      if (c.states.cameraUsos <= 0) {
+        var ci = c.equipment.indexOf('erikxd_camara_confiable');
+        if (ci >= 0) {
+          c.equipment.splice(ci, 1);
+          if (!side.discardPile) side.discardPile = [];
+          side.discardPile.push('erikxd_camara_confiable');
+          logCombat('📷 Cámara confiable agotada');
+        }
+      }
+    }
+  });
 }
 function applyStructureEndOfRoundEffects(who) {
   var side = combatState[who];
@@ -421,7 +433,6 @@ function applyStructureEndOfRoundEffects(who) {
   var enemySide = combatState[who === 'player' ? 'bot' : 'player'];
   var enemyKey  = who === 'player' ? 'bot' : 'player';
 
-  // ✅ Helper local: anima la casilla de estructura con el texto/color dado
   function _flashStruct(idx, txt, col) {
     flashCombatElement(
       '#' + (who === 'player' ? 'player' : 'bot') + 'StructuresGrid .side-slot-filled[data-struct-slot="' + idx + '"]',
@@ -436,20 +447,13 @@ function applyStructureEndOfRoundEffects(who) {
     if (st.kind === 'optimizacion') {
       var ea = enemySide.characters[enemySide.activeIndex];
       if (ea && !ea.dead) {
-        dealDamageToChar(ea, 1, {
-          targetSide: enemySide,
-          targetSideKey: enemyKey,
-          targetIdx: enemySide.activeIndex
-        });
+        dealDamageToChar(ea, 1, { targetSide: enemySide, targetSideKey: enemyKey, targetIdx: enemySide.activeIndex });
         if (!ea.dead) triggerMarkOrResonance(ea, 'comprension', who, enemyKey, enemySide.activeIndex);
         logCombat('🏛️ Optimización: 1 daño y marca comprensión');
         _flashStruct(i, '−1 HP', '#ff8a98');
       }
       st.duration--;
-      if (st.duration <= 0) {
-        logCombat('🏛️ Optimización se desvanece');
-        side.structures.splice(i, 1);
-      }
+      if (st.duration <= 0) { logCombat('🏛️ Optimización se desvanece'); side.structures.splice(i, 1); }
     }
 
     if (st.kind === 'android') {
@@ -460,50 +464,71 @@ function applyStructureEndOfRoundEffects(who) {
         _flashStruct(i, '−1 HP', '#ff8a98');
       }
       st.duration--;
-      if (st.duration <= 0) {
-        logCombat('🤖 Android se desvanece');
-        side.structures.splice(i, 1);
-      }
+      if (st.duration <= 0) { logCombat('🤖 Android se desvanece'); side.structures.splice(i, 1); }
     }
 
-    if (st.kind === 'cruzSangre') {
-      // estructura persistente, no consume ronda
-      continue;
-    }
+    if (st.kind === 'cruzSangre') continue;
 
     if (st.kind === 'metaQuest') {
       st.duration--;
-      if (st.duration <= 0) {
-        logCombat('📘 Meta Quest se desvanece');
-        side.structures.splice(i, 1);
-      } else {
-        _flashStruct(i, '📘', '#7ac8ff');
-      }
+      if (st.duration <= 0) { logCombat('📘 Meta Quest se desvanece'); side.structures.splice(i, 1); }
+      else { _flashStruct(i, '📘', '#7ac8ff'); }
     }
 
     if (st.kind === 'mesaDJ') {
       try {
-        // 1) Pasa el activo del dueño al siguiente vivo
         var nxMesa = getNextAliveIndex(side, side.activeIndex);
         if (nxMesa >= 0 && nxMesa !== side.activeIndex) {
           side.activeIndex = nxMesa;
           logCombat('🎧 Mesa de DJ: ' + side.characters[nxMesa].character.name + ' pasa a activo');
-          // 2) Si Killer Tunes está activo, el cambio pega 1 al rival
           if (typeof triggerKillerTunesDamage === 'function') triggerKillerTunesDamage(who);
-          // ✅ Forzar repintado para que la UI muestre al nuevo activo YA
           if (typeof renderCombat === 'function') renderCombat();
         }
-        // 3) Duración
         st.duration--;
-        if (st.duration <= 0) {
-          logCombat('🎧 Mesa de DJ se desvanece');
-          side.structures.splice(i, 1);
-        } else {
-          _flashStruct(i, '🎧', '#a583ff');
+        if (st.duration <= 0) { logCombat('🎧 Mesa de DJ se desvanece'); side.structures.splice(i, 1); }
+        else { _flashStruct(i, '🎧', '#a583ff'); }
+      } catch (err) { console.error('[Mesa de DJ] Error:', err); }
+    }
+
+    if (st.kind === 'prisionEterea') {
+      var eveCs = side.characters.find(function(c){ return c.id === 'eve' && !c.dead; });
+      if (eveCs && eveCs.hp > 2) {
+        var aliveAllies = side.characters.filter(function(c){ return c !== eveCs && !c.dead; });
+        if (aliveAllies.length) {
+          var toGive = Math.min(2, eveCs.hp - 1);
+          if (aliveAllies.length === 1) {
+            healChar(aliveAllies[0], toGive);
+            eveCs.hp -= toGive;
+          } else {
+            var eachA = Math.floor(toGive / 2);
+            healChar(aliveAllies[0], eachA);
+            healChar(aliveAllies[1], toGive - eachA);
+            eveCs.hp -= toGive;
+          }
+          logCombat('🔮 Prisión etérea: ' + toGive + ' HP repartidos');
         }
-      } catch (err) {
-        console.error('[Mesa de DJ] Error al resolver el fin de ronda:', err);
       }
+      st.duration--;
+      if (st.duration <= 0) { side.structures.splice(i, 1); }
+    }
+
+    // ✅ ERIKXD: Cámara profesional
+    if (st.kind === 'camaraProfesional') {
+      var erikxdCs = side.characters.find(function(c){ return c.id === 'erikxd' && !c.dead; });
+      if (side.nostalgiaBaitActive) {
+        enemySide.characters.forEach(function(c, idx){
+          if (!c.dead) dealDamageToChar(c, 2, { targetSide:enemySide, targetSideKey:enemyKey, targetIdx:idx });
+        });
+        if (erikxdCs) dealDamageToChar(erikxdCs, 2, { targetSide:side, targetSideKey:who, targetIdx:side.characters.indexOf(erikxdCs) });
+        logCombat('📸 Nostalgia-Bait: cámaras pegan a todos los enemigos (+2 cada uno) y ErikXD recibe 2');
+      } else {
+        var eaC = enemySide.characters[enemySide.activeIndex];
+        if (eaC && !eaC.dead) dealDamageToChar(eaC, 1, { targetSide:enemySide, targetSideKey:enemyKey, targetIdx:enemySide.activeIndex });
+      }
+      if (erikxdCs) erikxdCs.energy = Math.min(erikxdCs.maxEnergy, erikxdCs.energy + 1);
+      st.duration--;
+      if (st.duration <= 0) { logCombat('📸 Cámara profesional desaparece'); side.structures.splice(i, 1); }
+      else { _flashStruct(i, '📸', '#7ac8ff'); }
     }
   }
 }
@@ -513,7 +538,6 @@ function beginRoundPlay() {
   combatState.roundStarting = true;
   combatState.player.selected = {};
   combatState.bot.selected = {};
-  // ✅ Facebook EX: reset del flag al inicio de la ronda
   combatState.player.anyAllyDiedThisRound = false;
   combatState.bot.anyAllyDiedThisRound = false;
   var activeSide = combatState.pvp ? combatState[combatState.turn] : combatState.player;
@@ -526,11 +550,9 @@ function beginRoundPlay() {
   renderCombat();
   var applyEff = function() {
     if (!combatState || combatState.phase === 'ended') return;
-    // ── EX hooks de inicio de ronda ──
     ['player','bot'].forEach(function(wk){
       combatState[wk].characters.forEach(function(c){
         if (!c.dead) exHookRoundStart(c, wk);
-        // ✅ Neón: pasiva de curación al inicio de ronda si está activo
         if (c.id === 'neon' && !c.dead) {
           var sdN = combatState[wk];
           if (sdN.activeIndex === sdN.characters.indexOf(c)) {
@@ -538,7 +560,6 @@ function beginRoundPlay() {
             if (healedN > 0) logCombat('🎆 Neón (pasiva): +' + healedN + ' HP');
           }
         }
-        // ✅ Google: pasiva de inicio de ronda
         if (c.id === 'google' && !c.dead) {
           var sdG = combatState[wk];
           if (sdG.activeIndex === sdG.characters.indexOf(c)) {
@@ -547,15 +568,11 @@ function beginRoundPlay() {
             var candidatesG = sdG.dice.filter(function(d){ return d.type !== 'omni'; });
             if (candidatesG.length) {
               var worstG = candidatesG.slice().sort(function(a, b){ return getDiePriority(a, teamElsG, activeElG) - getDiePriority(b, teamElsG, activeElG); })[0];
-              if (worstG) {
-                worstG.type = 'omni';
-                logCombat('🔍 Google (pasiva): dado menos relevante → omnidado');
-              }
+              if (worstG) { worstG.type = 'omni'; logCombat('🔍 Google (pasiva): dado menos relevante → omnidado'); }
             }
             csSetState(c, 'googleEndDamage', true);
           }
         }
-        // ✅ Facebook: pasiva de inicio de ronda (dado menos relevante → aceptación)
         if (c.id === 'facebook' && !c.dead) {
           var sdF = combatState[wk];
           if (sdF.activeIndex === sdF.characters.indexOf(c)) {
@@ -565,72 +582,53 @@ function beginRoundPlay() {
               var worstF = candidatesF.slice().sort(function(x, y){
                 return getDiePriority(x, teamElsF, 'aceptacion') - getDiePriority(y, teamElsF, 'aceptacion');
               })[0];
-              if (worstF) {
-                worstF.type = 'aceptacion';
-                logCombat('📘 Facebook (pasiva): dado menos relevante → Aceptación');
-              }
+              if (worstF) { worstF.type = 'aceptacion'; logCombat('📘 Facebook (pasiva): dado menos relevante → Aceptación'); }
             }
           }
         }
       });
     });
-    // ✅ María (base): pasiva Florecimiento
-    // SOLO al principio de la partida (ronda 1): si no hay Campo de Girasoles, lo establece (2 rondas).
     if (combatState.round === 1) {
       ['player','bot'].forEach(function(wk){
         var mariaCs = combatState[wk].characters.find(function(c){ return c.id === 'maria' && !c.dead; });
         if (!mariaCs) return;
         var env = combatState.environment;
-        if (!env || env.id !== 'campo_girasoles') {
-          setEnvironment('campo_girasoles', mariaCs, wk);
-        }
+        if (!env || env.id !== 'campo_girasoles') { setEnvironment('campo_girasoles', mariaCs, wk); }
       });
     }
     var pm = applyRoundStartEffects('player'), bm = applyRoundStartEffects('bot');
     if (combatState.round === 1) { var cm = applyComprensionStart('player'); if (cm) pm.push(cm); var cmb = applyComprensionStart('bot'); if (cmb) bm.push(cmb); }
     applyEquipmentRoundStartEffects('player'); applyEquipmentRoundStartEffects('bot');
-
-    // ✅ Solo y Auto: el bot roba aquí (en PvP y Sandbox ya roba durante su setup).
     if (!combatState.pvp && combatState.mode !== 'sandbox') {
       var _botDrawCount = (combatState.round === 1) ? 5 : 2;
       var _botDrawn = 0;
-      for (var _bi = 0; _bi < _botDrawCount; _bi++) {
-        if (drawFromDeck('bot')) _botDrawn++;
-      }
+      for (var _bi = 0; _bi < _botDrawCount; _bi++) { if (drawFromDeck('bot')) _botDrawn++; }
       if (_botDrawn > 0) logCombat('🎴 El rival roba ' + _botDrawn + ' carta(s)');
-      if (combatState.round === 1) botSmartMulligan();   // ✅ NUEVO
+      if (combatState.round === 1) botSmartMulligan();
     }
-
     applySupportRoundStartEffects('player'); applySupportRoundStartEffects('bot');
-
     combatState.player.characters.forEach(function(c){ if (c.states) c.states.acelerado = false; });
     combatState.bot.characters.forEach(function(c){ if (c.states) c.states.acelerado = false; });
     logCombat('⚔️ ¡Comienza el combate!'); pm.forEach(function(m){ logCombat(m); });
-
-    // ✅ Reset del contador de "entradas" de YouTube esta ronda
     ['player','bot'].forEach(function(wk){
       combatState[wk].characters.forEach(function(c){
         if (c.id === 'youtube' && c.states) c.states.ytEnteredThisRound = 0;
       });
     });
-    // ✅ Reset sageEnteredThisTurn
     ['player','bot'].forEach(function(wk){
       combatState[wk].characters.forEach(function(c){
         if (c.id === 'sage' && c.states) c.states.sageEnteredThisTurn = false;
       });
     });
-    // ✅ YouTube: chequeo de inicio de ronda
     ['player','bot'].forEach(function(wk){
       var sd = combatState[wk];
       sd.characters.forEach(function(c){
         if (c.id !== 'youtube' || c.dead) return;
         var isActive = sd.activeIndex === sd.characters.indexOf(c);
-        // EX: congelar pop si comienza ronda activo desde ronda 2
         if (isActive && c.exActive && combatState.round > 1) {
           if (!c.states) c.states = {};
           c.states.ytPopFrozen = true;
           logCombat('📺 EX Money Money Money: popularidad congelada esta ronda');
-          // Reforzar Monetización en el rival
           var ek = wk === 'player' ? 'bot' : 'player';
           var es = combatState[ek];
           if (!es.structures) es.structures = [];
@@ -641,17 +639,14 @@ function beginRoundPlay() {
           if (!c.states) c.states = {};
           c.states.ytPopFrozen = false;
         }
-        // Bonificaciones/pérdidas por inicio de ronda
         if (isActive) {
           onYouTubeBecomeActive(c);
           if (hasAnyMark(c)) loseYouTubePop(c, 1, 'empieza ronda con marca');
           else gainYouTubePop(c, 1, 'empieza ronda sin marca');
         }
-        // Inicializar forma
         if (!c.forma) c.forma = (c.popularidad || 0) >= 5 ? 'idol' : 'casual';
       });
     });
-    // ✅ EX YouTube: colocar Monetización en rival al inicio del combate
     if (combatState.round === 1) {
       ['player','bot'].forEach(function(wk){
         var yt = combatState[wk].characters.find(function(c){ return c.id === 'youtube' && c.exActive; });
@@ -665,19 +660,16 @@ function beginRoundPlay() {
         }
       });
     }
-    // ✅ EX X: robar 1 carta adicional
     ['player','bot'].forEach(function(wk){
       var xCs = combatState[wk].characters.find(function(c){ return c.id === 'x' && c.exActive && !c.dead; });
       if (xCs) { drawFromDeck(wk); logCombat('✖️ EX X: +1 carta robada'); }
     });
     combatState.roundStarting = false;
     renderCombat();
-    // ✅ Si el bot es quien empieza la ronda (declaró primero), trigger automático
     if (!combatState.pvp && combatState.turn === 'bot' && !combatState.botDone && combatState.phase === 'playing') {
       setTimeout(function(){ if (combatState && !combatState.botDone && combatState.turn === 'bot') botTurn(); }, 600);
     }
   };
-  // ✅ Repintado extra por si el activeIndex cambió entre endRound y aquí
   renderCombat();
   if (toast) setTimeout(function(){ if (!combatState || combatState.phase === 'ended') return; showDiversoToast(toast); playSound('omni'); setTimeout(applyEff, 250); }, 1600);
   else setTimeout(applyEff, 1600);
@@ -692,7 +684,7 @@ function computeBaseDamageForAbility(attackerCs, ability, actionType) {
     case 'estratosfera': {
       if (!csHasState(attackerCs, 'vuelo')) return 0;
       var carrB = csHasState(attackerCs, 'carrerilla') ? 2 : 0;
-      var exB = (attackerCs.exActive) ? 2 : 0; // ✅ EX de Artemis: +2 daño base
+      var exB = (attackerCs.exActive) ? 2 : 0;
       return 6 + carrB + exB;
     }
     case 'carrerilla': return 0;
@@ -729,18 +721,17 @@ function computeBaseDamageForAbility(attackerCs, ability, actionType) {
     }
     case 'vittoriaNormal': return ability.damage || 1;
     case 'hotToGo': return 2 + (attackerCs.forma === 'idol' ? 1 : 0);
-    case 'theWorldIsMine': {
-      var popWim = attackerCs.popularidad || 0;
-      return 2 + Math.floor(popWim / 2);
-    }
+    case 'theWorldIsMine': { var popWim = attackerCs.popularidad || 0; return 2 + Math.floor(popWim / 2); }
     case 'sublevacion': return 4;
     case 'petiteEtoile': return 3;
-
-    case 'sageNormal': {
-      var dec = (attackerCs.states && attackerCs.states.decidida) || 0;
-      return 3 + dec;
+    case 'sageNormal': { var dec = (attackerCs.states && attackerCs.states.decidida) || 0; return 3 + dec; }
+    case 'feliciaNormal': {
+      var fDmg = 1;
+      if (csHasState(attackerCs, 'drogada')) fDmg += 2;
+      if (csHasState(attackerCs, 'doubleDown')) fDmg *= 2;
+      return fDmg;
     }
-
+    case 'davidNormal': return 1 + (combatState._currentIsCounterAttack ? 1 : 0);
     default: return 0;
   }
 }
@@ -759,7 +750,7 @@ function predictSelfDamage(ability, active) {
   }
 }
 function predictHeal(ability, active) {
-  if (ability.kind === 'ecoVital') return 0; // cura aliados, no a sí misma
+  if (ability.kind === 'ecoVital') return 0;
   if (ability.kind === 'armonia') {
     var side = (combatState.player.characters.indexOf(active) >= 0) ? combatState.player : combatState.bot;
     var sint = side.characters.filter(function(c){ return c !== active && !c.dead && csHasState(c, 'sintonia'); }).length;
@@ -778,9 +769,7 @@ function applyVittoriaCostModifier(cs, baseCost, ability) {
   if (!sInfo) return baseCost;
   var deadAllies = sInfo.side.characters.filter(function(c){ return c !== cs && c.dead; }).length;
   var isUltimate = ability && ability.kind === 'vistoUltimate';
-
   if (deadAllies === 0) return baseCost;
-
   if (deadAllies >= 2) {
     if (isUltimate) return baseCost;
     var elem = cs.character.element;
@@ -788,8 +777,6 @@ function applyVittoriaCostModifier(cs, baseCost, ability) {
     newCost[elem] = 1;
     return newCost;
   }
-
-  // deadAllies === 1
   var total = sumCost(baseCost);
   if (total <= 0) return baseCost;
   var result = {};
@@ -812,9 +799,18 @@ function applyVittoriaCostModifier(cs, baseCost, ability) {
 
 function getEffectiveCostFull(active, ability) {
   var base = getEffectiveAbilityCost(active, ability.cost);
-  // ✅ Vittoria: pasiva de coste reducido con aliados caídos
   if (active.id === 'vittoria') {
     base = applyVittoriaCostModifier(active, base, ability);
+  }
+  if (active.id === 'felicia') {
+    if (csHasState(active, 'drogada')) {
+      if (ability.kind === 'feliciaNormal') base.expresion = (base.expresion || 0) + 2;
+      else if (ability.kind === 'feliciaElemental') base.expresion = (base.expresion || 0) + 1;
+    }
+    if (csHasState(active, 'doubleDown')) {
+      if (ability.kind === 'feliciaNormal') base.expresion = (base.expresion || 0) + 1;
+      else if (ability.kind === 'feliciaElemental') base.expresion = (base.expresion || 0) + 1;
+    }
   }
   if (active.id === 'manuel' && ability.kind === 'degradacion' && active.manuelStacks > 0) {
     var reduction = active.manuelStacks, newCost = {}, keys = Object.keys(base);
@@ -827,54 +823,41 @@ function getEffectiveCostFull(active, ability) {
     }
     return newCost;
   }
-  // ✅ EX de Artemis: la definitiva cuesta 2 dados más (de aceptación)
   if (active.id === 'artemis' && ability.kind === 'estratosfera' && active.exActive) {
     var exCost = {};
     Object.keys(base).forEach(function(k){ exCost[k] = base[k]; });
     exCost.aceptacion = (exCost.aceptacion || 0) + 2;
     return exCost;
   }
-  // ✅ Adela: +1 dado de transformación al coste si tiene marca
   if (active.id === 'adela' && adelaCostBonus(active) > 0 && base.transformacion) {
     var adelaCost = {};
     Object.keys(base).forEach(function(k){ adelaCost[k] = base[k]; });
     adelaCost.transformacion = (adelaCost.transformacion || 0) + adelaCostBonus(active);
     return adelaCost;
   }
-  // ✅ Hunger: x2 en TODOS los costes si tiene marca
   if (active.id === 'hunger' && hungerMarkMultiplier(active) > 1) {
     var hCost = {};
     Object.keys(base).forEach(function(k){ hCost[k] = base[k] * hungerMarkMultiplier(active); });
     return hCost;
   }
-  // ✅ Internet EX: -1 dado si HP ≤ 2 (prioridad: any > same > elemental)
   if (active.id === 'internet' && active.exActive && active.hp <= 2) {
     var intCost = {};
     Object.keys(base).forEach(function(k){ intCost[k] = base[k]; });
     var rem = 1;
-    if (intCost.any && intCost.any > 0) {
-      var r1 = Math.min(intCost.any, rem);
-      intCost.any -= r1; rem -= r1;
-      if (intCost.any === 0) delete intCost.any;
-    }
-    if (rem > 0 && intCost.same && intCost.same > 0) {
-      var r2 = Math.min(intCost.same, rem);
-      intCost.same -= r2; rem -= r2;
-      if (intCost.same === 0) delete intCost.same;
-    }
+    if (intCost.any && intCost.any > 0) { var r1 = Math.min(intCost.any, rem); intCost.any -= r1; rem -= r1; if (intCost.any === 0) delete intCost.any; }
+    if (rem > 0 && intCost.same && intCost.same > 0) { var r2 = Math.min(intCost.same, rem); intCost.same -= r2; rem -= r2; if (intCost.same === 0) delete intCost.same; }
     if (rem > 0) {
-      var keys = Object.keys(intCost);
-      for (var i = 0; i < keys.length && rem > 0; i++) {
-        var k = keys[i];
-        if (k === 'any' || k === 'same') continue;
-        var r3 = Math.min(intCost[k], rem);
-        intCost[k] -= r3; rem -= r3;
-        if (intCost[k] === 0) delete intCost[k];
+      var keys2 = Object.keys(intCost);
+      for (var i2 = 0; i2 < keys2.length && rem > 0; i2++) {
+        var k2 = keys2[i2];
+        if (k2 === 'any' || k2 === 'same') continue;
+        var r3 = Math.min(intCost[k2], rem);
+        intCost[k2] -= r3; rem -= r3;
+        if (intCost[k2] === 0) delete intCost[k2];
       }
     }
     return intCost;
   }
-  // ✅ Neón: Scratch con Mesa de DJ → -1 cualquiera, +1 ilusión
   if (active.id === 'neon' && ability.kind === 'scratch') {
     var sdNeon = (combatState.player.characters.indexOf(active) >= 0) ? combatState.player : combatState.bot;
     var hasMesaN = sdNeon.structures && sdNeon.structures.some(function(s){ return s.kind === 'mesaDJ'; });
@@ -886,7 +869,6 @@ function getEffectiveCostFull(active, ability) {
       return cNeon;
     }
   }
-  // ✅ EX-María: el coste de "roce posible" sube en x1 any por repetición
   if (active.id === 'exmaria' && ability.kind === 'rocePosible') {
     var rCounter = (active.states && active.states.roceCounter) || 0;
     var rCost = {};
@@ -894,15 +876,12 @@ function getEffectiveCostFull(active, ability) {
     rCost.any = (rCost.any || 0) + rCounter;
     return rCost;
   }
-  // ✅ Irritación (X): la habilidad del que la tiene cuesta +1 genérico
   if (active && (csHasState(active, 'irritacion') || combatState._activeUnderIrritation)) {
     var irrCost = {};
     Object.keys(base).forEach(function(k){ irrCost[k] = base[k]; });
     irrCost.any = (irrCost.any || 0) + 1;
     return irrCost;
   }
-
-  // ✅ Sage: la normal sube +N cualquier por N cargas de Decidida
   if (active.id === 'sage' && ability.kind === 'sageNormal') {
     var sageDec = (active.states && active.states.decidida) || 0;
     if (sageDec > 0) {
@@ -912,7 +891,6 @@ function getEffectiveCostFull(active, ability) {
       return sageCost;
     }
   }
-
   return base;
 }
 
@@ -930,7 +908,6 @@ function applyGenericDamageMods(active, dmg, isElemental) {
   if (active.pendingBuff) { add += active.pendingBuff; logCombat('💪 Impulso: +' + active.pendingBuff); }
   if (active.cardNextAttackBonus) { add += active.cardNextAttackBonus; logCombat('🎴 Carta: +' + active.cardNextAttackBonus); }
   var eq = getEquipmentAttackBonus(active); if (eq.bonus > 0) { add += eq.bonus; logCombat('⚔️ Equipo: +' + eq.bonus); }
-  // ✅ EX Internet: daño base x2 si HP ≤ 2 (antes de sumar buffs/equipo)
   if (active.id === 'internet' && active.exActive && active.hp <= 2 && dmg > 0) {
     dmg *= 2;
     logCombat('🌐 EX Internet: daño base x2');
@@ -946,7 +923,6 @@ function applyGenericDamageMods(active, dmg, isElemental) {
       side.firstAttackUsed = true;
       logCombat('🩸 Redención: +' + bonusR + ' daño (primer ataque)');
     }
-    // ✅ Alter: bono a elementales del equipo (si hay buff activo)
     if (isElemental && side.alterUltBuff && side.alterUltBuff.amount > 0 && side.alterUltBuff.roundsLeft > 0 && active.id !== 'alter') {
       base += side.alterUltBuff.amount;
       logCombat('💥 Omnes Deam Salutate: +' + side.alterUltBuff.amount + ' daño');
@@ -954,6 +930,32 @@ function applyGenericDamageMods(active, dmg, isElemental) {
   }
   return base;
 }
+
+/* ═══ getEquipmentAttackBonus con bonus de David ═══ */
+function getEquipmentAttackBonus(cs) {
+  var bonus = 0, piercing = false;
+  if (cs && cs.equipment) cs.equipment.forEach(function(eqId){
+    var eq = CARD_DB[eqId];
+    if (!eq || !eq.effect) {
+      // ✅ DAVID: Espada Dorada — +1 daño (o +1+N con davidBuff) si David vivo en el equipo del portador
+      if (eqId === 'david_espada') {
+        var csS = sideOfChar(cs);
+        if (csS) {
+          var _david = csS.side.characters.find(function(x){ return x.id === 'david'; });
+          if (_david && !_david.dead) {
+            var _extra = (_david.states && _david.states.davidBuff) || 0;
+            bonus += 1 + _extra;
+          }
+        }
+      }
+      return;
+    }
+    if (eq.effect.attackBonus) bonus += eq.effect.attackBonus;
+    if (eq.effect.piercing) piercing = true;
+  });
+  return { bonus:bonus, piercing:piercing };
+}
+
 /* ═══ Iris: Advertido + redirección de ataques ═══ */
 var AOE_ABILITY_KINDS = ['estratosfera','faseDeLimpieza','suficiente','retribucionFinal','sobreExageracion','diosTeAmpare'];
 
@@ -962,7 +964,6 @@ function addAdvertidoCharge(enemyCs, irisCs) {
   var maxCharges = irisCs.exActive ? 1 : 3;
   var current = enemyCs.states.advertido || 0;
   if (current >= maxCharges) {
-    // Marcar con Protección
     var eSide = sideOfChar(enemyCs);
     var irisSide = sideOfChar(irisCs);
     if (eSide && irisSide) {
@@ -983,50 +984,34 @@ function maybeRedirectToIris(targetCs, targetSideKey, targetIdx, attackerCs, cur
   if (kind && AOE_ABILITY_KINDS.indexOf(kind) !== -1) return null;
   var side = combatState[targetSideKey];
 
-  // ✅ Provocación (X): fuerza el ataque hacia X
+  // ✅ DAVID: Capa real — el portador dispara el contraataque de David
+  if (targetCs.states && targetCs.states.capaReal) {
+    // La lógica real vive en dealDamageToChar para evitar dobles disparos
+  }
+
   var xCs = side.characters.find(function(c){ return c.id === 'x' && !c.dead && csHasState(c, 'provocacion'); });
   if (xCs && xCs !== targetCs) {
     logCombat('🎯 Provocación: ataque redirigido a X');
-    return {
-      newTarget: xCs,
-      newSideKey: targetSideKey,
-      newIdx: side.characters.indexOf(xCs),
-      modifiedDmg: currentDmg
-    };
+    return { newTarget: xCs, newSideKey: targetSideKey, newIdx: side.characters.indexOf(xCs), modifiedDmg: currentDmg };
   }
 
-  // ── Iris (Buen Recaudo / Advertencia) ──
   var irisCs = side.characters.find(function(c){ return c.id === 'iris' && !c.dead; });
   if (!irisCs) return null;
   if (targetCs === irisCs) return null;
 
   var shouldRedirect = false, bonusDmg = 0, consumeBuenRecaudo = false;
-
-  if (csHasState(targetCs, 'buenRecaudo')) {
-    shouldRedirect = true;
-    consumeBuenRecaudo = true;
-  }
-  if (irisCs.states && irisCs.states.advertenciaActive && side.activeIndex === targetIdx) {
-    shouldRedirect = true;
-    bonusDmg = 1;
-  }
+  if (csHasState(targetCs, 'buenRecaudo')) { shouldRedirect = true; consumeBuenRecaudo = true; }
+  if (irisCs.states && irisCs.states.advertenciaActive && side.activeIndex === targetIdx) { shouldRedirect = true; bonusDmg = 1; }
   if (!shouldRedirect) return null;
 
   if (consumeBuenRecaudo) csSetState(targetCs, 'buenRecaudo', false);
   addAdvertidoCharge(attackerCs, irisCs);
   logCombat('🛡️ Lealtad Imbatible: ataque redirigido a Iris' + (bonusDmg > 0 ? ' (+1 daño de Advertencia)' : ''));
-
-  return {
-    newTarget: irisCs,
-    newSideKey: targetSideKey,
-    newIdx: side.characters.indexOf(irisCs),
-    modifiedDmg: currentDmg + bonusDmg
-  };
+  return { newTarget: irisCs, newSideKey: targetSideKey, newIdx: side.characters.indexOf(irisCs), modifiedDmg: currentDmg + bonusDmg };
 }
 function applyDamageWithMods(targetCs, dmg, forcedPiercing, sideKey, idx, attackerCs) {
   var side = combatState[sideKey], piercing = forcedPiercing;
 
-  // ✅ Iris: redirección de ataques (Buen Recaudo + Advertencia)
   var redirectResult = maybeRedirectToIris(targetCs, sideKey, idx, attackerCs, dmg);
   if (redirectResult) {
     targetCs = redirectResult.newTarget;
@@ -1038,7 +1023,6 @@ function applyDamageWithMods(targetCs, dmg, forcedPiercing, sideKey, idx, attack
 
   if (attackerCs) {
     var eq = getEquipmentAttackBonus(attackerCs); if (eq.piercing) piercing = true;
-    // ── EX hook saliente (se aplica antes de escudos/reducciones) ──
     dmg = exHookModifyOutgoingDamage(attackerCs, dmg, targetCs);
   }
   if (targetCs.cardMarkBonus) dmg += targetCs.cardMarkBonus;
@@ -1070,14 +1054,14 @@ function executeAction(who, actionType, preSpentDice) {
     }
     diceSpentThisAction = res.spent || [];
     side.dice = res.remaining;
-    if (typeof trackDiceSpent === 'function' && diceSpentThisAction.length > 0) trackDiceSpent(who, diceSpentThisAction.length);   // ✅ NUEVO
+    if (typeof trackDiceSpent === 'function' && diceSpentThisAction.length > 0) trackDiceSpent(who, diceSpentThisAction.length);
   } else if (preSpentDice) {
     diceSpentThisAction = preSpentDice;
   }
   if (effEnergyCost > 0) {
     active.energy -= effEnergyCost;
     logCombat('⚡ ' + active.character.name + ' gasta ' + effEnergyCost + ' energía');
-    if (typeof trackEnergySpent === 'function') trackEnergySpent(who, effEnergyCost);   // ✅ NUEVO
+    if (typeof trackEnergySpent === 'function') trackEnergySpent(who, effEnergyCost);
   }
   var label = who === 'player' ? (combatState.pvp ? '🦋 J1' : '🦋 Tú') : (combatState.pvp ? '🦋 J2' : '📖 El rival');
   if (actionType === 'ultimate') { logCombat('💥 ¡' + label + ' desata ' + ability.name + '!'); playSound('ult'); flashUlt(); }
@@ -1104,14 +1088,13 @@ function executeAction(who, actionType, preSpentDice) {
     shouldEndTurn: true,
     pendingBuffConsumed: false,
     hadStacks: false,
+    isCounterAttack: !!combatState._currentIsCounterAttack,
     _preSpentDice: diceSpentThisAction
   };
 
-  // ✅ Popup con el nombre de la habilidad, antes de ejecutarla
   var activeIdx = side.activeIndex;
   showAbilityNamePopup(who, activeIdx, ability.name, actionType);
 
-  // ✅ Bloquear input mientras se resuelve
   combatState._resolvingAbility = true;
 
   setTimeout(function() {
@@ -1141,14 +1124,10 @@ function executeAction(who, actionType, preSpentDice) {
       // ✅ Ganancia de energía
       if (ability.energy && ability.energy > 0 && !active.dead) {
         var energyGain = ability.energy;
+        if (active.id === 'erikxd') { energyGain = 0; logCombat('📸 ErikXD no gana energía de habilidades'); }
         if (active.id === 'manuel' && ability.kind === 'degradacion') {
-          if (active.exActive) {
-            energyGain = 2;
-            logCombat('🌟 EX Manuel: Degradación otorga 2 energía');
-          } else if (ctx.hadStacks) {
-            energyGain = 0;
-            logCombat('📈 Manuel: Degradación resuelve acumulación → 0 energía');
-          }
+          if (active.exActive) { energyGain = 2; logCombat('🌟 EX Manuel: Degradación otorga 2 energía'); }
+          else if (ctx.hadStacks) { energyGain = 0; logCombat('📈 Manuel: Degradación resuelve acumulación → 0 energía'); }
         }
         if (active.id === 'exmaria') {
           logCombat('🌻 EX-María no gana energía de sus propias habilidades');
@@ -1166,9 +1145,7 @@ function executeAction(who, actionType, preSpentDice) {
           if (ctx.pendingBuffConsumed || active.id !== 'jose') active.pendingBuff = 0;
         }
       }
-      if (active.id === 'jose' && !active.dead) {
-        csSetState(active, 'acelerado', false);
-      }
+      if (active.id === 'jose' && !active.dead) csSetState(active, 'acelerado', false);
 
       renderCombat();
 
@@ -1176,7 +1153,6 @@ function executeAction(who, actionType, preSpentDice) {
       if (side.characters.every(function(c){ return c.dead; })) { setTimeout(function(){ endCombat(who === 'player' ? 'bot' : 'player'); }, 400); return; }
 
       if (ctx.shouldEndTurn === false) {
-        // ✅ Reanudar al bot si sigue siendo su turno (impulso, etc.)
         if (!combatState.pvp && combatState.turn === 'bot' && !combatState.botDone && combatState.phase === 'playing') {
           setTimeout(botTurn, 500);
         }
@@ -1188,15 +1164,15 @@ function executeAction(who, actionType, preSpentDice) {
       if (combatState) {
         logCombat('⚠️ Error al ejecutar ' + (ability ? ability.name : '?'));
         if (combatState.phase === 'playing') {
-          if (who === 'bot' && combatState.turn === 'bot' && !combatState.botDone) {
-            declareEnd('bot');
-          } else {
-            setTimeout(nextTurn, 400);
-          }
+          if (who === 'bot' && combatState.turn === 'bot' && !combatState.botDone) declareEnd('bot');
+          else setTimeout(nextTurn, 400);
         }
       }
     } finally {
-      if (combatState) combatState._resolvingAbility = false;
+      if (combatState) {
+        combatState._resolvingAbility = false;
+        combatState._currentIsCounterAttack = false;
+      }
     }
   }, 700);
 }
@@ -1223,47 +1199,22 @@ function getChangeRulesForTarget(who, targetIndex) {
   var side = combatState[who];
   var active = side.characters[side.activeIndex];
   var target = side.characters[targetIndex];
-
-  // ✅ Sage: cambiar DE ella es gratis (y con EX, rápido)
-  if (active && active.id === 'sage') {
-    rules.diceCost = 0;
-    if (active.exActive) rules.quick = true;
-  }
-
-  // ✅ Sage: cambiar A ella cuesta +1 (siempre, incluso si consonancia lo hacía gratis)
-  if (target && target.id === 'sage' && active && active.id !== 'sage') {
-    rules.diceCost = rules.diceCost + 1;
-  }
-
-  // ✅ Jose EX: cambiar a Jose no cuesta dados (existente)
+  if (active && active.id === 'sage') { rules.diceCost = 0; if (active.exActive) rules.quick = true; }
+  if (target && target.id === 'sage' && active && active.id !== 'sage') { rules.diceCost = rules.diceCost + 1; }
   if (targetIndex !== undefined && side.characters[targetIndex] && side.characters[targetIndex].id === 'jose') {
     var joseCs = side.characters[targetIndex];
     rules.quick = true;
     if (joseCs.exActive) { rules.diceCost = 0; rules.discounted = true; }
   }
-
   return rules;
 }
-
-/* ═══ Transfiere buffs "del activo" del viejo al nuevo activo (al cambiar de personaje) ═══ */
 function transferActiveBuffs(oldCs, newCs) {
   if (!oldCs || !newCs || oldCs === newCs) return;
   var _numKeys = ['cardNextAttackBonus', 'cardNextAbilityDiscount', 'cardMarkBonus', 'nextCardDiscount'];
-  _numKeys.forEach(function(k) {
-    if (oldCs[k] > 0) {
-      newCs[k] = (newCs[k] || 0) + oldCs[k];
-      oldCs[k] = 0;
-    }
-  });
+  _numKeys.forEach(function(k) { if (oldCs[k] > 0) { newCs[k] = (newCs[k] || 0) + oldCs[k]; oldCs[k] = 0; } });
   var _boolKeys = ['cardNextAttackPiercing', 'cardNextAttackDouble', 'cardNextAbilityFree'];
-  _boolKeys.forEach(function(k) {
-    if (oldCs[k]) {
-      newCs[k] = true;
-      oldCs[k] = false;
-    }
-  });
+  _boolKeys.forEach(function(k) { if (oldCs[k]) { newCs[k] = true; oldCs[k] = false; } });
 }
-
 function tryChangeCharacter(who, targetIndex) {
   if (!combatState || combatState.phase !== 'playing') return false;
   var side = combatState[who];
@@ -1279,9 +1230,7 @@ function tryChangeCharacter(who, targetIndex) {
   hungerOnEnter(who, side.characters[targetIndex], oldChar);
   if (side.characters[targetIndex].id === 'jose') csSetState(side.characters[targetIndex], 'acelerado', true);
   applyGoogleExOnChange(oldChar, side, targetIndex, who);
-  // ✅ Transferir buffs de "siguiente acción" del viejo al nuevo activo
   transferActiveBuffs(oldChar, side.characters[targetIndex]);
-  // ✅ Sage: efectos de entrada/salida (bot)
   var _newCs = side.characters[targetIndex];
   var _oldIdx = side.characters.indexOf(oldChar);
   if (oldChar && oldChar.id === 'sage' && _newCs.id !== 'sage' && oldChar.exActive && !oldChar.dead) {
@@ -1298,9 +1247,7 @@ function tryChangeCharacter(who, targetIndex) {
   }
   var sfx = rules.quick ? ' (acción rápida)' : (rules.discounted ? ' (gratis)' : '');
   logCombat('🔄 ' + (who === 'player' ? (combatState.pvp ? 'J1' : 'Tú') : (combatState.pvp ? 'J2' : 'El rival')) + ': ' + oldN + ' → ' + newN + sfx);
-  // ✅ Killer Tunes: cambio de personaje → 1 daño al enemigo activo
   if (typeof triggerKillerTunesDamage === 'function') triggerKillerTunesDamage(who);
-  // ✅ Si el enemigo entero ha caído por el efecto del cambio, declarar victoria
   var _enemyKey = who === 'player' ? 'bot' : 'player';
   if (combatState && combatState[_enemyKey] && combatState[_enemyKey].characters.every(function(c){ return c.dead; })) {
     setTimeout(function(){ if (combatState) endCombat(who); }, 400);
@@ -1532,7 +1479,6 @@ function botScoreAbility(actionType, active, enemyActive) {
   var personality = BOT_PERSONALITY[active.character.element] || { offense: 1, defense: 1, healing: 1, switching: 1 };
   var score = 0;
 
-  // Daño estimado
   var dmgInfo = botEstimateEffectiveDamage(active, ability, actionType);
   score += dmgInfo.damage * 2.2 * personality.offense;
   if (dmgInfo.kill) {
@@ -1540,28 +1486,22 @@ function botScoreAbility(actionType, active, enemyActive) {
     score += _kP;
   }
 
-  // Curación
   var heal = predictHeal(ability, active);
   var hpNeeded = active.maxHp - active.hp;
   score += Math.min(heal, hpNeeded) * 2.0 * personality.healing;
-  if (active.hp <= active.maxHp * 0.3 && heal > 0) score += 8;   // urgencia
+  if (active.hp <= active.maxHp * 0.3 && heal > 0) score += 8;
 
-  // Escudo
   score += predictShieldGain(ability) * 1.4 * personality.defense;
 
-  // Autodaño
   var selfDmg = predictSelfDamage(ability, active);
   score -= selfDmg * 3;
-  if (selfDmg >= active.hp) score -= 300;   // suicidio preventivo
+  if (selfDmg >= active.hp) score -= 300;
 
-  // Valor de estado / pasiva
   score += botScoreStateValue(ability, active, enemyActive);
 
-  // Coste
   var effCost = getEffectiveCostFull(active, ability);
   score -= sumCost(effCost) * 0.5;
 
-  // Mood
   if (combatState.botMood === 'aggressive') score *= 1.15;
   else if (combatState.botMood === 'defensive') {
     if (ability.kind === 'defensaActiva' || ability.kind === 'hipotesisSolida' || ability.kind === 'bajoAlas') score *= 1.5;
@@ -1588,7 +1528,7 @@ function botScoreChange(targetIdx, active, enemyActive) {
   return score;
 }
 
-/* ═══ Reserva de dados para ataque (evita gastar dados en buffs y quedarse sin golpe) ═══ */
+/* ═══ Reserva de dados para ataque ═══ */
 function botMinAttackCost() {
   var bot = combatState.bot;
   var active = bot.characters[bot.activeIndex];
@@ -1610,24 +1550,27 @@ function botScoreCard(cardId, card, active) {
   if (card.oncePerRound && bot.cardsUsedThisRound[cardId]) return -1;
   if (card.oncePerGame && bot.cardsUsedThisGame[cardId]) return -1;
 
-  // Pinturas de Erik: solo si Erik está vivo y sin pintura
   if (card.category === 'pintura') {
     var erik = bot.characters.find(function(c){ return c.id === 'erik' && !c.dead; });
     if (!erik || erik.paintEquipped) return -1;
     return 5;
   }
 
+  // ✅ Pasivas: Eve y ErikXD no pueden recibir equipaciones
+  if (card.category === 'equipo') {
+    if (active.id === 'erikxd') return -1;
+    if (active.id === 'eve' && card.effect && (card.effect.shieldBonus || card.effect.shieldPerRound || card.effect.healBonus || card.effect.healPerRound || card.effect.teamShieldBonus || card.effect.teamShieldInstant)) return -1;
+  }
+
   var cost = adjustCardCostForPassives(card, bot);
   var cardDiceCost = sumCost(cost);
   if (!trySpendDice(bot.dice, cost).ok) return -1;
 
-  // ✅ NUEVO: reserva de dados para ataque
   var isDefensiveCard = ['heal','healAll','shield','shieldAll','revive'].indexOf(card.effectType) !== -1;
   var isBuffForAttack = ['nextAttackBonus','nextAttackDouble','nextAttackCritical','nextAttackPiercing','nextAbilityDiscount','nextAbilityFree'].indexOf(card.effectType) !== -1;
   var reserve = botMinAttackCost();
   var postDice = bot.dice.length - cardDiceCost;
   if (postDice < reserve && !isDefensiveCard) {
-    // Jugar esta carta haría que el bot no pueda atacar → penalizar fuerte
     return -1;
   }
 
@@ -1637,7 +1580,7 @@ function botScoreCard(cardId, card, active) {
     case 'heal':
       if (hpNeeded <= 0) return -1;
       score += Math.min(card.value, hpNeeded) * 2.0;
-      if (active.hp <= active.maxHp * 0.35) score += 5;   // bonus urgencia
+      if (active.hp <= active.maxHp * 0.35) score += 5;
       break;
     case 'healAll': {
       var totalHeal = 0;
@@ -1653,7 +1596,6 @@ function botScoreCard(cardId, card, active) {
       score += card.value * 2.2;
       break;
     case 'nextAttackBonus': {
-      // El bono vale en proporción al ataque que va a hacer
       var bestAtk = Math.max(
         computeBaseDamageForAbility(active, active.character.abilities.normal, 'normal'),
         computeBaseDamageForAbility(active, active.character.abilities.elemental, 'elemental')
@@ -1684,7 +1626,7 @@ function botScoreCard(cardId, card, active) {
     }
     case 'nextAbilityDiscount':
       score += (card.value >= 2) ? 4 : 2;
-      if (active.energy >= active.maxEnergy) score += 2;   // ya puede ulti → el descuento es aún más valioso
+      if (active.energy >= active.maxEnergy) score += 2;
       break;
     case 'nextAbilityFree': score += 8; break;
     case 'drawDiceOfActive': case 'drawTeamDice': score += card.value * 0.9; break;
@@ -1708,7 +1650,6 @@ function botScoreCard(cardId, card, active) {
       score += 12;
       break;
     default:
-      // ✅ Equipo y apoyo no tienen effectType: se puntúan por su card.effect
       if (card.effect) {
         var e = card.effect;
         var _dur = card.duration || 1;
@@ -1732,7 +1673,9 @@ function botScoreCard(cardId, card, active) {
       }
       break;
   }
-  if (card.category === 'equipo' && active.equipment && active.equipment.length >= 2) score -= 2;
+  // ✅ Opal: el límite de equipación es dinámico (3 slots)
+  var _maxEqB = (typeof getMaxEquipment === 'function') ? getMaxEquipment(active) : 2;
+  if (card.category === 'equipo' && active.equipment && active.equipment.length >= _maxEqB) score -= 2;
   if (card.category === 'apoyo' && bot.supports && bot.supports.indexOf(null) === -1) score -= 2;
   score -= cardDiceCost * 0.35;
   if (combatState.botMood === 'defensive') {
@@ -1777,7 +1720,6 @@ function botChooseBestCard() {
   });
   if (!candidates.length) return null;
   candidates.sort(function(a,b){ return b.score - a.score; });
-  // Elige entre las 2 mejores con probabilidad ponderada (no siempre la misma)
   return botPickBestWeighted(candidates);
 }
 
@@ -1812,7 +1754,6 @@ function botChooseAction() {
     if (i === bot.activeIndex) continue;
     if (bot.characters[i].dead) continue;
     var chScore = botScoreChange(i, active, enemyActive);
-    // ✅ Si no puede atacar con el activo, priorizar cambio a quien sí pueda
     if (!canAttackWithActive) {
       var other = bot.characters[i];
       var otherCanAttack = ['normal', 'elemental', 'ultimate'].some(function(type){
@@ -1826,18 +1767,12 @@ function botChooseAction() {
     if (chScore > 2.0) candidates.push({ action: { type: 'change', index: i }, score: chScore });
   }
 
-  // ✅ Si ninguna opción tiene score decente, pero PUEDE atacar, que ataque
   var bestScore = candidates.reduce(function(a, c){ return Math.max(a, c.score); }, 0);
   if (bestScore < 1.0) {
-    // Fallback: priorizar cualquier ataque pagable
     var _normalAb = active.character.abilities.normal;
-    if (_normalAb && botCanUseAbility(bot, active, _normalAb, 'normal')) {
-      return { type: 'normal' };
-    }
+    if (_normalAb && botCanUseAbility(bot, active, _normalAb, 'normal')) return { type: 'normal' };
     var _elAb = active.character.abilities.elemental;
-    if (_elAb && botCanUseAbility(bot, active, _elAb, 'elemental')) {
-      return { type: 'elemental' };
-    }
+    if (_elAb && botCanUseAbility(bot, active, _elAb, 'elemental')) return { type: 'elemental' };
     return { type: 'end' };
   }
 
@@ -1858,11 +1793,15 @@ function botPlayCard(cardId, card, onComplete) {
     var erik = bot.characters.find(function(c){ return c.id === 'erik' && !c.dead; });
     if (!erik || erik.paintEquipped) return fail();
   }
+  // ✅ Pasivas: Eve y ErikXD no pueden recibir equipaciones
+  if (card.category === 'equipo') {
+    if (active.id === 'erikxd') return fail();
+    if (active.id === 'eve' && card.effect && (card.effect.shieldBonus || card.effect.shieldPerRound || card.effect.healBonus || card.effect.healPerRound || card.effect.teamShieldBonus || card.effect.teamShieldInstant)) return fail();
+  }
   var cost = adjustCardCostForPassives(card, bot);
   var spendResult = trySpendDice(bot.dice, cost);
   if (!spendResult.ok) return fail();
 
-  // ── Cambios de estado inmediatos (no visibles en la UI hasta el render) ──
   bot.dice = spendResult.remaining;
   if (active && active.nextCardDiscount > 0) {
     active.nextCardDiscount = 0;
@@ -1874,7 +1813,6 @@ function botPlayCard(cardId, card, onComplete) {
   if (card.oncePerGame) bot.cardsUsedThisGame[cardId] = true;
   if (!PAINT_CARDS[cardId]) { if (!bot.discardPile) bot.discardPile = []; bot.discardPile.push(cardId); }
 
-  // ── Overlay primero, efecto después ──
   showUsedCardOverlay(card, 'bot', function() {
     if (!combatState || !canBotAct()) { if (onComplete) onComplete(false); return; }
     var a = combatState.bot.characters[combatState.bot.activeIndex];
@@ -1886,8 +1824,11 @@ function botPlayCard(cardId, card, onComplete) {
       if (e2) { e2.paintEquipped = card.paintColor; logCombat('🎨 Rival equipa ' + card.name + ' en ' + e2.character.name); }
     } else if (card.category === 'equipo') {
       if (!a.equipment) a.equipment = [];
-      if (a.equipment.length >= 2) {
-        var removed = a.equipment.shift();
+      var _maxEqBP = (typeof getMaxEquipment === 'function') ? getMaxEquipment(a) : 2;
+      if (a.equipment.length >= _maxEqBP) {
+        // ✅ David: nunca quitar la Espada Dorada (slot 0)
+        var _removeIdx = (a.id === 'david' && a.equipment[0] === 'david_espada') ? 1 : 0;
+        var removed = a.equipment.splice(_removeIdx, 1)[0];
         if (!b.discardPile) b.discardPile = [];
         b.discardPile.push(removed);
       }
@@ -1900,7 +1841,8 @@ function botPlayCard(cardId, card, onComplete) {
       }
       logCombat('⚔️ Rival equipa ' + card.name);
     } else if (card.category === 'apoyo') {
-      if (!b.supports) b.supports = [null, null, null, null];
+      // ✅ ErikXD: 5 slots de apoyo
+      if (!b.supports) b.supports = [null, null, null, null, null];
       var slot = b.supports.indexOf(null);
       if (slot === -1) slot = 0;
       b.supports[slot] = { cardId: cardId, duration: card.duration };
@@ -1946,16 +1888,13 @@ function botMaybeReroll() {
     .map(function(c){ return c.character.element; });
   var useful = bot.dice.filter(function(d){ return d.type === el || d.type === 'omni'; }).length;
   if (useful >= 5) return false;
-  // Candidatos a relanzar: no son del activo ni omni
   var useless = bot.dice.filter(function(d){ return d.type !== el && d.type !== 'omni'; });
   if (useless.length < 1) return false;
-  // Prioriza relanzar los que TAMPOCO son útiles para el resto del equipo
   useless.sort(function(a, b){
     var aTeam = teamEls.indexOf(a.type) !== -1 ? 1 : 0;
     var bTeam = teamEls.indexOf(b.type) !== -1 ? 1 : 0;
     return aTeam - bTeam;
   });
-  // Relanzar los suficientes para llegar a ~5 dados útiles
   var need = Math.min(3, Math.max(1, 5 - useful));
   var toReroll = useless.slice(0, need);
   toReroll.forEach(function(d){
@@ -1972,7 +1911,6 @@ function botTurn(skipThink) {
   var active = bot.characters[bot.activeIndex];
   if (!active || active.dead) { declareEnd('bot'); return; }
 
-  // ✅ Watchdog: si en 8s el bot sigue sin actuar ni declarar fin, forzarlo
   var myToken = ++_botWatchdogToken;
   setTimeout(function() {
     if (myToken !== _botWatchdogToken) return;
@@ -1983,7 +1921,7 @@ function botTurn(skipThink) {
     logCombat('🤖 El rival está tardando demasiado → forzando fin de ronda');
     combatState._resolvingAbility = false;
     declareEnd('bot');
-  }, 15000);   // antes 8000 — más margen con la nueva secuencia por carta
+  }, 15000);
 
   updateBotMood();
   showBotThinkBubble('🤔 Pensando<span class="bt-dots"></span>');
@@ -2033,7 +1971,6 @@ function botPickBestWeighted(candidates) {
     return topE[0];
   }
 
-  // normal
   var top = candidates.slice(0, Math.min(2, candidates.length));
   var total = top.reduce(function(a,c){ return a + Math.max(0.1, c.score); }, 0);
   var roll = Math.random() * total;
@@ -2054,7 +1991,6 @@ function _botPlayCardsSequence(played, callback) {
     if (!canBotAct()) { callback(); return; }
     botPlayCard(best.cardId, best.card, function() {
       if (!canBotAct()) { callback(); return; }
-      // ✅ Pausa tras el efecto para que el usuario vea "cómo se coloca/equipa/hace efecto"
       setTimeout(function() {
         _botPlayCardsSequence(played + 1, callback);
       }, 600);
@@ -2096,8 +2032,22 @@ function scheduleNextTurn(delay) {
 function nextTurn() {
   if (!combatState || combatState.phase === 'ended') return;
   combatState._pendingTurnAdvance = false;
+
+  // ✅ ERIKXD: "Fuera de plano" — si el que terminó su turno era ErikXD activo, forzar cambio a reserva
+  var _prevTurn = combatState.turn;
+  var _prevSide = combatState[_prevTurn];
+  if (_prevSide) {
+    var _prevActive = _prevSide.characters[_prevSide.activeIndex];
+    if (_prevActive && !_prevActive.dead && _prevActive.id === 'erikxd') {
+      var _nxE = getNextAliveIndex(_prevSide, _prevSide.activeIndex);
+      if (_nxE >= 0 && _nxE !== _prevSide.activeIndex) {
+        _prevSide.activeIndex = _nxE;
+        logCombat('📸 Fuera de plano: ErikXD a reserva · ' + _prevSide.characters[_nxE].character.name + ' activo');
+      }
+    }
+  }
+
   if (combatState.playerDone && combatState.botDone) { endRound(); return; }
-  // ✅ Sandbox modo player-only: siempre vuelve a ser el turno del jugador
   if (currentGameMode === 'sandbox' && sandboxTurnMode === 'player-only') {
     combatState.turn = 'player';
     renderCombat();
@@ -2107,7 +2057,6 @@ function nextTurn() {
   if (next === 'player' && combatState.playerDone) next = 'bot';
   else if (next === 'bot' && combatState.botDone) next = 'player';
   combatState.turn = next;
-  // ✅ Reset sageEnteredThisTurn para el lado que acaba de actuar
   var prevTurnSide = (next === 'player') ? 'bot' : 'player';
   if (combatState[prevTurnSide]) {
     combatState[prevTurnSide].characters.forEach(function(c){
@@ -2133,12 +2082,10 @@ function nextTurn() {
 function declareEnd(who) {
   if (!combatState || combatState.phase === 'ended' || combatState[who + 'Done']) return;
   combatState[who + 'Done'] = true;
-  // ✅ Neón (pasiva): +2 escudo + cambio al siguiente aliado si está activa
   var sdDecl = combatState[who];
   var activeDecl = sdDecl.characters[sdDecl.activeIndex];
   if (activeDecl && !activeDecl.dead && activeDecl.id === 'neon') {
     var nxDecl = getNextAliveIndex(sdDecl, sdDecl.activeIndex);
-    // ✅ Solo aplica el escudo + cambio si REALMENTE puede cambiar de personaje.
     if (nxDecl >= 0 && nxDecl !== sdDecl.activeIndex) {
       addOrRefreshShield(activeDecl, 'neon_passive', 2);
       sdDecl.activeIndex = nxDecl;
@@ -2148,7 +2095,6 @@ function declareEnd(who) {
       logCombat('🎆 Neón (pasiva): no puede cambiar de personaje (no hay otros aliados vivos) — sin escudo');
     }
   }
-  // ✅ Sandbox player-only: declarar fin de ronda termina la ronda directamente
   if (currentGameMode === 'sandbox' && sandboxTurnMode === 'player-only' && who === 'player') {
     combatState.botDone = true;
   }
@@ -2163,8 +2109,8 @@ function declareEnd(who) {
 }
 function endRound() {
   if (!combatState) return;
-  if (combatState.roundEnding) return;             // ✅ guard
-  combatState.roundEnding = true;                  // ✅ nuevo flag
+  if (combatState.roundEnding) return;
+  combatState.roundEnding = true;
   playSound('endRound'); showBanner('FIN DE RONDA', 1600);
   applySupportEndOfRoundEffects('player'); applySupportEndOfRoundEffects('bot');
   // ── Orath: pasiva al final de ronda ──
@@ -2195,10 +2141,7 @@ function endRound() {
   });
   applyStructureEndOfRoundEffects('player'); applyStructureEndOfRoundEffects('bot');
 
-  // ══════════════════════════════════════════════════════════════
-  // ✅ EX-María: efectos diferidos de fin de ronda
-  // ══════════════════════════════════════════════════════════════
-  // 1) Daño / curación diferidos de EX-María
+  // ═══ EX-María: efectos diferidos ═══
   ['player','bot'].forEach(function(wk){
     combatState[wk].characters.forEach(function(c){
       if (c.id === 'exmaria' && !c.dead) {
@@ -2218,7 +2161,6 @@ function endRound() {
       }
     });
   });
-  // 2) Golpes diferidos de "roce posible"
   ['player','bot'].forEach(function(wk){
     var sd = combatState[wk];
     if (!sd.pendingRoceHits || !sd.pendingRoceHits.length) return;
@@ -2232,7 +2174,6 @@ function endRound() {
     });
     sd.pendingRoceHits = [];
   });
-  // 3) Chequeos de "amor verdadero"
   ['player','bot'].forEach(function(wk){
     var sd = combatState[wk];
     if (!sd.pendingAmorVerdadero || !sd.pendingAmorVerdadero.length) return;
@@ -2255,7 +2196,6 @@ function endRound() {
     });
     sd.pendingAmorVerdadero = [];
   });
-  // 4) Chequeos de "amor suficiente"
   ['player','bot'].forEach(function(wk){
     var sd = combatState[wk];
     if (!sd.pendingAmorSuficiente || !sd.pendingAmorSuficiente.length) return;
@@ -2269,7 +2209,6 @@ function endRound() {
     });
     sd.pendingAmorSuficiente = [];
   });
-  // 5) EX-María: +1 energía (pasiva) + consolidación de la energía pendiente
   ['player','bot'].forEach(function(wk){
     combatState[wk].characters.forEach(function(c){
       if (c.id === 'exmaria' && !c.dead) {
@@ -2279,19 +2218,16 @@ function endRound() {
       }
     });
   });
-  // 6) Reset del contador de "roce posible"
   ['player','bot'].forEach(function(wk){
     combatState[wk].characters.forEach(function(c){
       if (c.id === 'exmaria' && c.states) c.states.roceCounter = 0;
     });
   });
-  // ✅ Reset del contador de "Cosecha" de María (base)
   ['player','bot'].forEach(function(wk){
     combatState[wk].characters.forEach(function(c){
       if (c.id === 'maria' && c.states) c.states.cosechaCounter = 0;
     });
   });
-  // ✅ Google (pasiva): 1 daño verdadero al final de la ronda si activó su pasiva
   ['player','bot'].forEach(function(wk){
     combatState[wk].characters.forEach(function(c){
       if (c.id === 'google' && !c.dead && csHasState(c, 'googleEndDamage')) {
@@ -2302,13 +2238,10 @@ function endRound() {
       }
     });
   });
-  // ✅ NC (pasiva): Podrida + autodaño al final de la ronda
   ['player','bot'].forEach(function(wk){
     var sd = combatState[wk];
     var ncCs = sd.characters.find(function(c){ return c.id === 'nc' && !c.dead; });
     if (!ncCs) return;
-
-    // Podrida: 1 daño al enemigo activo (o a todos si usó la ult esta ronda)
     if (csHasState(ncCs, 'podrida')) {
       var ek = wk === 'player' ? 'bot' : 'player';
       var es = combatState[ek];
@@ -2326,19 +2259,14 @@ function endRound() {
         }
       }
     }
-
-    // Pasiva: NC recibe 1 daño al final de la ronda (si sigue viva)
     if (!ncCs.dead && ncCs.hp > 0) {
       var ncSide = sideOfChar(ncCs);
       dealDamageToChar(ncCs, 1, { targetSide: ncSide.side, targetSideKey: ncSide.key, targetIdx: ncSide.side.characters.indexOf(ncCs) });
       logCombat('🎯 NC (pasiva): 1 daño al final de la ronda');
     }
   });
-  // ✅ Reset flag Podrida-a-todos
   ['player','bot'].forEach(function(wk){ combatState[wk].podridaHitsAll = false; });
 
-  // ✅ María (base): pasiva Florecimiento (fin de ronda)
-  // Si el entorno es Campo de Girasoles (y es suyo) y ella está activa → cura 1 HP a todos los aliados.
   ['player','bot'].forEach(function(wk){
     var sd = combatState[wk];
     var mariaCs = sd.characters.find(function(c){ return c.id === 'maria' && !c.dead; });
@@ -2353,8 +2281,6 @@ function endRound() {
   // ── Entorno: efecto de fin de ronda ──
   if (combatState.environment) {
     var envCur = combatState.environment;
-    // ✅ Campo de Girasoles: el efecto pasivo (+1 a toda curación del equipo dueño)
-    // se aplica dentro de healChar(). No hay heal por ronda ni semillas.
     if (envCur.id === 'sobrecarga_epileptica') {
       var ownerEnvSide = combatState[envCur.ownerSide];
       var nxEnv = getNextAliveIndex(ownerEnvSide, ownerEnvSide.activeIndex);
@@ -2362,13 +2288,11 @@ function endRound() {
         ownerEnvSide.activeIndex = nxEnv;
         logCombat('⚡ Sobrecarga Epiléptica: ' + ownerEnvSide.characters[nxEnv].character.name + ' pasa a activo');
         triggerKillerTunesDamage(envCur.ownerSide);
-        // ✅ Flash visual del entorno
         flashCombatElement('#combatEnvironmentDisplay', '⚡ CAMBIO', '#5cb3ff');
         if (typeof renderCombat === 'function') renderCombat();
       }
     }
     if (envCur.id === 'campo_girasoles') {
-      // ✅ Flash visual: el entorno sigue activo y "pulsa" al final de la ronda
       flashCombatElement('#combatEnvironmentDisplay', '🌻 +1 curación', '#7aff9a');
     }
     envCur.roundsLeft--;
@@ -2379,7 +2303,7 @@ function endRound() {
     updateEnvironmentVisuals();
   }
 
-  // ✅ EX Abla (Sangría Persistente): enemigos con Rencor reciben 1 daño al final de la ronda
+  // ✅ EX Abla (Sangría Persistente)
   ['player','bot'].forEach(function(wk){
     var sd = combatState[wk];
     var ablaEx = sd.characters.find(function(c){ return c.id === 'abla' && c.exActive && !c.dead; });
@@ -2401,8 +2325,6 @@ function endRound() {
       if (vc) { vittoriaSideKey = wk; vittoriaCs = vc; }
     });
     if (!vittoriaCs) return;
-
-    // Recopilar todos los personajes VIVOS con "visto"
     var affected = [];
     ['player','bot'].forEach(function(wk){
       combatState[wk].characters.forEach(function(c){
@@ -2410,21 +2332,17 @@ function endRound() {
       });
     });
     if (affected.length === 0) return;
-
     var teamWiped = combatState[vittoriaSideKey].characters.every(function(c){ return c.dead; });
-    // Si Vittoria murió y su equipo está wipeado (fue la última en morir), no aplica
     if (vittoriaCs.dead && teamWiped) {
       affected.forEach(function(a){ csSetState(a.cs, 'visto', false); });
       logCombat('👁️ Visto: Vittoria fue la última en morir → no se resuelve');
       return;
     }
-
     var totalDmg = vittoriaCs.dead ? 12 : 6;
     var n = affected.length;
     var base = Math.floor(totalDmg / n);
     var remainder = totalDmg % n;
     logCombat('👁️ Visto: ' + totalDmg + ' daño penetrante repartido entre ' + n + (vittoriaCs.dead ? ' (Vittoria ha muerto)' : ''));
-
     affected.forEach(function(a, idx){
       var dmg = base + (idx < remainder ? 1 : 0);
       if (dmg > 0) {
@@ -2434,8 +2352,6 @@ function endRound() {
       csSetState(a.cs, 'visto', false);
       logCombat('  → ' + a.cs.character.name + ' recibe ' + dmg + ' daño penetrante');
     });
-
-    // Revivir Vittoria si estaba muerta
     if (vittoriaCs.dead) {
       vittoriaCs.dead = false;
       vittoriaCs.hp = 1;
@@ -2451,7 +2367,7 @@ function endRound() {
   if (bdead) { setTimeout(function(){ endCombat('player'); }, 600); return; }
   if (pdead) { setTimeout(function(){ endCombat('bot'); }, 600); return; }
 
-  // ✅ Facebook EX: al final de la ronda, si ningún aliado fue derrotado → robar 1 carta
+  // ✅ Facebook EX
   ['player','bot'].forEach(function(wk){
     var sd = combatState[wk];
     var fb = sd.characters.find(function(c){ return c.id === 'facebook' && !c.dead; });
@@ -2461,7 +2377,7 @@ function endRound() {
     }
   });
 
-  // ✅ Reset de entradas de YouTube al final de ronda
+  // ✅ Reset de entradas de YouTube
   ['player','bot'].forEach(function(wk){
     combatState[wk].characters.forEach(function(c){
       if (c.id === 'youtube' && c.states) {
@@ -2474,7 +2390,7 @@ function endRound() {
   combatState.round++; combatState.playerDone = false; combatState.botDone = false;
   combatState.player.firstChangeUsed = false; combatState.player.firstAttackUsed = false;
   combatState.bot.firstChangeUsed = false; combatState.bot.firstAttackUsed = false;
-  // ✅ Alter: la definitiva dura 2 rondas; al final de cada ronda se decrementa.
+  // ✅ Alter: decremento del buff
   ['player','bot'].forEach(function(wk){
     var sd = combatState[wk];
     if (sd.alterUltBuff && sd.alterUltBuff.roundsLeft > 0) {
@@ -2487,27 +2403,43 @@ function endRound() {
   });
   if (combatState.player.obraMaestraTurns > 0) combatState.player.obraMaestraTurns--;
   if (combatState.bot.obraMaestraTurns > 0) combatState.bot.obraMaestraTurns--;
+
+  // ✅ OPAL: decrementar resonanciasCuran
+  ['player','bot'].forEach(function(wk){
+    var s = combatState[wk];
+    if (s.resonanciasCuran && s.resonanciasCuran.roundsLeft > 0) {
+      s.resonanciasCuran.roundsLeft--;
+      if (s.resonanciasCuran.roundsLeft <= 0) logCombat('🎨 Por un mundo lleno de color se desvanece');
+    }
+  });
+
+  // ✅ ERIKXD: +1 energía si termina la ronda en reserva + reset Nostalgia-Bait
+  ['player','bot'].forEach(function(wk){
+    var sd = combatState[wk];
+    var ek = sd.characters.find(function(c){ return c.id === 'erikxd' && !c.dead; });
+    if (ek && sd.activeIndex !== sd.characters.indexOf(ek)) {
+      ek.energy = Math.min(ek.maxEnergy, ek.energy + 1);
+      logCombat('📸 ErikXD: +1 energía (en reserva)');
+    }
+  });
+  combatState.player.nostalgiaBaitActive = false;
+  combatState.bot.nostalgiaBaitActive = false;
+
   ['player','bot'].forEach(function(wk){ combatState[wk].characters.forEach(function(c){
     c.pendingBuff = 0; c.cardMarkBonus = 0;
     if (c.states) {
       c.states.acelerado = false;
       c.states.furia = false; c.states.furiaPending = false; c.states.furiaTarget = null;
-      // ✅ Alter: pierde 1 punto de invulnerabilidad al final de cada ronda
       if (c.id === 'alter' && c.states.invulnerabilidad > 0) {
         c.states.invulnerabilidad = Math.max(0, c.states.invulnerabilidad - 1);
         logCombat('🛡️ Alter pierde 1 invulnerabilidad (queda ' + c.states.invulnerabilidad + ')');
       }
       if (c.id !== 'alter') c.states.invulnerabilidad = 0;
-      // ✅ Hunger: si al final de la ronda tiene marca, pierde 2 HP
       if (c.id === 'hunger' && !c.dead && hasAnyMark(c)) {
         c.hp = Math.max(0, c.hp - 2);
         logCombat('👹 Hunger pierde 2 HP por su marca (queda ' + c.hp + '/' + c.maxHp + ')');
-        if (c.hp <= 0) {
-          var hSide = combatState[wk];
-          handleDeath(wk, hSide.characters.indexOf(c));
-        }
+        if (c.hp <= 0) { var hSide = combatState[wk]; handleDeath(wk, hSide.characters.indexOf(c)); }
       }
-      // ✅ Iris: limpieza de estados de fin de ronda
       if (c.id === 'iris') {
         c.states.advertenciaActive = false;
         if (c.states.advertenciaShieldActive) {
@@ -2516,14 +2448,14 @@ function endRound() {
           logCombat('🛡️ Advertencia: el escudo restante de Iris se desvanece');
         }
       }
-      // ✅ Buen Recaudo dura hasta el fin de la ronda
       if (c.states.buenRecaudo) c.states.buenRecaudo = false;
-      // (Advertido NO se limpia: persiste entre rondas en el enemigo)
-      // ✅ Estados de nueva tanda
       if (c.states.irritacion) c.states.irritacion = false;
       if (c.states.provocacion) c.states.provocacion = false;
-      // Paillettes persiste hasta fin de combate
-      // ✅ Sage: pierde 1 Decidida al final de ronda
+      // ✅ DAVID: Capa real también se limpia al final de ronda si no se consumió
+      if (c.states.capaReal) {
+        c.states.capaReal = false;
+        c.shields = (c.shields || []).filter(function(sh){ return sh.source !== 'capa_real'; });
+      }
       if (c.id === 'sage' && c.states.decidida > 0) {
         c.states.decidida -= 1;
         logCombat('🐴 Sage: pierde 1 Decidida (' + c.states.decidida + '/3)');
@@ -2537,12 +2469,10 @@ function endRound() {
   combatState.bot.neonUltChangeDamage = false;
   combatState.player.rerolled = false; combatState.player.selected = {}; combatState.player.rollingIds = {};
   combatState.player.cardsUsedThisRound = {};
-  // ✅ Antes solo se reseteaba en PvP; en Solo el bot se quedaba sin poder relanzar
   combatState.bot.rerolled = false; combatState.bot.selected = {}; combatState.bot.rollingIds = {};
   combatState.bot.cardsUsedThisRound = {};
   setTimeout(function(){
-    combatState.roundEnding = false;               // ✅ libera input
-    // ✅ Sandbox: saltar setup PvP entre rondas
+    combatState.roundEnding = false;
     if (currentGameMode === 'sandbox') {
       rollDiceForSide('player', false);
       rollDiceForSide('bot', false);
@@ -2569,7 +2499,6 @@ function endRound() {
     rollDiceForSide('player', false); rollDiceForSide('bot', false);
     renderCombat();
     if (combatState.mode === 'auto') {
-      // Auto: no mostramos overlay, arrancamos la ronda directamente
       startDrawPhase();
       return;
     }
@@ -2594,7 +2523,7 @@ function endCombat(winner) {
 }
 function flashUlt(){ var c = document.getElementById('combatContent'); if (!c) return; c.classList.add('ult-cast'); setTimeout(function(){ c.classList.remove('ult-cast'); }, 800); }
 
-/* ═══ Popup con el nombre de la habilidad, junto al personaje que la usa ═══ */
+/* ═══ Popup con el nombre de la habilidad ═══ */
 function showAbilityNamePopup(who, idx, name, actionType, customIcon) {
   var sel = '.combat-char-card[data-team="' + who + '"][data-index="' + idx + '"]';
   var card = document.querySelector(sel);
@@ -2618,23 +2547,17 @@ function showAbilityNamePopup(who, idx, name, actionType, customIcon) {
 
   popup.style.left = left + 'px';
   popup.style.top = top + 'px';
-  popup.style.transform = preferAbove
-    ? 'translate(-50%, -100%) scale(0.6)'
-    : 'translate(-50%, 0) scale(0.6)';
+  popup.style.transform = preferAbove ? 'translate(-50%, -100%) scale(0.6)' : 'translate(-50%, 0) scale(0.6)';
   document.body.appendChild(popup);
 
   requestAnimationFrame(function() {
     popup.classList.add('show');
-    popup.style.transform = preferAbove
-      ? 'translate(-50%, -100%) scale(1)'
-      : 'translate(-50%, 0) scale(1)';
+    popup.style.transform = preferAbove ? 'translate(-50%, -100%) scale(1)' : 'translate(-50%, 0) scale(1)';
   });
 
   setTimeout(function() {
     popup.classList.remove('show');
-    popup.style.transform = preferAbove
-      ? 'translate(-50%, -100%) scale(0.6)'
-      : 'translate(-50%, 0) scale(0.6)';
+    popup.style.transform = preferAbove ? 'translate(-50%, -100%) scale(0.6)' : 'translate(-50%, 0) scale(0.6)';
     setTimeout(function(){ if (popup.parentNode) popup.remove(); }, 400);
   }, 1400);
 }
@@ -2644,7 +2567,7 @@ function showCardNamePopup(who, idx, card) {
   showAbilityNamePopup(who, idx, card.name, 'card', card.emoji || '🎴');
 }
 
-/* ═══ Overlay de carta usada (grande, centrada) ═══ */
+/* ═══ Overlay de carta usada ═══ */
 var _usedCardOverlayTimerHold = null;
 var _usedCardOverlayTimerFade = null;
 
@@ -2664,7 +2587,6 @@ function showUsedCardOverlay(card, who, onComplete) {
     ov.className = 'used-card-overlay';
     document.body.appendChild(ov);
   }
-  // ✅ Cancelar cualquier timer pendiente de una carta anterior
   if (_usedCardOverlayTimerHold) { clearTimeout(_usedCardOverlayTimerHold); _usedCardOverlayTimerHold = null; }
   if (_usedCardOverlayTimerFade) { clearTimeout(_usedCardOverlayTimerFade); _usedCardOverlayTimerFade = null; }
 
@@ -2706,7 +2628,6 @@ function getMariaTarget(side, mariaCs) {
   var minHp = Math.min.apply(null, candidates.map(function(x){ return x.cs.hp; }));
   var tied = candidates.filter(function(x){ return x.cs.hp === minHp; });
   if (tied.length === 1) return tied[0].idx;
-  // Desempate: siguiente aliado en reserva (circular desde el activo)
   var activeIdx = side.activeIndex;
   var n = side.characters.length;
   for (var k = 1; k <= n; k++) {
@@ -2721,12 +2642,11 @@ function getMariaTarget(side, mariaCs) {
 /* ═══ GOOGLE EX: helper para cambio de personaje ═══ */
 function applyGoogleExOnChange(oldChar, side, newIndex, turnKey) {
   if (!oldChar || oldChar.id !== 'google') return;
-  // ✅ FIX: comprobar sólo `exActive` (más fiable en Sandbox)
   if (!oldChar.exActive) return;
   var newActive = side.characters[newIndex];
   if (!newActive || newActive.dead) return;
   addOrRefreshShield(newActive, 'google_ex', 1);
-  logCombat('🔍 EX Google: ' + newActive.character.name + '+1 escudo (total: ' + totalShield(newActive) + ')'.replace('+', ' +'));
+  logCombat('🔍 EX Google: ' + newActive.character.name + ' +1 escudo (total: ' + totalShield(newActive) + ')');
 }
 
 /* ═══ YouTube: Popularidad y Forma ═══ */
@@ -2794,8 +2714,7 @@ function previewPlayerAction(actionType) {
 
   var applyGeneric = [
     'damage','trazoVivo','intervencion','aceleron','instinto','deudaSangre','graciaPicara','cosecha','rocePosible','pilarFundamental',
-    // ✅ Nuevos
-    'zasca','allEyesOnMe','littleBooBoo','sueloALaCara','vittoriaNormal','hotToGo','theWorldIsMine','sublevacion','petiteEtoile'
+    'zasca','allEyesOnMe','littleBooBoo','sueloALaCara','vittoriaNormal','hotToGo','theWorldIsMine','sublevacion','petiteEtoile','feliciaNormal','davidNormal'
   ].indexOf(ability.kind) !== -1;
   if (ability.target === 'enemy' && preview.baseDmg > 0 && target) {
     if (applyGeneric) {
@@ -2846,6 +2765,55 @@ function previewPlayerAction(actionType) {
   }
 
   // ==== Predicciones específicas por habilidad ====
+
+  // ✅ Felicia
+  if (ability.kind === 'feliciaNormal') {
+    if (csHasState(active, 'drogada')) preview.notes.push('🩸 Drogada: +2 daño (ya aplicado en base)');
+    if (csHasState(active, 'doubleDown')) preview.notes.push('🎲 Double Down: daño ×2 (ya aplicado, se consume)');
+  }
+  if (ability.kind === 'feliciaElemental') {
+    var fTargetHp = csHasState(active, 'doubleDown') ? 8 : 4;
+    preview.notes.push('🎲 HP objetivo → ' + fTargetHp + ' (ignora pasiva y límites)');
+    if (csHasState(active, 'drogada')) {
+      var fDraws = csHasState(active, 'doubleDown') ? 4 : 2;
+      preview.notes.push('🩸 Drogada: roba ' + fDraws + ' + marca Expresión (se consume el snapshot inicial)');
+    }
+    if (csHasState(active, 'doubleDown')) preview.notes.push('🎲 Double Down consumido');
+  }
+  if (ability.kind === 'feliciaUltimate') {
+    preview.notes.push('🎲 Activa Double Down · normal +1 exp, elemental +1 exp · próxima habilidad dobla efectos');
+  }
+
+  // ✅ David
+  if (ability.kind === 'davidNormal') {
+    preview.notes.push(combatState._currentIsCounterAttack ? '👑 Comandado: +1 daño (total 2)' : '👑 Manual: 1 daño · Comandado (contraataque automático): 2 daño');
+  }
+  if (ability.kind === 'davidElemental') {
+    var nxDavid = getNextAliveIndex(side, side.activeIndex);
+    if (nxDavid >= 0 && nxDavid !== side.activeIndex) preview.notes.push('👑 Cambia a ' + side.characters[nxDavid].character.name + ' · recibe Capa real (2 HP, dispara contraataque de David)');
+    else preview.notes.push('⚠️ Sin aliados a los que cambiar');
+  }
+  if (ability.kind === 'davidUlt') {
+    var allyActive = side.characters[side.activeIndex];
+    if (allyActive && !allyActive.dead) {
+      var hasEsp = allyActive.equipment && allyActive.equipment.indexOf('david_espada') >= 0;
+      if (hasEsp) preview.notes.push('👑 Aliado con Espada: 2 daño + +1 permanente a Espada/Corona');
+      else preview.notes.push('👑 Aliado sin Espada: recibe Corona Dorada (-1 daño recibido, +1 daño si David vivo)');
+    }
+  }
+
+  // ✅ ErikXD
+  if (ability.kind === 'erikxdNormal') {
+    preview.notes.push('📸 Acción rápida');
+    if (active.equipment && active.equipment.indexOf('erikxd_camara_confiable') >= 0 && active.states && active.states.cameraUsos > 0) preview.notes.push('📷 Cámara confiable: marca Protección (gasta 1 uso)');
+  }
+  if (ability.kind === 'erikxdSetup') {
+    if (active.equipment && active.equipment.indexOf('erikxd_camara_confiable') >= 0) preview.notes.push('📸 Cámara confiable → Cámara profesional (3r)');
+    else preview.notes.push('📸 Equipa Cámara confiable (3 usos)');
+  }
+  if (ability.kind === 'erikxdUlt') {
+    preview.notes.push('📸 +3 escudo aliados · esta ronda cámaras pegan a todos con +1 daño · ErikXD también recibe el daño');
+  }
 
   if (ability.kind === 'carrerilla') {
     preview.notes.push('🏃 Siguiente ataque +2 daño (+1 energía extra si es el ataque normal)');
@@ -2918,22 +2886,13 @@ function previewPlayerAction(actionType) {
     preview.healApplied = 0;
   }
 
-  if (ability.kind === 'armonia') {
-    preview.notes.push('🏷️ Marca al enemigo con protección');
-  }
-
-  if (ability.kind === 'hipotesisSolida') {
-    preview.notes.push('🛡️ +2 escudo; si un enemigo lo golpea, lo marca con comprensión');
-  }
-
+  if (ability.kind === 'armonia') preview.notes.push('🏷️ Marca al enemigo con protección');
+  if (ability.kind === 'hipotesisSolida') preview.notes.push('🛡️ +2 escudo; si un enemigo lo golpea, lo marca con comprensión');
   if (ability.kind === 'conclusion') {
     var alliesCon = side.characters.filter(function(c){ return c !== active && !c.dead; });
     preview.notes.push('🛡️ ' + alliesCon.length + ' aliado(s) +1 escudo y +1 energía');
   }
-
-  if (ability.kind === 'defensaActiva') {
-    preview.notes.push('💠 Al próximo ataque: -1 daño y contraataque');
-  }
+  if (ability.kind === 'defensaActiva') preview.notes.push('💠 Al próximo ataque: -1 daño y contraataque');
 
   if (ability.kind === 'suficiente') {
     var amz = enemySide.characters.filter(function(c){ return !c.dead && csHasState(c, 'amenaza'); });
@@ -2957,10 +2916,7 @@ function previewPlayerAction(actionType) {
     preview.selfDamage = selfDeg;
     preview.notes.push('🩸 Autodaño: ' + selfDeg);
   }
-
-  if (ability.kind === 'decadencia') {
-    preview.notes.push('📈 +1 stack (Degradación: +1 daño, -1 coste)');
-  }
+  if (ability.kind === 'decadencia') preview.notes.push('📈 +1 stack (Degradación: +1 daño, -1 coste)');
 
   if (ability.kind === 'optimizacion') preview.notes.push('🏛️ Coloca estructura (2 rondas): +2 daño aliados, 1 daño final de ronda + marca comprensión');
   if (ability.kind === 'obraMaestra') {
@@ -2971,13 +2927,10 @@ function previewPlayerAction(actionType) {
   if (ability.kind === 'penitencia') preview.notes.push('🩸 Entra en Castigada');
   if (ability.kind === 'bajoAlas') preview.notes.push('💔 Aliado con menos vida → Vulnerable');
   if (ability.kind === 'impulso') preview.notes.push('💪 +2 al siguiente ataque normal; pasa a reserva');
-  if (ability.kind === 'contraofensiva' && csHasState(active, 'furia')) {
-    preview.notes.push('🔥 Furia activa');
-  }
+  if (ability.kind === 'contraofensiva' && csHasState(active, 'furia')) preview.notes.push('🔥 Furia activa');
   if (ability.kind === 'reescritura') preview.notes.push('📜 Restaura apoyo propio / destruye apoyo enemigo');
   if (ability.kind === 'canon') preview.notes.push('📜 Roba hasta 3 apoyos y activa los del campo');
 
-  // Cálculo de autodaño / muerte propia
   var selfTot = preview.selfDamage + preview.reflectDmg;
   if (selfTot > 0) preview.activeHpAfter = Math.max(0, active.hp - selfTot);
   preview.willDieFromSelf = preview.activeHpAfter <= 0 && selfTot > 0;
@@ -3050,7 +3003,6 @@ function previewPlayerAction(actionType) {
     preview.notes.push('🎵 Cambios de personaje del equipo → 1 daño al enemigo (resto de ronda)');
   }
 
-  // ✅ Facebook
   if (ability.kind === 'protocoloSeguridad') {
     preview.notes.push('🛡️ +2 escudo');
     preview.notes.push('📘 -1 dado a la siguiente carta jugada');
@@ -3064,44 +3016,31 @@ function previewPlayerAction(actionType) {
     preview.notes.push('📘 Meta Quest: +1 HP al activo tras el ataque normal');
   }
 
-  // ✅ María (base)
   if (ability.kind === 'cosecha') {
     var cosechaCounterP = (active.states && active.states.cosechaCounter) || 0;
-    if (cosechaCounterP === 0) {
-      preview.notes.push('🌻 Primera Cosecha de la ronda: solo 1 daño');
-    } else {
+    if (cosechaCounterP === 0) preview.notes.push('🌻 Primera Cosecha de la ronda: solo 1 daño');
+    else {
       preview.notes.push('🌻 Repetición #' + (cosechaCounterP + 1) + ': 1 daño + cura 1 HP');
       var cosechaHealP = getMariaTarget(side, active);
-      if (cosechaHealP < 0) {
-        preview.notes.push('⚠️ Sin otros aliados vivos: no hay curación');
-      } else {
-        preview.notes.push('💚 ' + side.characters[cosechaHealP].character.name + ' +1 HP');
-      }
+      if (cosechaHealP < 0) preview.notes.push('⚠️ Sin otros aliados vivos: no hay curación');
+      else preview.notes.push('💚 ' + side.characters[cosechaHealP].character.name + ' +1 HP');
     }
   }
   if (ability.kind === 'caricia') {
     var ctT = getMariaTarget(side, active);
     var ctNoOne = (ctT < 0) || (side.characters[ctT].hp >= side.characters[ctT].maxHp);
-    if (!ctNoOne) {
-      var ctCs = side.characters[ctT];
-      preview.notes.push('💚 Cura 3 HP a ' + ctCs.character.name + ' (' + ctCs.hp + '/' + ctCs.maxHp + ')');
-    } else {
-      preview.notes.push('💚 Sin aliados a los que curar → María se cura 2 HP y marca al enemigo con Aceptación');
-    }
+    if (!ctNoOne) { var ctCs = side.characters[ctT]; preview.notes.push('💚 Cura 3 HP a ' + ctCs.character.name + ' (' + ctCs.hp + '/' + ctCs.maxHp + ')'); }
+    else preview.notes.push('💚 Sin aliados a los que curar → María se cura 2 HP y marca al enemigo con Aceptación');
   }
   if (ability.kind === 'amor') {
     var fallenP = null;
     if (side.lastDeadAlly) fallenP = side.characters.find(function(c){ return c.id === side.lastDeadAlly && c.dead; });
     if (!fallenP) fallenP = side.characters.find(function(c){ return c.dead; });
-    if (fallenP) {
-      preview.notes.push('✝️ Revive a ' + fallenP.character.name + ' con 3 HP (máx. 5)');
-    } else {
-      preview.notes.push('⚠️ Sin aliado caído: solo se establece el entorno');
-    }
+    if (fallenP) preview.notes.push('✝️ Revive a ' + fallenP.character.name + ' con 3 HP (máx. 5)');
+    else preview.notes.push('⚠️ Sin aliado caído: solo se establece el entorno');
     preview.notes.push('🌻 Coloca/refresca Campo de Girasoles (2 rondas)');
   }
 
-  // ✅ EX-María
   if (ability.kind === 'rocePosible') {
     var rcP = (active.states && active.states.roceCounter) || 0;
     preview.notes.push('⏳ Daño diferido al final de la ronda: ' + (1 + rcP) + ' HP al enemigo activo');
@@ -3119,32 +3058,21 @@ function previewPlayerAction(actionType) {
     if (blockedEx) { playSound('error'); var bU2 = document.getElementById('ultimateBtn'); if (bU2) { bU2.classList.add('shake'); setTimeout(function(){ bU2.classList.remove('shake'); }, 400); } return; }
   }
 
-  // ═══════════════════════════════════════════════════════════════
-  // ✅ EFECTOS SECUNDARIOS NARRATIVOS (estados, recursos, textos)
-  // ═══════════════════════════════════════════════════════════════
+  // ═══ Efectos secundarios ═══
   preview.effects = [];
   var ef = preview.effects;
 
-  // ─── X ───
-  if (ability.kind === 'zasca') {
-    ef.push({ type: 'state', icon: '😤', label: 'Irritación (1 ronda)', target: 'enemy' });
-  }
+  if (ability.kind === 'zasca') ef.push({ type: 'state', icon: '😤', label: 'Irritación (1 ronda)', target: 'enemy' });
   if (ability.kind === 'circoMediatico') {
     ef.push({ type: 'state', icon: '🎯', label: 'Provocación (1 ronda)', target: 'self' });
     ef.push({ type: 'resource', icon: '🛡️', label: '+2 escudo', target: 'self' });
     ef.push({ type: 'resource', icon: '⚡', label: '−1 energía', target: 'enemy' });
   }
-  if (ability.kind === 'sublevacion') {
-    ef.push({ type: 'text', icon: '🎲', label: 'Destruye 2 dados aleatorios del rival' });
-  }
+  if (ability.kind === 'sublevacion') ef.push({ type: 'text', icon: '🎲', label: 'Destruye 2 dados aleatorios del rival' });
 
-  // ─── YouTube ───
   if (ability.kind === 'allEyesOnMe') {
-    if (active.forma === 'idol') {
-      ef.push({ type: 'state', icon: '🏷️', label: 'Marca con Expresión', target: 'enemy' });
-    } else {
-      ef.push({ type: 'text', icon: '💭', label: 'En forma Casual no marca (necesitas 5+ pop)' });
-    }
+    if (active.forma === 'idol') ef.push({ type: 'state', icon: '🏷️', label: 'Marca con Expresión', target: 'enemy' });
+    else ef.push({ type: 'text', icon: '💭', label: 'En forma Casual no marca (necesitas 5+ pop)' });
   }
   if (ability.kind === 'hotToGo') {
     if (active.forma === 'casual') {
@@ -3163,7 +3091,6 @@ function previewPlayerAction(actionType) {
     ef.push({ type: 'text', icon: '💥', label: 'Al activo: ' + (2 + bonusWim) + ' piercing · Al resto: 1 piercing' });
   }
 
-  // ─── Traductor ───
   if (ability.kind === 'littleBooBoo') {
     if (csHasState(active, 'paillettes')) {
       if (active.exActive) ef.push({ type: 'text', icon: '🌟', label: 'EX Étoile: +1 daño adicional (Paillettes)' });
@@ -3179,7 +3106,6 @@ function previewPlayerAction(actionType) {
     ef.push({ type: 'text', icon: '🛡️', label: 'Cada ataque normal: +1 escudo (máx 3)' });
   }
 
-  // ─── Iris ───
   if (ability.kind === 'sueloALaCara') {
     if (active.equipment && active.equipment.length) {
       ef.push({ type: 'text', icon: '💥', label: 'Rompe ' + active.equipment.length + ' equipación(es) propia(s) para +' + active.equipment.length + ' daño' });
@@ -3202,54 +3128,29 @@ function previewPlayerAction(actionType) {
     }
   }
 
-  // ─── Vittoria ───
-  if (ability.kind === 'vittoriaNormal') {
-    ef.push({ type: 'text', icon: '🎲', label: 'Reembolso de dados si mata al enemigo' });
-  }
+  if (ability.kind === 'vittoriaNormal') ef.push({ type: 'text', icon: '🎲', label: 'Reembolso de dados si mata al enemigo' });
   if (ability.kind === 'vittoriaAceptacion') {
-    if (enemyActive && csHasMark(enemyActive, 'aceptacion')) {
-      ef.push({ type: 'resource', icon: '🌿', label: '+2 HP (enemigo ya marcado)', target: 'self' });
-    } else {
-      ef.push({ type: 'text', icon: '🌿', label: '1 daño penetrante + marca con Aceptación' });
-    }
+    if (enemyActive && csHasMark(enemyActive, 'aceptacion')) ef.push({ type: 'resource', icon: '🌿', label: '+2 HP (enemigo ya marcado)', target: 'self' });
+    else ef.push({ type: 'text', icon: '🌿', label: '1 daño penetrante + marca con Aceptación' });
   }
   if (ability.kind === 'vistoUltimate') {
     ef.push({ type: 'state', icon: '👁️', label: 'Visto (aliados + enemigo activo)', target: 'both' });
     ef.push({ type: 'text', icon: '👁️', label: 'Fin de ronda: 6 penetrante repartido (12 si Vittoria muere → revive con 1 HP)' });
   }
 
-  // ─── Añadir estados/marcas de habilidades existentes (para que el preview sea completo) ───
-  if (ability.kind === 'intervencion' && enemyActive && csHasState(enemyActive, 'amenaza')) {
-    ef.push({ type: 'state', icon: '🚨', label: 'Quita Amenaza al enemigo', target: 'enemy' });
-  }
-  if (ability.kind === 'bajoAlas') {
-    ef.push({ type: 'state', icon: '💔', label: 'Vulnerable al aliado con menos vida', target: 'team' });
-  }
-  if (ability.kind === 'trazoVivo' && !active.paintEquipped) {
-    ef.push({ type: 'state', icon: '🎭', label: 'Marca con Ilusión', target: 'enemy' });
-  }
-  if (ability.kind === 'graciaPicara' || ability.kind === 'flechazoTentador') {
-    ef.push({ type: 'state', icon: '🔥', label: 'Marca con Transformación', target: 'enemy' });
-  }
-  if (ability.kind === 'aceleron' && csHasState(active, 'acelerado')) {
-    ef.push({ type: 'state', icon: '🔥', label: 'Marca con Transformación', target: 'enemy' });
-  }
-  if (ability.kind === 'deudaSangre') {
-    ef.push({ type: 'state', icon: '💢', label: '+1 Rencor', target: 'enemy' });
-  }
-  if (ability.kind === 'degradacion') {
-    ef.push({ type: 'state', icon: '🩸', label: 'Marca con Redención', target: 'enemy' });
-  }
-  if (ability.kind === 'cosecha' && (active.states && active.states.cosechaCounter) >= 1) {
-    ef.push({ type: 'resource', icon: '🌿', label: '+1 HP al aliado con menos vida', target: 'team' });
-  }
+  if (ability.kind === 'intervencion' && enemyActive && csHasState(enemyActive, 'amenaza')) ef.push({ type: 'state', icon: '🚨', label: 'Quita Amenaza al enemigo', target: 'enemy' });
+  if (ability.kind === 'bajoAlas') ef.push({ type: 'state', icon: '💔', label: 'Vulnerable al aliado con menos vida', target: 'team' });
+  if (ability.kind === 'trazoVivo' && !active.paintEquipped) ef.push({ type: 'state', icon: '🎭', label: 'Marca con Ilusión', target: 'enemy' });
+  if (ability.kind === 'graciaPicara' || ability.kind === 'flechazoTentador') ef.push({ type: 'state', icon: '🔥', label: 'Marca con Transformación', target: 'enemy' });
+  if (ability.kind === 'aceleron' && csHasState(active, 'acelerado')) ef.push({ type: 'state', icon: '🔥', label: 'Marca con Transformación', target: 'enemy' });
+  if (ability.kind === 'deudaSangre') ef.push({ type: 'state', icon: '💢', label: '+1 Rencor', target: 'enemy' });
+  if (ability.kind === 'degradacion') ef.push({ type: 'state', icon: '🩸', label: 'Marca con Redención', target: 'enemy' });
+  if (ability.kind === 'cosecha' && (active.states && active.states.cosechaCounter) >= 1) ef.push({ type: 'resource', icon: '🌿', label: '+1 HP al aliado con menos vida', target: 'team' });
 
   return preview;
 }
 function buildPreviewBodyHTML(preview) {
   var html = '<div class="confirm-body">';
-
-  // ═══════════ DAÑO ═══════════
   if (preview.rawDmg > 0 || preview.trueDmg > 0) {
     var hasB = preview.buffDmg || preview.cardBonus || preview.equipDmg || preview.supportDmg || preview.optimizationDmg || preview.erikBonus || preview.markBonus || preview.redencionDmg || preview.obraMaestraDmg || preview.carrerillaBonus || preview.alterBuffDmg;
     if (hasB) {
@@ -3276,59 +3177,45 @@ function buildPreviewBodyHTML(preview) {
     }
   }
 
-  // ═══════════ CURACIÓN / ESCUDO PROPIO / AUTODAÑO ═══════════
   if (preview.healApplied > 0) html += '<div class="confirm-row"><span class="confirm-row-label">Curación propia</span><span class="confirm-row-value heal">+' + preview.healApplied + ' HP</span></div>';
   if (preview.shieldSelf)      html += '<div class="confirm-row"><span class="confirm-row-label">Escudo propio</span><span class="confirm-row-value shield">+' + preview.shieldSelf + '</span></div>';
   if (preview.selfDamage)      html += '<div class="confirm-row"><span class="confirm-row-label">Autodaño</span><span class="confirm-row-value damage">−' + preview.selfDamage + ' HP</span></div>';
   if (preview.reflectDmg)      html += '<div class="confirm-row"><span class="confirm-row-label">Trampa refleja</span><span class="confirm-row-value damage">−' + preview.reflectDmg + ' HP</span></div>';
   if (preview.condenaGain)     html += '<div class="confirm-row"><span class="confirm-row-label">+ Condena</span><span class="confirm-row-value bonus">+' + preview.condenaGain + '</span></div>';
 
-  // ═══════════ EFECTOS SECUNDARIOS (narrativos) ═══════════
   if (preview.effects && preview.effects.length) {
     var states = preview.effects.filter(function(e){ return e.type === 'state'; });
     var resources = preview.effects.filter(function(e){ return e.type === 'resource'; });
     var texts = preview.effects.filter(function(e){ return e.type === 'text'; });
-
     var targetLabel = { enemy: '🎯 Enemigo', self: '✨ Tú', team: '🛡️ Tu equipo', both: '🌐 Ambos' };
-
     if (states.length) {
       html += '<div class="confirm-preview-section"><div class="confirm-preview-title">🏷️ Estados aplicados</div>';
-      states.forEach(function(e){
-        html += '<div class="confirm-preview-item state"><span class="cpv-icon">' + e.icon + '</span><span class="cpv-label">' + e.label + '</span>' + (e.target ? '<span class="cpv-target">' + (targetLabel[e.target] || '') + '</span>' : '') + '</div>';
-      });
+      states.forEach(function(e){ html += '<div class="confirm-preview-item state"><span class="cpv-icon">' + e.icon + '</span><span class="cpv-label">' + e.label + '</span>' + (e.target ? '<span class="cpv-target">' + (targetLabel[e.target] || '') + '</span>' : '') + '</div>'; });
       html += '</div>';
     }
     if (resources.length) {
       html += '<div class="confirm-preview-section"><div class="confirm-preview-title">⚡ Recursos</div>';
-      resources.forEach(function(e){
-        html += '<div class="confirm-preview-item resource"><span class="cpv-icon">' + e.icon + '</span><span class="cpv-label">' + e.label + '</span>' + (e.target ? '<span class="cpv-target">' + (targetLabel[e.target] || '') + '</span>' : '') + '</div>';
-      });
+      resources.forEach(function(e){ html += '<div class="confirm-preview-item resource"><span class="cpv-icon">' + e.icon + '</span><span class="cpv-label">' + e.label + '</span>' + (e.target ? '<span class="cpv-target">' + (targetLabel[e.target] || '') + '</span>' : '') + '</div>'; });
       html += '</div>';
     }
     if (texts.length) {
       html += '<div class="confirm-preview-section"><div class="confirm-preview-title">✨ Efectos adicionales</div>';
-      texts.forEach(function(e){
-        html += '<div class="confirm-preview-item text"><span class="cpv-icon">' + e.icon + '</span><span class="cpv-label">' + e.label + '</span></div>';
-      });
+      texts.forEach(function(e){ html += '<div class="confirm-preview-item text"><span class="cpv-icon">' + e.icon + '</span><span class="cpv-label">' + e.label + '</span></div>'; });
       html += '</div>';
     }
   }
-
   html += '</div>';
 
-  // ═══════════ NOTAS Y RIESGOS ═══════════
   if (preview.notes && preview.notes.length) {
     html += '<div style="margin-top: 0.5rem; padding: 0.6rem 0.8rem; background: rgba(240,200,96,0.08); border: 1px solid rgba(240,200,96,0.25); border-radius: 8px; font-size: 0.78rem; line-height: 1.5;">' + preview.notes.join(' · ') + '</div>';
   }
   if (preview.willKill) html += '<div class="confirm-warning">💀 ¡Eliminará a ' + preview.target.character.name + '!</div>';
   if (preview.willDieFromSelf) html += '<div class="confirm-warning">💀 ¡' + preview.active.character.name + ' morirá tras usar esta habilidad!</div>';
-
   return html;
 }
 function showActionConfirmation(actionType, ability, onConfirm) {
   var ov = document.getElementById('confirmOverlay'), content = document.getElementById('confirmContent'); if (!ov || !content) return;
   hideTooltip();
-  // ✅ Doble seguridad: por si algún listener o timer aún quedaba pendiente
   cancelHideTooltip();
   if (hoverTooltip) {
     hoverTooltip.classList.remove('show');
@@ -3360,7 +3247,6 @@ function showActionConfirmation(actionType, ability, onConfirm) {
       html += '<div class="confirm-dice-picker"><div class="confirm-dice-label"><span>Selecciona dados</span><span class="confirm-dice-count' + (isFull ? ' is-complete' : '') + '">' + sc + ' / ' + totalCost + '</span></div><div class="confirm-dice-pool">' + dh + '</div></div>';
       if (!isComplete) html += '<div class="confirm-valid-msg error">Selecciona ' + (totalCost - sc) + ' dado(s) más</div>';
     }
-    // ✅ Descripción + atributos + términos de la habilidad
     html += '<div class="confirm-ability-info">' + buildAbilityInfoHTML(active.id, actionType) + '</div>';
     if (preview) html += buildPreviewBodyHTML(preview);
     html += '<div class="confirm-buttons"><button class="confirm-btn confirm-cancel" id="confirmCancelBtn">Cancelar</button><button class="confirm-btn confirm-accept" id="confirmAcceptBtn"' + (!isComplete ? ' disabled' : '') + '>Ejecutar</button></div>';
@@ -3378,7 +3264,6 @@ function playerActionRequest(actionType) {
   if (!combatState || combatState.phase !== 'playing') return;
   if (!canHumanControlCurrentTurn()) return;
   if (isTurnDone()) return;
-  // (El botón EX del sidebar ya no se usa: la EX se elige en combatStartConfirm)
   if (actionType === 'ex') { playSound('error'); return; }
   var turnKey = getTurnKey();
   var side = combatState[turnKey];
@@ -3387,6 +3272,14 @@ function playerActionRequest(actionType) {
   if (ability.kind === 'obraMaestra') {
     var hasOptim = side.structures && side.structures.some(function(st){ return st.kind === 'optimizacion'; });
     if (!hasOptim) { playSound('error'); var btnIdU = actionType === 'ultimate' ? 'ultimateBtn' : (actionType === 'elemental' ? 'elementalBtn' : 'normalBtn'); var bU = document.getElementById(btnIdU); if (bU) { bU.classList.add('shake'); setTimeout(function(){ bU.classList.remove('shake'); }, 400); } return; }
+  }
+  if (ability.kind === 'sageUltimate') {
+    if (!active.states || (active.states.decidida || 0) < 3) {
+      playSound('error');
+      var bUs = document.getElementById('ultimateBtn');
+      if (bUs) { bUs.classList.add('shake'); setTimeout(function(){ bUs.classList.remove('shake'); }, 400); }
+      return;
+    }
   }
   if (ability.kind === 'amorSuficiente') {
     var blockedEx = false;
@@ -3468,7 +3361,7 @@ function playerChangeCharacterRequest(targetIndex) {
   if (rules.diceCost > 0 && !trySpendDice(side.dice, { any:rules.diceCost }).ok) { playSound('error'); return; }
   showChangeConfirmation(targetIndex, function(selectedDice){
     if (rules.diceCost > 0) { var spentIds = {}; selectedDice.forEach(function(d){ spentIds[d.id] = true; }); side.dice = side.dice.filter(function(d){ return !spentIds[d.id]; }); }
-    if (rules.fromConsonance) side.firstChangeUsed = true;
+    if (rules.discounted) side.firstChangeUsed = true;
     var oldN = side.characters[side.activeIndex].character.name;
     var newN = side.characters[targetIndex].character.name;
     var oldChar = side.characters[side.activeIndex];
@@ -3477,11 +3370,25 @@ function playerChangeCharacterRequest(targetIndex) {
     hungerOnEnter(turnKey, side.characters[targetIndex], oldChar);
     if (side.characters[targetIndex].id === 'jose') csSetState(side.characters[targetIndex], 'acelerado', true);
     applyGoogleExOnChange(oldChar, side, targetIndex, turnKey);
+    transferActiveBuffs(oldChar, side.characters[targetIndex]);
+    var _newCs = side.characters[targetIndex];
+    var _oldIdx = side.characters.indexOf(oldChar);
+    if (oldChar && oldChar.id === 'sage' && _newCs.id !== 'sage' && oldChar.exActive && !oldChar.dead) {
+      dealDamageToChar(oldChar, 1, { targetSide:side, targetSideKey:turnKey, targetIdx:_oldIdx });
+      logCombat('🐴 EX Sage: pierde 1 HP al salir');
+    }
+    if (_newCs && _newCs.id === 'sage' && oldChar.id !== 'sage' && !_newCs.dead) {
+      csSetState(_newCs, 'sageEnteredThisTurn', true);
+      _newCs.states = _newCs.states || {};
+      _newCs.states.decidida = Math.min(3, (_newCs.states.decidida || 0) + 1);
+      logCombat('🐴 Sage: +1 Decidida (' + _newCs.states.decidida + '/3)');
+      dealDamageToChar(_newCs, 1, { targetSide:side, targetSideKey:turnKey, targetIdx:targetIndex });
+      logCombat('🐴 Sage: -1 HP al cambiar a ella');
+    }
     var sfx = rules.quick ? ' (acción rápida)' : (rules.discounted ? ' (gratis)' : '');
     var label = combatState.pvp ? (turnKey === 'player' ? 'J1' : 'J2') : 'Tú';
     logCombat('🔄 ' + label + ': ' + oldN + ' → ' + newN + sfx);
     if (typeof triggerKillerTunesDamage === 'function') triggerKillerTunesDamage(turnKey);
-    // ✅ Si el enemigo entero ha caído por el efecto del cambio, declarar victoria
     var _enemyKey2 = turnKey === 'player' ? 'bot' : 'player';
     if (combatState && combatState[_enemyKey2] && combatState[_enemyKey2].characters.every(function(c){ return c.dead; })) {
       playSound('change'); renderCombat();
