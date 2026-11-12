@@ -120,6 +120,24 @@ document.addEventListener('click', function(e){
   goBackFromCombatStartConfirm();
 });
 
+function renderCombatDifficultyButtons() {
+  var cont = document.getElementById('combatDifficultyButtons');
+  if (!cont) return;
+  var order = ['easy','normal','hard','nightmare'];
+  cont.innerHTML = order.map(function(key){
+    var lvl = BOT_DIFFICULTY_LEVELS[key];
+    return '<button type="button" class="cdr-btn' + (BOT_DIFFICULTY === key ? ' active' : '') + '" data-diff="' + key + '" title="' + lvl.desc + '">' + lvl.emoji + ' ' + lvl.name + '</button>';
+  }).join('');
+  cont.querySelectorAll('.cdr-btn').forEach(function(btn){
+    btn.addEventListener('click', function(e){
+      e.preventDefault();
+      setBotDifficulty(btn.dataset.diff);
+      renderCombatDifficultyButtons();
+      playSound('select');
+    });
+  });
+}
+
 function showCombatStartConfirm(slotNum) {
   initAudio();
   var ov = document.getElementById('combatStartConfirm'), prev = document.getElementById('combatStartTeamPreview'); if (!ov || !prev) return;
@@ -128,6 +146,12 @@ function showCombatStartConfirm(slotNum) {
   pendingExChoice = null;
   renderCombatStartTeamPreview('player');
   refreshExToggleBtnForConfirm();
+  // ✅ Selector de dificultad (oculto en PvP)
+  var diffRow = document.getElementById('combatDifficultyRow');
+  if (diffRow) {
+    diffRow.style.display = pendingPvpMode ? 'none' : '';
+    if (!pendingPvpMode) renderCombatDifficultyButtons();
+  }
   var sub = document.getElementById('combatStartConfirmSub');
   if (sub) {
     var modeTxt = pendingPvpMode ? 'PvP Local' : 'vs Rival';
@@ -145,6 +169,9 @@ function showCombatStartConfirmForP2(slotNum) {
   pendingExChoiceP2 = null;
   renderCombatStartTeamPreview('p2');
   refreshExToggleBtnForConfirm();
+  // ✅ En PvP no aplica: ocultar selector
+  var diffRowP2 = document.getElementById('combatDifficultyRow');
+  if (diffRowP2) diffRowP2.style.display = 'none';
   var sub = document.getElementById('combatStartConfirmSub');
   if (sub) {
     var p2SlotTxt = (typeof slotNum === 'number' && slotNum >= 0) ? ('Ranura ' + (slotNum + 1)) : 'Nuevo combate';
@@ -922,7 +949,7 @@ function startCombat() {
   combatState.player.consonance = getConsonanceForIds(pids); combatState.bot.consonance = getConsonanceForIds(bids);
   var useDeck = (pendingCombatDeck && pendingCombatDeck.length === 30) ? pendingCombatDeck : deck;
   combatState.player.deck = shuffleArray(useDeck.slice());
-  combatState.bot.deck = shuffleArray(generateRandomDeck());   // ✅ AÑADIR: mazo del bot
+  combatState.bot.deck = shuffleArray(getSmartBotDeck(bids));   // ✅ AÑADIR: mazo del bot
   combatState.player.hand = []; combatState.player.discardPile = [];
   combatState.player.cardsUsedThisRound = {}; combatState.player.cardsUsedThisGame = {}; combatState.player.drawSelection = {};
   combatState.bot.hand = []; combatState.bot.discardPile = [];
