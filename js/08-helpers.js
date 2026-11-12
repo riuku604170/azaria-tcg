@@ -216,6 +216,17 @@ function getDamageReduction(cs, side) {
     if (c.effect.damageReduction) red += c.effect.damageReduction;
     if (c.effect.teamDamageReduction) red += c.effect.teamDamageReduction;
   });
+  // ✅ DAVID: Corona Dorada — -1 daño recibido (-1-N con davidBuff) si David vivo en su equipo
+  if (cs && cs.equipment && cs.equipment.indexOf('david_corona') >= 0) {
+    var csS2 = sideOfChar(cs);
+    if (csS2) {
+      var _dd = csS2.side.characters.find(function(x){ return x.id === 'david'; });
+      if (_dd && !_dd.dead) {
+        var _extraD = (_dd.states && _dd.states.davidBuff) || 0;
+        red += 1 + _extraD;
+      }
+    }
+  }
   return red;
 }
 function getReflectDamage(side) {
