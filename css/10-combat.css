@@ -2234,6 +2234,8 @@
   box-shadow: 0 6px 20px rgba(240, 200, 96, 0.4);
 }
 
+.confirm-equip-card-locked { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
+
 .confirm-equip-emoji {
   font-size: 1.6rem;
   margin-bottom: 0.3rem;
