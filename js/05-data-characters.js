@@ -356,10 +356,47 @@ var CHARACTERS = {
       { type:'ex', icon:'🌟', name:"EX · Brava caída desde la torre de Babel", effect:'La definitiva reduce en 3 el daño que Sage recibe por la pérdida de efectos. Cambiar de Sage a un aliado es acción rápida y quita 1 HP a Sage.' }
     ]
   },
-  david:   { name:'David',    element:'redencion',      set:'Erik', category:'HNN', hp:11, emoji:'🏹', img:'img/david.png',    comingSoon:true, abilities:[] },
+  david: { name:'David', element:'redencion', set:'Erik', category:'HNN', hp:10, emoji:'🏹', img:'img/david.png',
+    concept:'"HERMANOS! HERMANAS! TODOS A MÍ! POSTRÉMONOS TODOS ANTE AQUEL DE SOMBRA BRILLANTE Y CORONA RELUCIENTE, SER DE ESPADA TEÑIDA DE ROJO Y ORO!!!" -Att. Erik.',
+    abilities: [
+      { type:'normal', icon:'⚔️', name:'Le Coup Violent', description:'Causa 1 punto de daño. Si la habilidad es "comandada" (contraataque automático, Capa real, etc.) causa 1 punto adicional.', attributes: ['Coste: 2 dados de Redención + 2 dados cualesquiera','Daño base: 1','Daño comandado: 2'] },
+      { type:'elemental', icon:'🔮', name:'Escudo humano', description:'Cambia al siguiente aliado, que recibe Capa real (escudo de 2 HP que dispara contraataque de David si es atacado).', attributes: ['Coste: 5 dados de Redención'] },
+      { type:'ultimate', icon:'💥', name:'Fragmentos de vidriera sobre piel virgen', description:'Si el aliado activo no tiene Espada Dorada, recibe Corona Dorada. Si la tiene, sufre 2 de daño y aumenta en +1 los efectos de Espada y Corona.', attributes: ['Coste: 5 dados de Redención + 3 puntos de energía'] },
+      { type:'passive', icon:'🛡️', name:'Un único rey legítimo', description:'Mientras esté vivo, tiene equipada una Espada Dorada. Cualquier intento de quitársela (si solo tiene una) se cancela y David inflige 2 de daño de habilidad elemental al enemigo activo. Solo gana energía con la normal.', attributes: null },
+      { type:'ex', icon:'🌟', name:'EX · Midas', description:'Al inicio de la partida, añade 1 Espada Dorada y 1 Corona Dorada al mazo.', attributes: null }
+    ]
+  },
   ah:      { name:'A/H',      element:'ilusion',        set:'Erik', category:'HNN', hp:11, emoji:'🎩', img:'img/ah.png',       comingSoon:true, abilities:[] },
-  felicia: { name:'Felicia',  element:'expresion',      set:'Erik', category:'HNN', hp:11, emoji:'🎀', img:'img/felicia.png',  comingSoon:true, abilities:[] },
-  erikxd:  { name:'ErikXD',   element:'proteccion',     set:'Erik', category:'HNN', hp:11, emoji:'😎', img:'img/erikxd.png',   comingSoon:true, abilities:[] },
+  felicia: { name:'Felicia', element:'expresion', set:'Erik', category:'HNN', hp:7, emoji:'🎀', img:'img/felicia.png',
+    concept:'"La vida es un juego. Todos se sientan en la mesa y creen que no es así, y por eso mismo luego pierden. Por mucho que les disgusten sus cartas y sus tiradas de dados nada quita que estén jugando. Solo una verdadera jugadora es capaz de distinguir la estrategia que le lleve a la victoria, sea esta más allá de cuantos fallos y aciertos puedan haber." -Att. Erik.',
+    abilities: [
+      { type:'normal', icon:'⚔️', name:'Roll',
+        description:'Causa 1 punto de daño al enemigo activo. Si tiene el efecto **Drogada**, el ataque aumenta en 2 puntos su daño.',
+        attributes: ['Coste: 1 dado de Expresión + 1 dado cualquiera','Daño base: 1','Daño con Drogada: 3'] },
+      { type:'elemental', icon:'🔮', name:'Hit',
+        description:'Se cura a sí misma o se inflige daño hasta tener **4 puntos de vida** (ignora efectos, pasiva y límites de salud). Si tiene el efecto **Drogada**, roba 2 cartas y marca al enemigo activo con Expresión.',
+        attributes: ['Coste: 5 dados de Expresión','Objetivo de vida: 4','Objetivo de vida con Double Down: 8'] },
+      { type:'ultimate', icon:'💥', name:'Double Down',
+        description:'Recibe el efecto **Double Down**.',
+        attributes: ['Coste: 4 dados de Expresión + 3 puntos de energía'] },
+      { type:'passive', icon:'🛡️', name:'Una derrota no es suficiente',
+        description:'El máximo daño verdadero que puede recibir de un solo golpe es **3**. El máximo de vida que puede recibir de una sola curación es **2**. Siempre que tenga 3 o menos puntos de vida, posee el efecto **Drogada**.',
+        attributes: ['Tope de daño verdadero por golpe: 3','Tope de curación por fuente: 2','Activa Drogada con HP ≤ 3'] },
+      { type:'ex', icon:'🌟', name:'EX · WIN, WIN, WIN',
+        description:'Si al principio de la ronda posee 5 o más puntos de vida, genera 1 dado de Expresión.',
+        attributes: null }
+    ]
+  },
+  erikxd: { name:'ErikXD', element:'proteccion', set:'Erik', category:'HNN', hp:10, emoji:'😎', img:'img/erikxd.png',
+    concept:'"La directora, la maquilladora, la decoradora, el público y todas aquellas que no participen en la escena. Su control fuera de escena la hace abrumadoramente terrorífica para la competencia."',
+    abilities: [
+      { type:'normal', icon:'⚔️', name:'Toma exitosa', description:'Causa 2 de daño al enemigo activo. Acción rápida.', attributes: ['Coste: 1 dado de Protección + 2 dados cualesquiera + 1 punto de energía','Daño base: 2','Acción rápida'] },
+      { type:'elemental', icon:'🔮', name:'Setup profesional', description:'Si no tiene Cámara confiable, la equipa. Si ya la tiene, la pierde y genera la estructura Cámara profesional (3 rondas).', attributes: ['Coste: 3 dados de Protección'] },
+      { type:'ultimate', icon:'💥', name:'Nostalgia-Bait', description:'Genera un escudo de 3 a cada aliado (excepto a sí mismo). Todos los daños pasivos de las Cámaras afectan a todos los enemigos con +1 daño, pero ErikXD también recibe ese daño esta ronda.', attributes: ['Coste: 5 dados de Protección + 4 puntos de energía'] },
+      { type:'passive', icon:'🛡️', name:'Fuera de plano', description:'Al terminar su turno, cambia al siguiente aliado en reserva. No gana energía de habilidades. No puede recibir equipaciones por cartas. Gana 1 energía si termina la ronda en reserva.', attributes: null },
+      { type:'ex', icon:'🌟', name:'EX · Set de decorado', description:'Aumenta en 1 el límite de estructuras y apoyos del equipo (4 → 5).', attributes: null }
+    ]
+  },
   bella:   { name:'Bella',    element:'transformacion', set:'Erik', category:'HNN', hp:11, emoji:'🦢', img:'img/bella.png',    comingSoon:true, abilities:[] },
   esmeralda:{ name:'Esmeralda', element:'aceptacion',   set:'Erik', category:'HNN', hp:11, emoji:'💎', img:'img/esmeralda.png', comingSoon:true, abilities:[] },
   iris: { name:'Iris', element:'proteccion', set:'Erik', category:'HNN', hp:11, emoji:'🌈', img:'img/iris.png', concept:'', abilities:[
@@ -370,6 +407,25 @@ var CHARACTERS = {
     { type:'ex', icon:'🌟', name:'EX · Lealtad Insaciable', effect:'El efecto de "Advertido" es acumulable hasta 1 carga. Si ataca a un enemigo con cargas de "Advertido", aumenta su daño en 2 puntos por dicha carga y le quita la carga de "Advertido" al enemigo.' }
   ]},
   amaya:   { name:'Amaya',    element:'ilusion',        set:'Erik', category:'HNN', hp:11, emoji:'🦉', img:'img/amaya.png',    comingSoon:true, abilities:[] },
-  eve:     { name:'Eve',      element:'comprension',    set:'Erik', category:'HNN', hp:11, emoji:'🍎', img:'img/eve.png',      comingSoon:true, abilities:[] },
-  opal:    { name:'Opal',     element:'expresion',      set:'Erik', category:'HNN', hp:11, emoji:'💠', img:'img/opal.png',     comingSoon:true, abilities:[] },
+  eve: { name:'Eve', element:'comprension', set:'Erik', category:'HNN', hp:9, emoji:'🍎', img:'img/eve.png',
+    concept:'"Un set dedicado para la excusa de un ser vivo, para un objeto del que apropiarse y dar uso hasta terminar de gastar... Uno ansioso por el paso del tiempo."',
+    abilities: [
+      { type:'normal', icon:'⚔️', name:'Forcejeo', description:'Causa 1 punto de daño al enemigo activo.', attributes: ['Coste: 1 dado de Comprensión + 1 dado cualquiera','Daño base: 1'] },
+      { type:'elemental', icon:'🔮', name:'Reafirmación de sumisión', description:'Coloca la estructura **Prisión etérea** por 3 rondas.', attributes: ['Coste: 4 dados de Comprensión','Duración: 3 rondas'] },
+      { type:'ultimate', icon:'💥', name:'Lágrimas como rocío de primavera', description:'Se cura 4 puntos de vida. Si tiene Prisión etérea activa, usa en su lugar **Cadáveres como hojas de otoño**.', attributes: ['Coste: 4 dados de Comprensión + 3 puntos de energía','Curación base: 4'] },
+      { type:'ultimate', icon:'💥', name:'Cadáveres como hojas de otoño', description:'Cura 1 HP a cada aliado no lleno por iteración, perdiendo Eve 1 HP. Al terminar, causa daño = min(HP Eve - 1, HP enemigo - 1). Si Eve termina con 1 HP → siguiente aliado a activo, enemigo marcado con Comprensión. Si termina con >1 HP → enemigo activo a reserva, nuevo activo marcado con Comprensión. Elimina la Prisión etérea.', attributes: ['Coste: 4 dados de Comprensión + 3 puntos de energía','Solo disponible con Prisión etérea activa'] },
+      { type:'passive', icon:'🛡️', name:'Meritocracia corrupta', description:'No puede recibir equipaciones que le otorguen escudo o salud.', attributes: null },
+      { type:'ex', icon:'🌟', name:'EX · Rendimiento++', description:'Recibe permanentemente 1 punto de reducción de daño de habilidades rivales.', attributes: null }
+    ]
+  },
+  opal: { name:'Opal', element:'expresion', set:'Erik', category:'HNN', hp:10, emoji:'💠', img:'img/opal.png',
+    concept:'"Un set dedicado para mi hija." -Att: Erik.',
+    abilities: [
+      { type:'normal', icon:'⚔️', name:'Brochazo artístico', description:'Causa 1 punto de daño normal. Sin equipaciones: marca con Expresión. Con equipaciones: ignora sus efectos y desaparecen (arma → +1 daño, armadura → +1 escudo, accesorio → +1 HP).', attributes: ['Coste: 2 dados de Expresión + 1 dado cualquiera','Daño base: 1'] },
+      { type:'elemental', icon:'🔮', name:'Rebuscada desesperada', description:'Genera en mano la equipación que falte según los tipos ya equipados (Auriculares si no tiene armadura, Mochila si no tiene accesorio, Lápiz si no tiene arma). Si tiene los 3 tipos, pierde el inventario, genera las 3 en mano y gana un escudo de 2.', attributes: ['Coste: 5 dados de Expresión'] },
+      { type:'ultimate', icon:'💥', name:'Por un mundo lleno de color', description:'Las resonancias curan al aliado activo 1 HP durante 2 rondas. Marca a todos los enemigos con Expresión.', attributes: ['Coste: 6 dados de Expresión + 3 puntos de energía','Duración: 2 rondas'] },
+      { type:'passive', icon:'🛡️', name:'Mañas de artista', description:'Posee 1 espacio extra de inventario. Las equipaciones cuestan 1 dado menos (any > same > elemental).', attributes: ['Slots de inventario: 3','Descuento de equipaciones: -1'] },
+      { type:'ex', icon:'🌟', name:'EX · Desborde de energía', description:'Gana 1 carta al usar su normal mientras tenga alguna equipación (se comprueba antes de consumirlas).', attributes: null }
+    ]
+  },
 };
