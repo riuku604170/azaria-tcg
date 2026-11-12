@@ -1,4 +1,4 @@
-function adjustCardCostForPassives(card, side) {
+function adjustCardCostForPassives(card, side, targetCs) {
   var adjusted = {};
   Object.keys(card.cost || {}).forEach(function(k){ adjusted[k] = card.cost[k]; });
   // ✅ Monetización (EX de YouTube) sobre el lado que juega la carta
@@ -56,10 +56,12 @@ function adjustCardCostForPassives(card, side) {
       if (adjusted.same === 0) delete adjusted.same;
     }
   }
-  // ✅ Opal: pasiva -1 dado a equipaciones
+  // ✅ Opal: -1 dado a equipaciones SOLO si la equipación va sobre Opal.
+  // Si no nos pasan target (bot, render de mano), usa el activo como aproximación
+  // (el bot siempre equipa al activo, así que ahí es exacto).
   if (card.category === 'equipo') {
-    var opalCs = side.characters.find(function(c){ return c.id === 'opal' && !c.dead; });
-    if (opalCs) {
+    var _targetCs = targetCs || (side.characters ? side.characters[side.activeIndex] : null);
+    if (_targetCs && _targetCs.id === 'opal' && !_targetCs.dead) {
       if (adjusted.any && adjusted.any > 0) adjusted.any -= 1;
       else if (adjusted.same && adjusted.same > 0) adjusted.same -= 1;
       else {
@@ -199,9 +201,25 @@ function playCardRequest(cardId) {
   if (card.oncePerRound && side.cardsUsedThisRound[cardId]) { playSound('error'); return; }
   if (card.oncePerGame && side.cardsUsedThisGame[cardId]) { playSound('error'); return; }
 
+  // ✅ EQUIPO: primero elegimos target (y slot si reemplaza), luego coste, luego confirmación
+  if (card.category === 'equipo') {
+    showEquipmentTargetDialog(cardId, function(ti, ri) {
+      var targetCs = side.characters[ti];
+      if (!targetCs) { renderCombat(); return; }
+      var adjustedCost = adjustCardCostForPassives(card, side, targetCs);
+      showCardConfirmation(cardId, adjustedCost, function(selectedDice) {
+        var spentIds = {}; selectedDice.forEach(function(d){ spentIds[d.id] = true; });
+        side.dice = side.dice.filter(function(d){ return !spentIds[d.id]; });
+        applyEquipmentToTarget(cardId, ti, ri);
+      }, false);  // artemisBlock ya lo maneja el target dialog (bloquea a Artemis)
+    }, function cancel() {
+      // Canceló la elección de target: no se ha gastado ningún dado, no hay nada que devolver
+    });
+    return;
+  }
+
   var artemisBlock = cardWouldGiveEnergyToArtemis(card, side);
   var adjustedCost = adjustCardCostForPassives(card, side);
-  // ✅ Hunger EX: Café solo gratis
   var hungerActive = side.characters[side.activeIndex];
   if (card.id === 'c_cafe_solo' && hungerActive && hungerActive.id === 'hunger' && hungerActive.exActive) {
     adjustedCost = {};
@@ -230,10 +248,56 @@ function finalizeCardPlay(cardId) {
   playSound('card');
 }
 function refundDice(spent){ var side = getActiveSide(); if (!spent || !side) return; spent.forEach(function(d){ d.justAdded = false; side.dice.push(d); }); }
+/* ✅ NUEVO: aplica la equipación al target elegido. NO cobra dados (los cobra el caller). */
+function applyEquipmentToTarget(cardId, ti, ri) {
+  if (!combatState) return;
+  var card = CARD_DB[cardId]; if (!card) return;
+  var player = getActiveSide(); if (!player) return;
+  var target = player.characters[ti];
+  if (!target) return;
+
+  finalizeCardPlay(cardId);
+
+  if (!target.equipment) target.equipment = [];
+
+  // ✅ David: nunca reemplazar la Espada Dorada (slot 0)
+  if (target.id === 'david' && target.equipment[0] === 'david_espada') {
+    var _maxEq = (typeof getMaxEquipment === 'function') ? getMaxEquipment(target) : 2;
+    if (target.equipment.length >= _maxEq) {
+      var oldEq = target.equipment[1];
+      if (!player.discardPile) player.discardPile = [];
+      if (oldEq) player.discardPile.push(oldEq);
+      target.equipment[1] = cardId;
+    } else {
+      target.equipment.push(cardId);
+    }
+  } else if (ri >= 0) {
+    target.equipment[ri] = cardId;
+  } else {
+    target.equipment.push(cardId);
+  }
+
+  var eq = CARD_DB[cardId];
+  if (eq && eq.effect) {
+    if (eq.effect.shieldBonus) addOrRefreshShield(target, 'eq_' + cardId, eq.effect.shieldBonus);
+    if (eq.effect.energyBonus) target.energy = Math.min(target.maxEnergy, target.energy + eq.effect.energyBonus);
+    if (eq.effect.healBonus) healChar(target, eq.effect.healBonus);
+    if (eq.effect.selfDamage) {
+      target.hp = Math.max(0, target.hp - eq.effect.selfDamage);
+      if (target.hp <= 0) {
+        var who = combatState.player.characters.indexOf(target) >= 0 ? 'player' : 'bot';
+        handleDeath(who, player.characters.indexOf(target));
+      }
+    }
+  }
+
+  renderCombat();
+}
 function applyCardPlay(cardId, spentDice) {
   if (!combatState) return;
   var card = CARD_DB[cardId] || PAINT_CARDS[cardId] || (typeof PLUSH_CARDS !== 'undefined' && PLUSH_CARDS[cardId]); if (!card) return;
   var player = getActiveSide(); if (!player) return;
+
   if (card.category === 'pintura') {
     var erik = player.characters.find(function(c){ return c.id === 'erik' && !c.dead; });
     if (!erik) { playSound('error'); logCombat('❌ Erik no está en pie'); return; }
@@ -241,34 +305,8 @@ function applyCardPlay(cardId, spentDice) {
     finalizeCardPlay(cardId); erik.paintEquipped = card.paintColor; logCombat('🎨 ' + erik.character.name + ' equipa ' + card.name);
     renderCombat(); return;
   }
-  if (card.category === 'equipo') {
-    showEquipmentTargetDialog(cardId, function(ti, ri){
-      finalizeCardPlay(cardId);
-      var target = player.characters[ti];
-      if (!target.equipment) target.equipment = [];
-      // ✅ DAVID: nunca reemplazar la Espada Dorada (slot 0)
-      if (target.id === 'david' && target.equipment[0] === 'david_espada') {
-        // Si ya hay slot libre después de la Espada, ocuparlo; si no, reemplazar el slot 1
-        if (target.equipment.length >= (typeof getMaxEquipment === 'function' ? getMaxEquipment(target) : 2)) {
-          var oldEq = target.equipment[1];
-          if (!player.discardPile) player.discardPile = [];
-          player.discardPile.push(oldEq);
-          target.equipment[1] = cardId;
-        } else {
-          target.equipment.push(cardId);
-        }
-      } else if (ri >= 0) target.equipment[ri] = cardId;
-      else target.equipment.push(cardId);
-      var eq = CARD_DB[cardId];
-      if (eq && eq.effect) {
-        if (eq.effect.shieldBonus) addOrRefreshShield(target, 'eq_' + cardId, eq.effect.shieldBonus);
-        if (eq.effect.energyBonus) target.energy = Math.min(target.maxEnergy, target.energy + eq.effect.energyBonus);
-        if (eq.effect.healBonus) healChar(target, eq.effect.healBonus);
-        if (eq.effect.selfDamage) { target.hp = Math.max(0, target.hp - eq.effect.selfDamage); if (target.hp <= 0) { var who = combatState.player.characters.indexOf(target) >= 0 ? 'player' : 'bot'; handleDeath(who, player.characters.indexOf(target)); } }
-      }
-      renderCombat();
-    }, function cancel(){ refundDice(spentDice); renderCombat(); });
-  } else if (card.category === 'apoyo') {
+
+  if (card.category === 'apoyo') {
     if (!player.supports) player.supports = [null,null,null,null,null];
     var _maxSupP = (typeof getMaxSupports === 'function') ? getMaxSupports(getTurnKey()) : 4;
     var es = -1; for (var i = 0; i < _maxSupP; i++) if (!player.supports[i]) { es = i; break; }
@@ -287,7 +325,13 @@ function applyCardPlay(cardId, spentDice) {
       if (card.effect && card.effect.teamShieldInstant) player.characters.forEach(function(c){ if (!c.dead) addOrRefreshShield(c, 'support_' + cardId, card.effect.teamShieldInstant); });
       renderCombat();
     }
-  } else { finalizeCardPlay(cardId); applyCardEffect(card); renderCombat(); }
+    return;
+  }
+
+  // evento (y cualquier otro)
+  finalizeCardPlay(cardId);
+  applyCardEffect(card);
+  renderCombat();
 }
 
 function hideConfirmation(){ var ov = document.getElementById('confirmOverlay'); if (ov) ov.classList.remove('show'); }
@@ -328,7 +372,9 @@ function showEquipmentTargetDialog(cardId, onConfirm, onCancel) {
   content.querySelectorAll('.confirm-char-option').forEach(function(el){ el.addEventListener('click', function(){
     if (el.classList.contains('confirm-char-option-blocked')) { playSound('error'); return; }
     var i = parseInt(el.dataset.idx, 10), t = player.characters[i];
-    if (t.equipment && t.equipment.length >= 2) showEquipmentReplaceDialog(cardId, i, onConfirm, onCancel);
+    // ✅ Usa el máximo dinámico (Opal = 3, resto = 2)
+    var _maxEq = (typeof getMaxEquipment === 'function') ? getMaxEquipment(t) : 2;
+    if (t.equipment && t.equipment.length >= _maxEq) showEquipmentReplaceDialog(cardId, i, onConfirm, onCancel);
     else { hideConfirmation(); onConfirm(i, -1); }
   }); });
   document.getElementById('equipCancelBtn').addEventListener('click', function(){ hideConfirmation(); onCancel(); });
