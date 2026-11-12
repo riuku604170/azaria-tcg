@@ -3,6 +3,18 @@
 // ═══════════ NOVEDADES (parches) ═══════════
 var PATCHES = [
 {
+  version: 'BETA 1.7',
+  date: '2026-11-12',
+  type: 'minor',
+  title: 'Mejoras del bot y plantillas de guardado',
+  changes: [
+    'El bot ahora cambia cartas.',
+    'El equipo y mazo del bot se elige con lógia',
+    '4 dificultades de combate contra la IA.',
+    'Ahora pueden compartirse las plantillas de guardado.'
+  ]  
+},
+{
   version: 'BETA 1.6',
   date: '2026-11-11',
   type: 'mayor',
