@@ -277,8 +277,11 @@ function showSelectDetail(idx) {
   var col = ELEMENT_COLORS[cd.element];
   var vis = ['normal','elemental','ultimate','passive','ex'];
   var abh = '';
-  var order = { normal:0, elemental:1, ultimate:2, passive:3, ex:4 };
-  var sorted = cd.abilities.slice().sort(function(a, b){ return (order[a.type] || 99) - (order[b.type] || 99); });
+  // ✅ Base 1 para que `0 || 99` no rompa el ataque normal
+  var order = { normal:1, elemental:2, ultimate:3, passive:4, ex:5 };
+  var sorted = cd.abilities.slice().sort(function(a, b){
+    return (order[a.type] || 99) - (order[b.type] || 99);
+  });
   sorted.forEach(function(ab){
     if (vis.indexOf(ab.type) === -1) return;
     var brd;
@@ -1176,6 +1179,7 @@ function executeAction(who, actionType, preSpentDice) {
       if (combatState) {
         combatState._resolvingAbility = false;
         combatState._currentIsCounterAttack = false;
+        if (combatState.phase === 'playing') renderCombat();
       }
     }
   }, 700);
@@ -1548,6 +1552,75 @@ function botMinAttackCost() {
   return best === 999 ? 0 : best;
 }
 
+/* ═══ BOT: elige a quién equipar con lógica de scoring ═══ */
+function botChooseEquipmentTarget(card, bot) {
+  if (!bot || !bot.characters) return -1;
+  var activeIdx = bot.activeIndex;
+  var candidates = [];
+
+  bot.characters.forEach(function(cs, i) {
+    if (cs.dead) return;
+
+    // ── Bloqueos por pasiva ──
+    if (cs.id === 'erikxd') return;
+    if (cs.id === 'eve' && card.effect && (
+      card.effect.shieldBonus || card.effect.shieldPerRound ||
+      card.effect.healBonus || card.effect.healPerRound ||
+      card.effect.teamShieldBonus || card.effect.teamShieldInstant
+    )) return;
+
+    var maxEq = (typeof getMaxEquipment === 'function') ? getMaxEquipment(cs) : 2;
+    var slotsFree = maxEq - (cs.equipment ? cs.equipment.length : 0);
+    var isActive = (i === activeIdx);
+
+    // Reservas sin slot libre → no forzamos reemplazo. Solo el activo puede reemplazar.
+    if (!isActive && slotsFree <= 0) return;
+
+    var score = 10;
+
+    // ── Ataque / penetración → activo ──
+    if (card.effect && (card.effect.attackBonus || card.effect.piercing)) {
+      score += isActive ? 8 : 2;
+    }
+    // ── Defensa / escudo → proteger al herido, prioriza activo si no está herido ──
+    if (card.effect && (card.effect.shieldBonus || card.effect.damageReduction)) {
+      var hpRatio = cs.hp / cs.maxHp;
+      if (hpRatio < 0.5) score += 6;
+      if (isActive) score += 3;
+    }
+    // ── Energía → activo (la usa ya) ──
+    if (card.effect && (card.effect.energyBonus || card.effect.energyPerRound)) {
+      score += isActive ? 5 : 1;
+    }
+    // ── Curación → cuanto más falte, mejor ──
+    if (card.effect && (card.effect.healBonus || card.effect.healPerRound)) {
+      var healAmt = card.effect.healBonus || card.effect.healPerRound || 0;
+      var needed = cs.maxHp - cs.hp;
+      score += Math.min(needed, healAmt) * 1.5;
+    }
+    // ── Sin slot libre: penaliza ──
+    if (slotsFree <= 0) score -= 5;
+    else if (isActive) score += 2;
+    // ── Bonus defensivo: proteger a cualquier personaje bajo ──
+    if (cs.hp < cs.maxHp * 0.3) score += 3;
+
+    candidates.push({ idx: i, score: score });
+  });
+
+  if (!candidates.length) return -1;
+  candidates.sort(function(a, b) { return b.score - a.score; });
+
+  // Ponderación ligera entre las 2 mejores para no ser 100% predecible
+  var top = candidates.slice(0, Math.min(2, candidates.length));
+  var total = top.reduce(function(acc, c) { return acc + Math.max(0.1, c.score); }, 0);
+  var r = Math.random() * total;
+  for (var i = 0; i < top.length; i++) {
+    r -= Math.max(0.1, top[i].score);
+    if (r <= 0) return top[i].idx;
+  }
+  return top[0].idx;
+}
+
 function botScoreCard(cardId, card, active) {
   if (!card) return -1;
   var bot = combatState.bot;
@@ -1560,10 +1633,9 @@ function botScoreCard(cardId, card, active) {
     return 5;
   }
 
-  // ✅ Pasivas: Eve y ErikXD no pueden recibir equipaciones
+  // ✅ Equipo: solo vale la pena si hay ALGUIEN a quien equipar
   if (card.category === 'equipo') {
-    if (active.id === 'erikxd') return -1;
-    if (active.id === 'eve' && card.effect && (card.effect.shieldBonus || card.effect.shieldPerRound || card.effect.healBonus || card.effect.healPerRound || card.effect.teamShieldBonus || card.effect.teamShieldInstant)) return -1;
+    if (botChooseEquipmentTarget(card, bot) < 0) return -1;
   }
 
   var cost = adjustCardCostForPassives(card, bot);
@@ -1827,23 +1899,38 @@ function botPlayCard(cardId, card, onComplete) {
       var e2 = b.characters.find(function(c){ return c.id === 'erik' && !c.dead; });
       if (e2) { e2.paintEquipped = card.paintColor; logCombat('🎨 Rival equipa ' + card.name + ' en ' + e2.character.name); }
     } else if (card.category === 'equipo') {
-      if (!a.equipment) a.equipment = [];
-      var _maxEqBP = (typeof getMaxEquipment === 'function') ? getMaxEquipment(a) : 2;
-      if (a.equipment.length >= _maxEqBP) {
-        // ✅ David: nunca quitar la Espada Dorada (slot 0)
-        var _removeIdx = (a.id === 'david' && a.equipment[0] === 'david_espada') ? 1 : 0;
-        var removed = a.equipment.splice(_removeIdx, 1)[0];
-        if (!b.discardPile) b.discardPile = [];
-        b.discardPile.push(removed);
+      // ✅ Elegir target (activo o reserva) con scoring
+      var _targetIdx = botChooseEquipmentTarget(card, b);
+      if (_targetIdx < 0) {
+        // No debería llegar aquí (botScoreCard ya lo comprueba), pero por seguridad:
+        if (onComplete) onComplete(false);
+        return;
       }
-      a.equipment.push(cardId);
+      var _targetCs = b.characters[_targetIdx];
+      if (!_targetCs.equipment) _targetCs.equipment = [];
+      var _maxEqBP = (typeof getMaxEquipment === 'function') ? getMaxEquipment(_targetCs) : 2;
+      if (_targetCs.equipment.length >= _maxEqBP) {
+        // Solo puede pasar al activo (las reservas con slots llenos están excluidas)
+        var _removeIdx = (_targetCs.id === 'david' && _targetCs.equipment[0] === 'david_espada') ? 1 : 0;
+        var _removed = _targetCs.equipment.splice(_removeIdx, 1)[0];
+        if (_removed) {
+          if (!b.discardPile) b.discardPile = [];
+          b.discardPile.push(_removed);
+        }
+      }
+      _targetCs.equipment.push(cardId);
       if (card.effect) {
-        if (card.effect.shieldBonus) addOrRefreshShield(a, 'eq_' + cardId, card.effect.shieldBonus);
-        if (card.effect.energyBonus) a.energy = Math.min(a.maxEnergy, a.energy + card.effect.energyBonus);
-        if (card.effect.healBonus) healChar(a, card.effect.healBonus);
-        if (card.effect.selfDamage) { a.hp = Math.max(0, a.hp - card.effect.selfDamage); if (a.hp <= 0) handleDeath('bot', b.characters.indexOf(a)); }
+        if (card.effect.shieldBonus) addOrRefreshShield(_targetCs, 'eq_' + cardId, card.effect.shieldBonus);
+        if (card.effect.energyBonus) _targetCs.energy = Math.min(_targetCs.maxEnergy, _targetCs.energy + card.effect.energyBonus);
+        if (card.effect.healBonus) healChar(_targetCs, card.effect.healBonus);
+        if (card.effect.selfDamage) {
+          _targetCs.hp = Math.max(0, _targetCs.hp - card.effect.selfDamage);
+          if (_targetCs.hp <= 0) handleDeath('bot', b.characters.indexOf(_targetCs));
+        }
       }
-      logCombat('⚔️ Rival equipa ' + card.name);
+      // Log con el target elegido
+      if (_targetIdx === b.activeIndex) logCombat('⚔️ Rival equipa ' + card.name + ' a ' + _targetCs.character.name);
+      else logCombat('⚔️ Rival equipa ' + card.name + ' a ' + _targetCs.character.name + ' (reserva)');
     } else if (card.category === 'apoyo') {
       // ✅ ErikXD: 5 slots de apoyo
       if (!b.supports) b.supports = [null, null, null, null, null];
