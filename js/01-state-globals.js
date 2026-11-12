@@ -63,3 +63,27 @@ function unlockId(id) { unlockedIds[id] = true; saveShopState(); }
 function addMoney(n) { playerMoney += n; saveShopState(); if (typeof renderShopMoney === 'function') renderShopMoney(); }
 
 loadShopState();
+
+/* ═══ DIFICULTAD DEL BOT ═══ */
+var BOT_DIFFICULTY = 'normal';
+var BOT_DIFFICULTY_LEVELS = {
+  easy:      { key:'easy',      name:'Fácil',     emoji:'🌱', killPriority: 15,  thinkMultiplier: 0.75, desc:'Comete errores, prioriza menos las muertes.' },
+  normal:    { key:'normal',    name:'Normal',    emoji:'⚖️', killPriority: 30,  thinkMultiplier: 1.0,  desc:'Juega bien sin ser perfecto.' },
+  hard:      { key:'hard',      name:'Difícil',   emoji:'🔥', killPriority: 55,  thinkMultiplier: 1.35, desc:'Prioriza muertes y jugadas óptimas.' },
+  nightmare: { key:'nightmare', name:'Pesadilla', emoji:'💀', killPriority: 100, thinkMultiplier: 1.6,  desc:'Siempre elige la mejor opción, prioriza letales.' }
+};
+function loadBotDifficulty() {
+  try {
+    var v = localStorage.getItem('azaria_bot_difficulty');
+    if (v && BOT_DIFFICULTY_LEVELS[v]) BOT_DIFFICULTY = v;
+  } catch (e) {}
+}
+function setBotDifficulty(v) {
+  if (!BOT_DIFFICULTY_LEVELS[v]) return;
+  BOT_DIFFICULTY = v;
+  try { localStorage.setItem('azaria_bot_difficulty', v); } catch (e) {}
+}
+function getBotDifficultyInfo() {
+  return BOT_DIFFICULTY_LEVELS[BOT_DIFFICULTY] || BOT_DIFFICULTY_LEVELS.normal;
+}
+loadBotDifficulty();
