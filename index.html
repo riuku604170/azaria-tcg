@@ -465,6 +465,7 @@
       <h3 class="template-title">📋 Plantillas de Combate</h3>
       <p class="template-desc">Guarda combinaciones de <strong>equipo + mazo</strong> para empezar combates al instante. Hasta 12 plantillas.</p>
       <div class="template-backup-actions">
+        <button class="btn btn-outline" id="importTemplateCodeBtn" type="button" title="Importar plantilla pegando un código compartido">🔗 Importar código</button>
         <button class="btn btn-outline" id="exportTemplatesBtn" type="button" title="Descarga un archivo JSON con todas tus plantillas guardadas">📥 Exportar plantillas</button>
         <button class="btn btn-outline" id="importTemplatesBtn" type="button" title="Carga un archivo de plantillas exportado previamente">📤 Importar plantillas</button>
         <input type="file" id="importTemplatesInput" accept=".json,application/json" style="display:none;">
@@ -635,12 +636,22 @@
     <div class="combat-start-confirm-title">⚔️ ¿Iniciar Combate?</div>
     <p class="combat-start-confirm-sub" id="combatStartConfirmSub">Tu equipo y mazo están listos para la batalla</p>
     <div class="combat-start-confirm-team" id="combatStartTeamPreview"></div>
+    <div class="combat-start-confirm-team" id="combatStartTeamPreview"></div>
+
+    <!-- ✅ NUEVO: Selector de dificultad -->
+    <div class="combat-difficulty-row" id="combatDifficultyRow">
+      <span class="cdr-label">🎚️ Dificultad del bot</span>
+      <div class="cdr-buttons" id="combatDifficultyButtons"></div>
+    </div>
+
     <div class="combat-start-confirm-buttons">
       <button class="confirm-btn confirm-cancel" id="combatStartCancelBtn">Cancelar</button>
       <button class="confirm-btn confirm-accept" id="combatStartConfirmBtn">⚔️ Empezar Combate</button>
     </div>
   </div>
 </div>
+
+
 
 <!-- Confirmación al salir del combate -->
 <div class="combat-start-confirm" id="exitCombatConfirm" style="z-index: 2600;">
@@ -892,6 +903,37 @@
   </div>
 
 </div>    <!-- cierra combatModal -->
+
+<!-- Compartir plantilla -->
+<div class="template-share-dialog" id="templateShareDialog">
+  <div class="template-share-backdrop"></div>
+  <div class="template-share-content">
+    <div class="template-share-title">🔗 Compartir plantilla</div>
+    <p class="template-share-sub">Copia este código y compártelo. Cualquiera podrá importar tu equipo y mazo.</p>
+    <div class="template-share-name" id="templateShareName"></div>
+    <textarea class="template-share-code" id="templateShareCode" readonly></textarea>
+    <div class="template-share-buttons">
+      <button class="confirm-btn confirm-cancel" id="templateShareClose">Cerrar</button>
+      <button class="confirm-btn confirm-accept" id="templateShareCopy">📋 Copiar código</button>
+    </div>
+  </div>
+</div>
+
+<!-- Importar plantilla por código -->
+<div class="template-share-dialog" id="templateImportDialog">
+  <div class="template-share-backdrop"></div>
+  <div class="template-share-content">
+    <div class="template-share-title">📥 Importar plantilla</div>
+    <p class="template-share-sub">Pega el código de una plantilla compartida.</p>
+    <textarea class="template-share-code" id="templateImportCode" placeholder="AZARIA1-..."></textarea>
+    <div class="template-share-info" id="templateImportInfo"></div>
+    <div class="template-import-slot-picker" id="templateImportSlotPicker" style="display:none;"></div>
+    <div class="template-share-buttons" id="templateImportButtons">
+      <button class="confirm-btn confirm-cancel" id="templateImportCancel">Cancelar</button>
+      <button class="confirm-btn confirm-accept" id="templateImportAccept">📥 Importar</button>
+    </div>
+  </div>
+</div>
 
 <!-- ═══ Modal de Parches ═══ -->
 <!-- ═══ Modal de Avisos (Anuncios + Novedades) ═══ -->
