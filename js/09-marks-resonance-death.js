@@ -156,6 +156,14 @@ function applyResonanceEffect(elA, elB, who, targetSideKey) {
     case 'Paradoja': side.dice = side.dice.map(function(d){ return { type: Math.random() < 0.125 ? 'omni' : CONSONANCE_ORDER[Math.floor(Math.random()*7)], id: d.id, justAdded: true }; }); break;
     default: logCombat('🔮 Resonancia aplicada: ' + found.name); break;
   }
+  // ✅ OPAL: resonancias curan al activo si "Por un mundo lleno de color" está activo
+  if (combatState && typeof who === 'string' && combatState[who]) {
+    var casterSide = combatState[who];
+    if (casterSide.resonanciasCuran && casterSide.resonanciasCuran.roundsLeft > 0) {
+      var ca = casterSide.characters[casterSide.activeIndex];
+      if (ca && !ca.dead) { healChar(ca, casterSide.resonanciasCuran.amount); }
+    }
+  }
 }
 
 /* ═══ MUERTE ═══ */
@@ -237,7 +245,26 @@ function handleDeath(who, index) {
 function dealDamageToChar(targetCs, rawDamage, opts) {
   opts = opts || {};
   if (targetCs.dead) return 0;
-  var hadProteccionMark = csHasMark(targetCs, 'proteccion');   // ✅ EX Noah
+  var hadProteccionMark = csHasMark(targetCs, 'proteccion');
+
+  // ✅ DAVID: Capa real — si el que iba a recibir el golpe es un aliado con Capa real, David contraataca
+  if (targetCs.states && targetCs.states.capaReal && !targetCs.dead && opts.attackerCs && opts.attackerCs !== targetCs) {
+    var _crS = sideOfChar(targetCs);
+    if (_crS) {
+      var _davidCs = _crS.side.characters.find(function(c){ return c.id === 'david' && !c.dead; });
+      if (_davidCs && _davidCs !== targetCs) {
+        targetCs.states.capaReal = false;
+        _crS.side.activeIndex = _crS.side.characters.indexOf(_davidCs);
+        logCombat('👑 Capa real: David pasa a activo y contraataca');
+        setTimeout(function(){
+          if (!combatState || !_davidCs || _davidCs.dead) return;
+          combatState._currentIsCounterAttack = true;
+          executeAction(_crS.key, 'normal', null);
+        }, 200);
+      }
+    }
+  }
+
   rawDamage = exHookModifyIncomingDamage(targetCs, rawDamage, opts.attackerCs);
 
   // ✅ EX-María: reduce el daño A 1 y difiere el resto al final de la ronda
@@ -247,6 +274,27 @@ function dealDamageToChar(targetCs, rawDamage, opts) {
     targetCs.states.delayedDamage = (targetCs.states.delayedDamage || 0) + excessDmg;
     rawDamage = 1;
     logCombat('🌻 EX-María reduce el daño a 1 y difiere ' + excessDmg + ' al final de la ronda');
+  }
+
+  // ✅ EVE: EX — reducción de 1 a daño de habilidades rivales
+  if (targetCs.id === 'eve' && targetCs.exActive && combatState && combatState._currentActionType) {
+    rawDamage = Math.max(0, rawDamage - 1);
+    logCombat('🌟 EX Eve: -1 daño de habilidad rival');
+  }
+  // ✅ EVE: Prisión etérea — si atacada por habilidad rival, marca con Comprensión
+  if (targetCs.id === 'eve' && opts.attackerCs && opts.attackerCs !== targetCs && combatState && combatState._currentActionType) {
+    var eveS = sideOfChar(targetCs);
+    if (eveS && eveS.side.structures) {
+      var prE = eveS.side.structures.find(function(s){ return s.kind === 'prisionEterea'; });
+      if (prE && !opts._skipPrisionMark) {
+        var attS = sideOfChar(opts.attackerCs);
+        if (attS && !opts.attackerCs.dead) {
+          opts._skipPrisionMark = true;
+          triggerMarkOrResonance(opts.attackerCs, 'comprension', eveS.key, attS.key, attS.side.characters.indexOf(opts.attackerCs));
+          logCombat('🔮 Prisión etérea: ' + opts.attackerCs.character.name + ' marcado con Comprensión');
+        }
+      }
+    }
   }
 
   var side = opts.targetSide, sideKey = opts.targetSideKey, idx = opts.targetIdx;
@@ -342,6 +390,11 @@ function dealDamageToChar(targetCs, rawDamage, opts) {
         return 0;
       }
     }
+    // ✅ Felicia: tope de 3 daño verdadero por golpe
+    if (targetCs.id === 'felicia' && !opts.skipFeliciaPassive && res.overflow > 3) {
+      logCombat('🎲 Pasiva Felicia: daño verdadero limitado a 3 (era ' + res.overflow + ')');
+      res.overflow = 3;
+    }
     var hpBeforeAlaya = targetCs.hp;
     targetCs.hp = Math.max(0, targetCs.hp - res.overflow);
     var trueHpLost = hpBeforeAlaya - targetCs.hp;
@@ -368,6 +421,10 @@ function dealDamageToChar(targetCs, rawDamage, opts) {
       logCombat('🌐 Orgullo de la Creadora: Internet gana 1 energía al bajar a ' + targetCs.hp + ' HP');
     }
     triggerVibrate(sideKey, idx); playSound(opts.piercing ? 'pierce' : 'impact');
+    // ✅ Felicia: recalcular Drogada tras cambiar HP
+    if (targetCs.id === 'felicia' && !targetCs.dead && typeof updateFeliciaDrogada === 'function') {
+      updateFeliciaDrogada(targetCs);
+    }
     // ✅ YouTube: pierde 1 popularidad al recibir un ataque
     if (targetCs.id === 'youtube' && typeof loseYouTubePop === 'function') {
       loseYouTubePop(targetCs, 1, 'recibe ataque');
@@ -468,6 +525,11 @@ function healChar(cs, amount, opts) {
     dealDamageToChar(cs, amount, { piercing:true, targetSide:side, targetSideKey:sideKey, targetIdx:idx });
     return -amount;
   }
+  // ✅ Felicia: tope de 2 curación por fuente
+  if (cs.id === 'felicia' && !opts.skipFeliciaPassive && amount > 2) {
+    amount = 2;
+    logCombat('🎲 Pasiva Felicia: curación limitada a 2');
+  }
   var before = cs.hp; cs.hp = Math.min(cs.maxHp, cs.hp + amount); var eff = cs.hp - before;
   if (eff > 0) logCombat('💚 ' + cs.character.name + ' +' + eff + ' HP');
 
@@ -500,6 +562,10 @@ function healChar(cs, amount, opts) {
     }
   }
   if (eff > 0 && typeof trackHeal === 'function') trackHeal(cs, eff);
+  // ✅ Felicia: recalcular Drogada tras cambiar HP
+  if (cs.id === 'felicia' && !cs.dead && typeof updateFeliciaDrogada === 'function') {
+    updateFeliciaDrogada(cs);
+  }
   return eff;
 }
 
@@ -581,8 +647,30 @@ function exHookRoundStart(cs, sideKey) {
     csSetState(cs, 'podrida', true);
     logCombat('🎯 EX NC: comienza la ronda con Podrida');
   }
+  // ✅ EX Felicia: al inicio de ronda con HP ≥ 5, +1 dado de expresión
+  if (cs.id === 'felicia' && !cs.dead && cs.hp >= 5) {
+    var side = combatState[sideKey];
+    if (side) {
+      side.dice.push({ type:'expresion', id:uid(), justAdded:true });
+      logCombat('🌟 EX Felicia: +1 dado de Expresión (HP ≥ 5)');
+    }
+  }
 }
 function exHookModifyOutgoingDamage(attackerCs, damage, targetCs) {
   if (!attackerCs || !attackerCs.exActive) return damage;
   return damage;
+}
+
+/* ═══ FELICIA — helper para Drogada dinámica ═══ */
+function updateFeliciaDrogada(cs) {
+  if (!cs || cs.id !== 'felicia') return;
+  if (cs.dead) { csSetState(cs, 'drogada', false); return; }
+  var hasDrogada = csHasState(cs, 'drogada');
+  if (cs.hp <= 3 && !hasDrogada) {
+    csSetState(cs, 'drogada', true);
+    logCombat('🩸 Felicia activa Drogada (HP: ' + cs.hp + ')');
+  } else if (cs.hp >= 4 && hasDrogada) {
+    csSetState(cs, 'drogada', false);
+    logCombat('🩸 Felicia pierde Drogada (HP: ' + cs.hp + ')');
+  }
 }
