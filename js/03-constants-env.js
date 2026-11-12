@@ -37,6 +37,11 @@ var STATUS_DESCRIPTIONS = {
   paillettes: { name:'✨ Paillettes', text:'Mientras esté activo (hasta el final del combate), cada ataque normal de Traductor genera 1 punto de escudo (hasta 3). Con su EX, el ataque normal hace +1 daño adicional.' },
   monetizacion: { name:'💸 Monetización', text:'Estructura de YouTube EX en el campo rival. Todas las cartas del rival cuestan 1 dado genérico extra. Pierde 1 uso cada vez que el rival usa una carta.' },
   decidida: { name:'🐴 Decidida', text:'Cargas de Sage (0–3). Cada carga aumenta en +1 el daño y en +1 el coste de su ataque normal (dados cualesquiera). Al final de cada ronda pierde 1 carga y recibe 1 de daño por la carga perdida. La ulti requiere 3 cargas y las consume.' },
+  drogada: { name:'🩸 Drogada', text:'Mientras esté activo: el ataque normal de Felicia inflige +2 de daño y su habilidad elemental roba 2 cartas y marca al enemigo activo con Expresión. Además, el ataque normal cuesta +2 dados de Expresión y la habilidad elemental +1 dado de Expresión. Se activa automáticamente al tener 3 o menos de vida y desaparece al recuperar 4 o más.' },
+  doubleDown: { name:'🎲 Double Down', text:'Mientras esté activo: el ataque normal cuesta +1 dado de Expresión y la habilidad elemental +1 dado de Expresión. La siguiente habilidad (normal o elemental) que use Felicia tendrá todos sus efectos (daño, puntos de vida, robo de cartas) doblados una sola vez, tras lo cual el estado se consume. No se acumula; volver a usar la definitiva simplemente lo refresca.' },
+  prisionEterea: { name:'🔮 Prisión etérea', text:'Estructura de Eve. Al final de la ronda reparte 2 HP entre los aliados vivos (si solo hay 1, recibe 2). Si Eve es atacada por una habilidad rival, el atacante es marcado con Comprensión. Mientras esté activa, la definitiva de Eve cambia a "Cadáveres como hojas de otoño".' },
+  capaReal: { name:'🤝 Capa real', text:'Escudo de David de 2 HP. Si es atacado, David pasa a activo y contraataca con su normal como acción rápida, sin gastar dados ni energía. Se consume al usarse.' },
+  nostalgiaBait: { name:'📸 Nostalgia-Bait', text:'Mientras esté activo (esta ronda), el daño pasivo de las Cámaras de ErikXD afecta a todos los enemigos con +1 de daño, pero el daño también lo recibe ErikXD.' },
 };
 
 var PHILOSOPHIES = {
