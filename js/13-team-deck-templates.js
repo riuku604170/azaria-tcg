@@ -285,7 +285,7 @@ function renderTemplateSlots() {
       var tp = validTeam.map(function(id){ var ch = CHARACTERS[id]; return '<span class="template-char" style="--el: ' + ELEMENT_COLORS[ch.element] + ';" title="' + ch.name + '">' + ch.emoji + '</span>'; }).join('');
       if (!validTeam.length) tp = '<span style="color: var(--muted); font-size: 0.8rem;">Equipo vacío</span>';
       var tname = t.name || ('Ranura ' + (i + 1));
-      html += '<div class="template-slot filled"><div class="template-slot-header">' + tname + '</div><div class="template-team-preview">' + tp + '</div><div class="template-deck-info">🎴 ' + t.deck.length + '/30 cartas</div><div class="template-actions"><button class="template-info-btn" data-slot="' + i + '" title="Ver info">👁️</button><button class="template-load-btn" data-slot="' + i + '">📂 Cargar</button><button class="template-save-btn" data-slot="' + i + '">💾 Guardar</button><button class="template-delete-btn" data-slot="' + i + '" title="Borrar plantilla">🗑️</button></div></div>';
+      html += '<div class="template-slot filled"><div class="template-slot-header">' + tname + '</div><div class="template-team-preview">' + tp + '</div><div class="template-deck-info">🎴 ' + t.deck.length + '/30 cartas</div><div class="template-actions"><button class="template-info-btn" data-slot="' + i + '" title="Ver info">👁️</button><button class="template-share-btn" data-slot="' + i + '" title="Compartir por código">🔗</button><button class="template-load-btn" data-slot="' + i + '">📂 Cargar</button><button class="template-save-btn" data-slot="' + i + '">💾 Guardar</button><button class="template-delete-btn" data-slot="' + i + '" title="Borrar plantilla">🗑️</button></div></div>';
     } else html += '<div class="template-slot empty"><div class="template-slot-header">Ranura ' + (i + 1) + '</div><div class="template-empty-text">— Vacía —</div><div class="template-actions"><button class="template-save-btn" data-slot="' + i + '">💾 Guardar actual</button></div></div>';   
   }
   c.innerHTML = html;
@@ -323,6 +323,11 @@ function renderTemplateSlots() {
     saveTeam(); saveDeck(); renderTeamPanel(); renderDeckGrid(); playSound('confirm');
     showTeamMissingToast('✅ Plantilla "' + (t.name || ('Ranura ' + (s + 1))) + '" cargada.');
   }); });
+  c.querySelectorAll('.template-share-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      openTemplateShareDialog(parseInt(btn.dataset.slot, 10));
+    });
+  });
   c.querySelectorAll('.template-delete-btn').forEach(function(btn){ btn.addEventListener('click', function(){
     var s = parseInt(btn.dataset.slot, 10);
     var t = getTemplate(s);
@@ -597,3 +602,244 @@ function checkTemplateIntegrity() {
   }
   return broken;
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   COMPARTIR PLANTILLAS POR CÓDIGO
+   Formato: AZARIA1-<base64 url-safe sin padding de "team|deck|name">
+   ═══════════════════════════════════════════════════════════════════ */
+
+function _b64EncodeUnicode(str) {
+  try {
+    var bytes = new TextEncoder().encode(str);
+    var bin = '';
+    for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin);
+  } catch (e) {
+    return btoa(unescape(encodeURIComponent(str)));
+  }
+}
+function _b64DecodeUnicode(b64) {
+  try {
+    var bin = atob(b64);
+    var bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new TextDecoder().decode(bytes);
+  } catch (e) {
+    return decodeURIComponent(escape(atob(b64)));
+  }
+}
+
+function encodeTemplateShare(template) {
+  if (!template || !Array.isArray(template.team) || !Array.isArray(template.deck)) return null;
+  var team = template.team.slice(0, 3).join(',');
+  var deck = template.deck.slice(0, 30).join(',');
+  var name = String(template.name || 'Plantilla').replace(/\|/g, ' ');
+  var payload = team + '|' + deck + '|' + name;
+  var b64 = _b64EncodeUnicode(payload);
+  b64 = b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return 'AZARIA1-' + b64;
+}
+
+function decodeTemplateShare(code) {
+  code = String(code || '').trim();
+  if (!code) return { ok: false, msg: 'Introduce un código.' };
+  var prefix = 'AZARIA1-';
+  if (code.indexOf(prefix) !== 0) return { ok: false, msg: 'El código no es válido (prefijo incorrecto).' };
+  var b64 = code.slice(prefix.length).replace(/-/g, '+').replace(/_/g, '/');
+  while (b64.length % 4) b64 += '=';
+  var decoded;
+  try { decoded = _b64DecodeUnicode(b64); } catch (e) { return { ok: false, msg: 'Código corrupto o incompleto.' }; }
+  var parts = decoded.split('|');
+  if (parts.length !== 3) return { ok: false, msg: 'El código está corrupto (formato interno).' };
+  var teamIds = parts[0] ? parts[0].split(',').filter(Boolean) : [];
+  var deckIds = parts[1] ? parts[1].split(',').filter(Boolean) : [];
+  var name = parts[2] || 'Plantilla importada';
+  if (teamIds.length !== 3) return { ok: false, msg: 'El equipo debe tener exactamente 3 personajes (tiene ' + teamIds.length + ').' };
+  if (deckIds.length !== 30) return { ok: false, msg: 'El mazo debe tener exactamente 30 cartas (tiene ' + deckIds.length + ').' };
+  var badChar = teamIds.find(function(id){ return !CHARACTERS[id] || id === 'hunger' || id === 'exmaria'; });
+  if (badChar) return { ok: false, msg: 'Personaje desconocido: "' + badChar + '".' };
+  var badCard = deckIds.find(function(id){ return !CARD_DB[id] && !PAINT_CARDS[id]; });
+  if (badCard) return { ok: false, msg: 'Carta desconocida: "' + badCard + '".' };
+  return { ok: true, template: { team: teamIds, deck: deckIds, name: name, savedAt: Date.now() } };
+}
+
+function findEmptyTemplateSlot() {
+  for (var i = 0; i < TEMPLATE_SLOT_COUNT; i++) {
+    if (!getTemplate(i)) return i;
+  }
+  return -1;
+}
+
+function _copyToClipboard(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    return navigator.clipboard.writeText(text).then(function(){ return true; }).catch(function(){ return false; });
+  }
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  var ok = false;
+  try { ok = document.execCommand('copy'); } catch(e) {}
+  document.body.removeChild(ta);
+  return Promise.resolve(ok);
+}
+
+/* ═══ Diálogo de compartir ═══ */
+function openTemplateShareDialog(slot) {
+  var t = getTemplate(slot);
+  if (!t) { showTeamMissingToast('⚠️ No hay plantilla en esta ranura.'); return; }
+  var code = encodeTemplateShare(t);
+  if (!code) { showTeamMissingToast('⚠️ Error al generar el código.'); return; }
+  var modal = document.getElementById('templateShareDialog');
+  var ta = document.getElementById('templateShareCode');
+  var nameEl = document.getElementById('templateShareName');
+  if (!modal || !ta) return;
+  if (nameEl) nameEl.textContent = t.name || ('Ranura ' + (slot + 1));
+  ta.value = code;
+  modal.classList.add('show');
+  setTimeout(function(){ ta.select(); }, 100);
+  playSound('banner');
+}
+function closeTemplateShareDialog() {
+  var m = document.getElementById('templateShareDialog');
+  if (m) m.classList.remove('show');
+}
+
+/* ═══ Diálogo de importar ═══ */
+function openTemplateImportDialog() {
+  var m = document.getElementById('templateImportDialog');
+  var ta = document.getElementById('templateImportCode');
+  if (!m || !ta) return;
+  ta.value = '';
+  resetTemplateImportDialog();
+  m.classList.add('show');
+  setTimeout(function(){ ta.focus(); }, 100);
+  playSound('banner');
+}
+function closeTemplateImportDialog() {
+  var m = document.getElementById('templateImportDialog');
+  if (m) m.classList.remove('show');
+  resetTemplateImportDialog();
+}
+function resetTemplateImportDialog() {
+  var ta = document.getElementById('templateImportCode');
+  var infoEl = document.getElementById('templateImportInfo');
+  var slotPicker = document.getElementById('templateImportSlotPicker');
+  var buttons = document.getElementById('templateImportButtons');
+  if (ta) ta.style.display = '';
+  if (infoEl) { infoEl.textContent = ''; infoEl.style.color = ''; }
+  if (slotPicker) { slotPicker.style.display = 'none'; slotPicker.innerHTML = ''; }
+  if (buttons) buttons.style.display = '';
+}
+
+function handleTemplateImport() {
+  var ta = document.getElementById('templateImportCode');
+  var infoEl = document.getElementById('templateImportInfo');
+  if (!ta) return;
+  var res = decodeTemplateShare(ta.value);
+  if (!res.ok) {
+    if (infoEl) { infoEl.textContent = '❌ ' + res.msg; infoEl.style.color = '#ff8a98'; }
+    playSound('error');
+    return;
+  }
+  var freeSlot = findEmptyTemplateSlot();
+  if (freeSlot !== -1) {
+    var saveRes = saveTemplate(freeSlot, res.template.team, res.template.deck, res.template.name);
+    if (saveRes.ok) {
+      showTeamMissingToast('✅ Plantilla "' + res.template.name + '" importada en ranura ' + (freeSlot + 1) + '.');
+      playSound('confirm');
+      closeTemplateImportDialog();
+      renderTemplateSlots();
+    } else {
+      if (infoEl) { infoEl.textContent = '❌ Error al guardar: ' + saveRes.reason; infoEl.style.color = '#ff8a98'; }
+      playSound('error');
+    }
+    return;
+  }
+  renderTemplateImportSlotPicker(res.template);
+}
+
+function renderTemplateImportSlotPicker(template) {
+  var ta = document.getElementById('templateImportCode');
+  var infoEl = document.getElementById('templateImportInfo');
+  var slotPicker = document.getElementById('templateImportSlotPicker');
+  var buttons = document.getElementById('templateImportButtons');
+  if (!slotPicker) return;
+  if (ta) ta.style.display = 'none';
+  if (buttons) buttons.style.display = 'none';
+  if (infoEl) {
+    infoEl.textContent = '⚠️ No hay ranuras libres. Elige cuál sobrescribir con "' + template.name + '":';
+    infoEl.style.color = 'var(--accent)';
+  }
+  var html = '';
+  for (var i = 0; i < TEMPLATE_SLOT_COUNT; i++) {
+    var existing = getTemplate(i);
+    if (!existing) continue;
+    var validTeam = existing.team.filter(function(id){ return CHARACTERS[id]; }).slice(0, 3);
+    var tp = validTeam.map(function(id){ return CHARACTERS[id].emoji; }).join(' ');
+    html += '<button class="template-import-overwrite-btn" data-slot="' + i + '">' +
+      '<div class="tiob-name">' + (existing.name || ('Ranura ' + (i + 1))) + '</div>' +
+      '<div class="tiob-team">' + tp + '</div>' +
+      '<div class="tiob-deck">🎴 ' + existing.deck.length + '/30</div>' +
+    '</button>';
+  }
+  html += '<button class="template-import-cancel-btn" id="templateImportOverwriteCancel">Cancelar</button>';
+  slotPicker.innerHTML = html;
+  slotPicker.style.display = '';
+  slotPicker.querySelectorAll('.template-import-overwrite-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var s = parseInt(btn.dataset.slot, 10);
+      var saveRes = saveTemplate(s, template.team, template.deck, template.name);
+      if (saveRes.ok) {
+        showTeamMissingToast('✅ Plantilla "' + template.name + '" sobrescrita en ranura ' + (s + 1) + '.');
+        playSound('confirm');
+        closeTemplateImportDialog();
+        renderTemplateSlots();
+      } else {
+        showTeamMissingToast('❌ Error al guardar: ' + saveRes.reason);
+        playSound('error');
+      }
+    });
+  });
+  var cancelBtn = document.getElementById('templateImportOverwriteCancel');
+  if (cancelBtn) cancelBtn.addEventListener('click', resetTemplateImportDialog);
+}
+
+/* ═══ Wiring ═══ */
+(function wireTemplateShare() {
+  var importBtn = document.getElementById('importTemplateCodeBtn');
+  if (importBtn) importBtn.addEventListener('click', openTemplateImportDialog);
+
+  var shareClose = document.getElementById('templateShareClose');
+  if (shareClose) shareClose.addEventListener('click', closeTemplateShareDialog);
+  var shareCopy = document.getElementById('templateShareCopy');
+  if (shareCopy) shareCopy.addEventListener('click', function(){
+    var ta = document.getElementById('templateShareCode');
+    if (!ta) return;
+    _copyToClipboard(ta.value).then(function(ok){
+      if (ok) {
+        showTeamMissingToast('✅ Código copiado al portapapeles.');
+        playSound('confirm');
+      } else {
+        showTeamMissingToast('⚠️ No se pudo copiar. Selecciona el texto manualmente.');
+        playSound('error');
+      }
+    });
+  });
+  var shareBackdrop = document.querySelector('#templateShareDialog .template-share-backdrop');
+  if (shareBackdrop) shareBackdrop.addEventListener('click', closeTemplateShareDialog);
+
+  var importCancel = document.getElementById('templateImportCancel');
+  if (importCancel) importCancel.addEventListener('click', closeTemplateImportDialog);
+  var importAccept = document.getElementById('templateImportAccept');
+  if (importAccept) importAccept.addEventListener('click', handleTemplateImport);
+  var importBackdrop = document.querySelector('#templateImportDialog .template-share-backdrop');
+  if (importBackdrop) importBackdrop.addEventListener('click', closeTemplateImportDialog);
+
+  var importTa = document.getElementById('templateImportCode');
+  if (importTa) importTa.addEventListener('keydown', function(e){
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleTemplateImport(); }
+  });
+})();
