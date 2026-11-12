@@ -2,43 +2,11 @@ var combatStarsInited = false;
 function initCombatStars() {
   if (combatStarsInited) return; combatStarsInited = true;
   var cvs = document.getElementById('combatStars'); if (!cvs) return;
-  var cctx = cvs.getContext('2d'), cs = [], cW, cH;
-  function resizeC() { cW = cvs.width = window.innerWidth; cH = cvs.height = window.innerHeight; cs = []; for (var i = 0; i < 140; i++) cs.push({ x:Math.random()*cW, y:Math.random()*cH, r:Math.random()*1.4+0.3, vx:(Math.random()-0.5)*0.12, vy:(Math.random()-0.5)*0.12, a:Math.random()*0.5+0.2 }); }
-  function drawC() {
-    cctx.clearRect(0, 0, cW, cH);
 
-    // ✅ Color de las estrellas según entorno activo (o dorado por defecto)
-    var starFillColor = combatEnvColor
-      ? 'rgba(' + combatEnvColor.r + ', ' + combatEnvColor.g + ', ' + combatEnvColor.b + ', '
-      : 'rgba(240, 220, 180, ';
-    var starLineBase = combatEnvColor
-      ? 'rgba(' + combatEnvColor.r + ', ' + combatEnvColor.g + ', ' + combatEnvColor.b + ', '
-      : 'rgba(240, 200, 96, ';
+  // ✅ Fondo delegado al sistema de temas (js/25-themes.js)
+  if (typeof restartCombatBackground === 'function') restartCombatBackground();
 
-    for (var i = 0; i < cs.length; i++) {
-      var s = cs[i];
-      s.x += s.vx; s.y += s.vy;
-      if (s.x < 0) s.x = cW; if (s.x > cW) s.x = 0;
-      if (s.y < 0) s.y = cH; if (s.y > cH) s.y = 0;
-      cctx.beginPath();
-      cctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
-      cctx.fillStyle = starFillColor + s.a + ')';
-      cctx.fill();
-    }
-    for (var p = 0; p < cs.length; p++) for (var q = p + 1; q < cs.length; q++) {
-      var dx = cs[p].x - cs[q].x, dy = cs[p].y - cs[q].y, d = Math.sqrt(dx*dx + dy*dy);
-      if (d < 120) {
-        cctx.beginPath();
-        cctx.moveTo(cs[p].x, cs[p].y);
-        cctx.lineTo(cs[q].x, cs[q].y);
-        cctx.strokeStyle = starLineBase + ((1 - d/120) * 0.12) + ')';
-        cctx.lineWidth = 0.5;
-        cctx.stroke();
-      }
-    }
-    requestAnimationFrame(drawC);
-  }
-  window.addEventListener('resize', resizeC); resizeC(); drawC();
+  var envDisplay = document.getElementById('combatEnvironmentDisplay');
 
   var envDisplay = document.getElementById('combatEnvironmentDisplay');
   if (envDisplay && !envDisplay.dataset.bound) {
