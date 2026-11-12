@@ -208,12 +208,95 @@ nav a:hover::after {
   flex-shrink: 0;
 }
 
+/* ✅ Menú desplegable de acciones */
+.nav-brand {
+  position: relative;
+}
+
+.nav-menu-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(240, 200, 96, 0.08);
+  border: 1px solid rgba(240, 200, 96, 0.28);
+  color: var(--muted);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 1.3rem;
+  font-weight: 900;
+  line-height: 1;
+  transition: all 0.25s;
+  padding: 0;
+  margin-right: 0.6rem;
+}
+.nav-menu-toggle:hover {
+  background: rgba(240, 200, 96, 0.2);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.nav-menu-toggle[aria-expanded="true"] {
+  background: linear-gradient(135deg, rgba(240, 200, 96, 0.25), rgba(165, 131, 255, 0.15));
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .nav-actions {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.6rem;
+  min-width: 200px;
+  background: linear-gradient(165deg, #140a24 0%, #0a0614 100%);
+  border: 1px solid rgba(240, 200, 96, 0.4);
+  border-radius: 14px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.85), 0 0 25px rgba(240, 200, 96, 0.15);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-8px) scale(0.96);
+  transform-origin: top left;
+  transition: opacity 0.22s ease, transform 0.25s cubic-bezier(0.34, 1.4, 0.64, 1);
+  z-index: 150;
+}
+.nav-actions.open {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+
+.nav-actions .nav-action-btn {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  padding-left: 1.1rem;
-  border-left: 1px solid rgba(240, 200, 96, 0.22);
+  gap: 0.6rem;
+  padding: 0.6rem 0.9rem;
+  border-radius: 10px;
+  background: transparent;
+  border: 1px solid transparent;
+  justify-content: flex-start;
+  font-size: 0.88rem;
+  width: 100%;
+  transition: all 0.2s;
+}
+.nav-actions .nav-action-btn:hover {
+  background: rgba(240, 200, 96, 0.12);
+  border-color: rgba(240, 200, 96, 0.4);
+  transform: none;
+  box-shadow: none;
+}
+
+/* En móvil, el desplegable ocupa casi todo el ancho */
+@media (max-width: 700px) {
+  .nav-actions {
+    min-width: 220px;
+    left: auto;
+    right: 0;
+    transform-origin: top right;
+  }
 }
 
 .nav-action-btn {
