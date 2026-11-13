@@ -367,17 +367,45 @@ function showEquipmentTargetDialog(cardId, onConfirm, onCancel) {
     }
     html += '</div></div>';
   });
-  html += '</div><div class="confirm-buttons"><button class="confirm-btn confirm-cancel" id="equipCancelBtn">Cancelar</button></div>';
+  html += '</div><div class="confirm-buttons">';
+  html += '<button class="confirm-btn confirm-cancel" id="equipCancelBtn">Cancelar</button>';
+  // ✅ NUEVO: descartar la carta sin tener que elegir personaje primero
+  if (player.dice && player.dice.length > 0) {
+    html += '<button class="confirm-btn confirm-discard" id="equipDiscardBtn" title="Descarta esta carta para convertir 1 dado al tipo del activo">🗑️ Descartar</button>';
+  }
+  html += '</div>';
   content.innerHTML = html;
   content.querySelectorAll('.confirm-char-option').forEach(function(el){ el.addEventListener('click', function(){
     if (el.classList.contains('confirm-char-option-blocked')) { playSound('error'); return; }
     var i = parseInt(el.dataset.idx, 10), t = player.characters[i];
-    // ✅ Usa el máximo dinámico (Opal = 3, resto = 2)
     var _maxEq = (typeof getMaxEquipment === 'function') ? getMaxEquipment(t) : 2;
     if (t.equipment && t.equipment.length >= _maxEq) showEquipmentReplaceDialog(cardId, i, onConfirm, onCancel);
     else { hideConfirmation(); onConfirm(i, -1); }
   }); });
   document.getElementById('equipCancelBtn').addEventListener('click', function(){ hideConfirmation(); onCancel(); });
+
+  // ✅ NUEVO: handler del botón de descartar
+  var discardBtn = document.getElementById('equipDiscardBtn');
+  if (discardBtn) discardBtn.addEventListener('click', function(){
+    if (!player || !player.dice || player.dice.length === 0) { playSound('error'); return; }
+    showDiscardDieSelection(cardId, function(dieId) {
+      var hi = player.hand.indexOf(cardId);
+      if (hi >= 0) player.hand.splice(hi, 1);
+      if (!PAINT_CARDS[cardId]) { if (!player.discardPile) player.discardPile = []; player.discardPile.push(cardId); }
+      var die = player.dice.find(function(d){ return d.id === dieId; });
+      if (die) {
+        var act = player.characters[player.activeIndex];
+        if (act && !act.dead) {
+          die.type = act.character.element;
+          die.justAdded = true;
+          logCombat('🗑️ Descartas ' + card.name + ' → dado convertido a ' + ELEMENT_EMOJI[act.character.element]);
+        }
+      }
+      playSound('card');
+      renderCombat();
+    });
+  });
+
   ov.classList.add('show');
 }
 function showEquipmentReplaceDialog(cardId, ti, onConfirm, onCancel) {
@@ -516,8 +544,15 @@ function showCardConfirmation(cardId, adjustedCost, onConfirm, artemisBlock) {
     if (totalCost === 0) html += '<div class="confirm-cost-section"><div class="confirm-cost-label">Coste</div><div class="confirm-cost-dice"><span class="die die-energy">Sin coste</span></div></div>';
     else {
       html += '<div class="confirm-cost-section"><div class="confirm-cost-label">Coste requerido</div><div class="confirm-cost-dice">';
-      if (adjustedCost.any) html += '<span class="die die-any">🎲 <b>×' + adjustedCost.any + '</b></span>';
-      if (adjustedCost.same) html += '<span class="die die-any">🎲 <b>×' + adjustedCost.same + ' iguales</b></span>';
+      Object.keys(adjustedCost).forEach(function(k){
+        if (k === 'any')       html += '<span class="die die-any">🎲 <b>×' + adjustedCost.any + '</b></span>';
+        else if (k === 'same') html += '<span class="die die-any">🎲 <b>×' + adjustedCost.same + ' iguales</b></span>';
+        else {
+          var emoji = (typeof ELEMENT_EMOJI !== 'undefined' && ELEMENT_EMOJI[k]) || '🎲';
+          var color = (typeof ELEMENT_COLORS !== 'undefined' && ELEMENT_COLORS[k]) || '150,150,170';
+          html += '<span class="die" style="--dc:' + color + ';">' + emoji + ' <b>×' + adjustedCost[k] + '</b></span>';
+        }
+      });
       html += '</div></div>';
       var dh = ''; sortDiceForDisplay(side.dice, side).forEach(function(d){ var col = d.type === 'omni' ? '240, 200, 96' : ELEMENT_COLORS[d.type]; var em = d.type === 'omni' ? '✨' : ELEMENT_EMOJI[d.type]; var sel = selectedIds[d.id], lk = !sel && isFull; var cls = 'confirm-die'; if (sel) cls += ' selected'; if (lk) cls += ' locked'; dh += '<div class="' + cls + '" data-die-id="' + d.id + '" style="--dc: ' + col + ';">' + em + '</div>'; });
       html += '<div class="confirm-dice-picker"><div class="confirm-dice-label"><span>Selecciona dados</span><span class="confirm-dice-count' + (isFull ? ' is-complete' : '') + '">' + sc + ' / ' + totalCost + '</span></div><div class="confirm-dice-pool">' + dh + '</div></div>';
