@@ -543,6 +543,12 @@ function beginRoundPlay() {
   if (!combatState) return;
   combatState.phase = 'playing';
   combatState.roundStarting = true;
+  // ✅ ErikXD: marcar si empezó la ronda activa (para su pasiva "Fuera de plano")
+  ['player','bot'].forEach(function(wk){
+    var sd = combatState[wk];
+    var act = sd.characters[sd.activeIndex];
+    if (act) sd._turnStartedWithErikxdActive = (act.id === 'erikxd');
+  });
   combatState.player.selected = {};
   combatState.bot.selected = {};
   combatState.player.anyAllyDiedThisRound = false;
@@ -810,10 +816,12 @@ function getEffectiveCostFull(active, ability) {
     base = applyVittoriaCostModifier(active, base, ability);
   }
   if (active.id === 'felicia') {
+    // ✅ Drogada: +2 Expresión al normal, +1 Expresión a la elemental
     if (csHasState(active, 'drogada')) {
       if (ability.kind === 'feliciaNormal') base.expresion = (base.expresion || 0) + 2;
       else if (ability.kind === 'feliciaElemental') base.expresion = (base.expresion || 0) + 1;
     }
+    // ✅ Double Down: +1 Expresión al normal, +1 Expresión a la elemental
     if (csHasState(active, 'doubleDown')) {
       if (ability.kind === 'feliciaNormal') base.expresion = (base.expresion || 0) + 1;
       else if (ability.kind === 'feliciaElemental') base.expresion = (base.expresion || 0) + 1;
@@ -903,7 +911,13 @@ function getEffectiveCostFull(active, ability) {
 
 function getEffectiveAbilityCost(active, cost) {
   if (active.cardNextAbilityFree) return {};
-  var disc = active.cardNextAbilityDiscount || 0; if (disc <= 0) return cost;
+  var disc = active.cardNextAbilityDiscount || 0;
+  if (disc <= 0) {
+    // ✅ SIEMPRE devolver copia (nunca mutar el coste original de COMBAT_CHARS)
+    var copy = {};
+    Object.keys(cost).forEach(function(k){ copy[k] = cost[k]; });
+    return copy;
+  }
   var res = {}, rem = disc;
   if (cost.any && cost.any > 0) { var r = Math.min(cost.any, rem); if (cost.any - r > 0) res.any = cost.any - r; rem -= r; }
   if (rem > 0 && cost.same && cost.same > 0) { var r2 = Math.min(cost.same, rem); if (cost.same - r2 > 0) res.same = cost.same - r2; rem -= r2; }
@@ -2124,12 +2138,13 @@ function nextTurn() {
   if (!combatState || combatState.phase === 'ended') return;
   combatState._pendingTurnAdvance = false;
 
-  // ✅ ERIKXD: "Fuera de plano" — si el que terminó su turno era ErikXD activo, forzar cambio a reserva
+  // ✅ ErikXD: "Fuera de plano" SOLO si el turno empezó con ErikXD activa.
+  // Si el jugador cambió a ErikXD manualmente durante el turno, no se auto-cambia.
   var _prevTurn = combatState.turn;
   var _prevSide = combatState[_prevTurn];
   if (_prevSide) {
     var _prevActive = _prevSide.characters[_prevSide.activeIndex];
-    if (_prevActive && !_prevActive.dead && _prevActive.id === 'erikxd') {
+    if (_prevActive && !_prevActive.dead && _prevActive.id === 'erikxd' && _prevSide._turnStartedWithErikxdActive) {
       var _nxE = getNextAliveIndex(_prevSide, _prevSide.activeIndex);
       if (_nxE >= 0 && _nxE !== _prevSide.activeIndex) {
         _prevSide.activeIndex = _nxE;
@@ -2148,6 +2163,12 @@ function nextTurn() {
   if (next === 'player' && combatState.playerDone) next = 'bot';
   else if (next === 'bot' && combatState.botDone) next = 'player';
   combatState.turn = next;
+  // ✅ Re-marcar el flag para el nuevo turno
+  var _newSideForFlag = combatState[next];
+  if (_newSideForFlag) {
+    var _newActForFlag = _newSideForFlag.characters[_newSideForFlag.activeIndex];
+    _newSideForFlag._turnStartedWithErikxdActive = !!( _newActForFlag && _newActForFlag.id === 'erikxd');
+  }
   var prevTurnSide = (next === 'player') ? 'bot' : 'player';
   if (combatState[prevTurnSide]) {
     combatState[prevTurnSide].characters.forEach(function(c){
@@ -2782,6 +2803,7 @@ function previewPlayerAction(actionType) {
   var active = side.characters[side.activeIndex];
   var ability = active.character.abilities[actionType];
   var target = enemySide.characters[enemySide.activeIndex];
+  var enemyActive = target;   // ✅ Alias: varias comprobaciones de efectos usan `enemyActive`
   var preview = {
     ability:ability, active:active, target:target,
     piercing:false, baseDmg:0, buffDmg:0, cardBonus:0, redencionDmg:0, markBonus:0,
