@@ -262,11 +262,16 @@ function dealDamageToChar(targetCs, rawDamage, opts) {
           var _eSide = combatState[_eKey];
           var _eActive = _eSide.characters[_eSide.activeIndex];
           if (_eActive && !_eActive.dead) {
-            // ✅ Contraataque GRATIS: no consume dados ni energía, no cede turno
             var _dmg = 2; // 1 base + 1 por Comandado
             _dmg = applyGenericDamageMods(_davidCs, _dmg);
             applyDamageWithMods(_eActive, _dmg, false, _eKey, _eSide.activeIndex, _davidCs);
             logCombat('👑 David contraataca con Le Coup Violent comandado (+1 daño)');
+            // ✅ Un ataque normal otorga energía también en contraataque
+            var _beforeEn = _davidCs.energy;
+            _davidCs.energy = Math.min(_davidCs.maxEnergy, _davidCs.energy + 1);
+            if (_davidCs.energy > _beforeEn) {
+              logCombat('⚡ David gana 1 energía (contraataque con ataque normal)');
+            }
           }
         }, 200);
       }
