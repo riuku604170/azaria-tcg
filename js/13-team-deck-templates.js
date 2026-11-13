@@ -141,6 +141,12 @@ function removeDeckCard(id) {
 function formatCardCost(card) {
   if (!card.cost || Object.keys(card.cost).length === 0) return 'Sin coste';
   var parts = [];
+  // ✅ Costes elementales (ej: Opal {expresion:2, any:1})
+  Object.keys(card.cost).forEach(function(k){
+    if (k === 'any' || k === 'same') return;
+    var name = (typeof ELEMENT_NAMES !== 'undefined' && ELEMENT_NAMES[k]) || k;
+    parts.push('x' + card.cost[k] + ' ' + name);
+  });
   if (card.cost.any) parts.push('x' + card.cost.any + ' cualquiera' + (card.cost.any > 1 ? 's' : ''));
   if (card.cost.same) parts.push('x' + card.cost.same + ' del mismo tipo');
   return parts.join(', ');
