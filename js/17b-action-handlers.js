@@ -1310,7 +1310,8 @@ var ACTION_HANDLERS = {
       logCombat('🍎 Lágrimas como rocío: +' + healed + ' HP');
       return;
     }
-    // Cadáveres como hojas de otoño
+
+    // ═══ Cadáveres como hojas de otoño ═══
     var safety = 0;
     while (safety < 30) {
       safety++;
@@ -1320,6 +1321,8 @@ var ACTION_HANDLERS = {
       allies.forEach(function(ally){ if (a.hp > 1) { healChar(ally, 1); a.hp -= 1; } });
     }
     logCombat('🍎 Cadáveres: Eve a ' + a.hp + ' HP');
+
+    // ✅ Daño penetrante = min(HP Eve − 1, HP enemigo − 1)
     if (a.hp > 1) {
       var enemySide = ctx.enemySide;
       var enemigo = enemySide.characters[enemySide.activeIndex];
@@ -1327,22 +1330,33 @@ var ACTION_HANDLERS = {
         var maxDmg = Math.min(a.hp - 1, enemigo.hp - 1);
         if (maxDmg > 0) {
           applyDamageWithMods(enemigo, maxDmg, true, ctx.enemyKey, enemySide.activeIndex, a);
-          logCombat('🍎 Cadáveres: ' + maxDmg + ' daño penetrante');
+          logCombat('🍎 Cadáveres: ' + maxDmg + ' daño penetrante a ' + enemigo.character.name);
+        } else {
+          logCombat('🍎 Cadáveres: el enemigo está a 1 HP, no recibe daño (fórmula: min(Eve-1, enemigo-1))');
         }
       }
     }
+
+    // ✅ Conmutación de activos / marcas
     if (a.hp <= 1) {
       var nx = getNextAliveIndex(side, side.activeIndex);
       if (nx >= 0 && nx !== side.activeIndex) { side.activeIndex = nx; logCombat('🔄 Eve a reserva'); }
-      if (ctx.enemyActive && !ctx.enemyActive.dead) triggerMarkOrResonance(ctx.enemyActive, 'comprension', who, ctx.enemyKey, ctx.enemySide.activeIndex);
+      if (ctx.enemyActive && !ctx.enemyActive.dead) {
+        triggerMarkOrResonance(ctx.enemyActive, 'comprension', who, ctx.enemyKey, ctx.enemySide.activeIndex);
+      }
     } else {
       var nxE = getNextAliveIndex(ctx.enemySide, ctx.enemySide.activeIndex);
       if (nxE >= 0 && nxE !== ctx.enemySide.activeIndex) {
         ctx.enemySide.activeIndex = nxE;
         var nEa = ctx.enemySide.characters[nxE];
-        if (nEa && !nEa.dead) triggerMarkOrResonance(nEa, 'comprension', who, ctx.enemyKey, nxE);
+        if (nEa && !nEa.dead) {
+          triggerMarkOrResonance(nEa, 'comprension', who, ctx.enemyKey, nxE);
+          logCombat('🔄 Enemigo activo a reserva · ' + nEa.character.name + ' marcado con Comprensión');
+        }
       }
     }
+
+    // Consumir Prisión etérea
     var pIdx = side.structures.indexOf(prision);
     if (pIdx >= 0) side.structures.splice(pIdx, 1);
     csSetState(a, 'prisionActiva', false);
