@@ -21,7 +21,12 @@ function getShopItemsForTab(tab) {
   }
   if (tab === 'cards') {
     if (typeof CARD_DB === 'undefined') return [];
-    return Object.keys(CARD_DB).map(function(id){
+    return Object.keys(CARD_DB).filter(function(id){
+      var c = CARD_DB[id];
+      // ✅ Excluir cartas generadas/especiales que no son comprables
+      if (c._opalGear || c._erikxdGear || c._davidGear) return false;
+      return true;
+    }).map(function(id){
       return { id: id, category: 'cards', kind: 'card', data: CARD_DB[id] };
     });
   }
