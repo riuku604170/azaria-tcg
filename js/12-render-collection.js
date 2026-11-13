@@ -405,6 +405,12 @@ function ensureStatPopup() {
 function hideStatPopup() {
   if (_statPopup) _statPopup.classList.remove('show');
 }
+/* ═══ Popup de término: renderiza **negrita** como <strong> ═══ */
+function renderTermDefinitionHTML(text) {
+  if (!text) return '';
+  return String(text).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+}
+
 function showTermPopup(anchorEl, term) {
   if (!term) return;
   var pop = ensureStatPopup();
@@ -412,7 +418,7 @@ function showTermPopup(anchorEl, term) {
   pop.innerHTML =
     '<div class="sp-head">📖 Término</div>' +
     '<div class="sp-title">' + term.name + '</div>' +
-    '<div class="sp-body">' + term.definition + '</div>';
+    '<div class="sp-body">' + renderTermDefinitionHTML(term.definition) + '</div>';
   positionStatPopup(pop, anchorEl.getBoundingClientRect());
   pop.classList.add('show');
 }
