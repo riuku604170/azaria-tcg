@@ -3,6 +3,16 @@
 // ═══════════ NOVEDADES (parches) ═══════════
 var PATCHES = [
 {
+  version: 'BETA 1.8',
+  date: '2026-11-13',
+  type: 'minor',
+  title: 'Arreglos varios',
+  changes: [
+    'Arreglados algunos personajes de la categoría HNN.',
+    'Óliver nerfeado.'
+  ]  
+},
+{
   version: 'BETA 1.7',
   date: '2026-11-12',
   type: 'minor',
