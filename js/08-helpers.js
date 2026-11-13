@@ -243,10 +243,11 @@ function getOptimizationBonus(side) {
   for (var i = 0; i < side.structures.length; i++) {
     var st = side.structures[i];
     if (st.kind === 'optimizacion') {
-      // ✅ Bono desde la 2ª ronda de vida de la estructura.
-      // Usamos `roundsActive` (rondas transcurridas) para que extender la
-      // duración NO reinicie el bono. Saves antiguos sin `roundsActive` se
-      // deducen de `duration` (compatibilidad hacia atrás).
+      // ✅ MODIFICADO: mientras Obra Maestra esté activa, Portátil CAMBIA su efecto
+      // (deja de dar +2 a normales y pasa a duplicar daño base de definitivas,
+      // gestionado en applyObraMaestraToBase). Por eso aquí devolvemos 0.
+      if (side.obraMaestraTurns > 0) return 0;
+
       var roundsActive = (typeof st.roundsActive === 'number')
         ? st.roundsActive
         : Math.max(0, 2 - (st.duration || 2));
