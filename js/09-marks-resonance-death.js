@@ -132,12 +132,88 @@ function triggerMarkOrResonance(targetCs, newEl, who, targetSideKey, targetIdx) 
   var existing = csAllMarks(targetCs);
   if (existing.length > 0) {
     var oldEl = existing[0];
-    csRemoveMark(targetCs, oldEl); csRemoveMark(targetCs, newEl);
+
+    // ✅ Mismo tipo: no hay resonancia, no se consumen las marcas
+    if (oldEl === newEl) {
+      logCombat('🏷️ ' + targetCs.character.name + ' ya estaba marcado con ' + ELEMENT_EMOJI[newEl]);
+      return;
+    }
+
+    // ✅ Buscar resonancia ANTES de consumir (defensivo: si el par no existe, no consumimos)
+    var found = null;
+    for (var i = 0; i < RESONANCES.length; i++) {
+      var r = RESONANCES[i];
+      if ((r.a === oldEl && r.b === newEl) || (r.a === newEl && r.b === oldEl)) { found = r; break; }
+    }
+    if (!found) {
+      logCombat('🏷️ ' + targetCs.character.name + ' conserva ' + ELEMENT_EMOJI[oldEl] + ' (sin resonancia con ' + ELEMENT_EMOJI[newEl] + ')');
+      return;
+    }
+
+    csRemoveMark(targetCs, oldEl);
+    csRemoveMark(targetCs, newEl);
     logCombat('✨ Resonancia: ' + ELEMENT_EMOJI[oldEl] + ' + ' + ELEMENT_EMOJI[newEl]);
     applyResonanceEffect(oldEl, newEl, who, targetSideKey);
   } else {
     csAddMark(targetCs, newEl);
     logCombat('🏷️ ' + targetCs.character.name + ' marcado con ' + ELEMENT_EMOJI[newEl]);
+  }
+}
+/* ═══ Predicción de resonancia por marca (para bonos pre-damage) ═══ */
+function predictResonanceOnMark(targetCs, newEl) {
+  if (!targetCs || targetCs.dead) return null;
+  // EX Ren: no se puede marcar con Ilusión
+  if (newEl === 'ilusion' && combatState) {
+    var tSide = (combatState.player.characters.indexOf(targetCs) >= 0) ? combatState.player : combatState.bot;
+    var renEx = tSide.characters.find(function(c){ return c.id === 'ren' && c.exActive && !c.dead; });
+    if (renEx) return null;
+  }
+  var existing = csAllMarks(targetCs);
+  if (existing.length === 0) return null;
+  if (existing[0] === newEl) return null;
+  var oldEl = existing[0];
+  for (var i = 0; i < RESONANCES.length; i++) {
+    var r = RESONANCES[i];
+    if ((r.a === oldEl && r.b === newEl) || (r.a === newEl && r.b === oldEl)) return r.name;
+  }
+  return null;
+}
+
+/* ═══ Aplica bonos de resonancia que afectan al daño ACTUAL ═══ */
+function applyPreDamageResonanceBonus(attackerCs, targetCs, newEl, currentDmg) {
+  var predicted = predictResonanceOnMark(targetCs, newEl);
+  if (!predicted) return { dmg: currentDmg, resonance: null, bonus: 0 };
+  var bonus = 0;
+  if (predicted === 'Contraataque' && totalShield(attackerCs) > 0) {
+    bonus = 2;
+    logCombat('🔮 Contraataque: +2 daño (tienes escudo)');
+  } else if (predicted === 'Lección' && attackerCs.energy === 0) {
+    bonus = 2;
+    logCombat('🔮 Lección: +2 daño (sin energía)');
+  }
+  return { dmg: currentDmg + bonus, resonance: predicted, bonus: bonus };
+}
+
+/* ═══ Sublimación: roba min(3, floor(damage/2)) cartas tras el daño ═══ */
+/* ═══ Efectos post-damage de resonancias (Sublimación + Absolución) ═══ */
+function applyPostDamageResonanceEffects(who, attackerCs, damageDealt, resonanceName) {
+  if (!combatState || !damageDealt || damageDealt <= 0) return;
+
+  if (resonanceName === 'Sublimación') {
+    var cardsToDraw = Math.min(3, Math.floor(damageDealt / 2));
+    if (cardsToDraw > 0) {
+      for (var i = 0; i < cardsToDraw; i++) drawFromDeck(who);
+      logCombat('🔮 Sublimación: +' + cardsToDraw + ' carta(s) por ' + damageDealt + ' daño');
+    }
+  } else if (resonanceName === 'Absolución') {
+    if (!attackerCs || attackerCs.dead) return;
+    var healAmount = Math.min(3, Math.floor(damageDealt / 3));
+    if (healAmount > 0) {
+      var healed = healChar(attackerCs, healAmount);
+      if (healed > 0) logCombat('🔮 Absolución: ' + attackerCs.character.name + ' +' + healed + ' HP (' + damageDealt + ' daño → ' + healAmount + ' HP)');
+    } else {
+      logCombat('🔮 Absolución: ' + damageDealt + ' daño insuficiente (< 3) → sin curación');
+    }
   }
 }
 function applyResonanceEffect(elA, elB, who, targetSideKey) {
@@ -146,23 +222,193 @@ function applyResonanceEffect(elA, elB, who, targetSideKey) {
   var found = null;
   for (var i = 0; i < RESONANCES.length; i++) { var r = RESONANCES[i]; if ((r.a === elA && r.b === elB) || (r.a === elB && r.b === elA)) { found = r; break; } }
   if (!found) return;
+  var hasShield = function(cs){ return cs && !cs.dead && totalShield(cs) > 0; };
+
   switch (found.name) {
-    case 'Fortaleza': if (active && !active.dead) addOrRefreshShield(active, 'resonancia', 2); break;
-    case 'Revelación': side.characters.forEach(function(c){ if (!c.dead && c.energy === 0) c.energy = Math.min(c.maxEnergy, c.energy + 1); }); break;
-    case 'Obra Maestra': for (var d = 0; d < 2; d++) drawFromDeck(who); break;
-    case 'Expiación': if (active) active.cardNextAttackBonus = (active.cardNextAttackBonus || 0) + 1; break;
-    case 'Serenidad': { var alive = side.characters.filter(function(c){ return !c.dead; }); if (alive.length) { alive.sort(function(a,b){ return a.hp - b.hp; }); alive[0].hp = Math.min(alive[0].maxHp, alive[0].hp + 2); } break; }
-    case 'Preparación': side.characters.forEach(function(c){ if (!c.dead && totalShield(c) > 0) c.energy = Math.min(c.maxEnergy, c.energy + 1); }); break;
-    case 'Paradoja': side.dice = side.dice.map(function(d){ return { type: Math.random() < 0.125 ? 'omni' : CONSONANCE_ORDER[Math.floor(Math.random()*7)], id: d.id, justAdded: true }; }); break;
+    /* ── PROTECCIÓN ── */
+    case 'Fortaleza':
+      if (active && !active.dead) addOrRefreshShield(active, 'resonancia', 2);
+      break;
+    case 'Preparación':
+      side.characters.forEach(function(c){ if (!c.dead && totalShield(c) > 0) c.energy = Math.min(c.maxEnergy, c.energy + 1); });
+      break;
+    case 'Abastecimiento': {
+      var nA = side.characters.filter(hasShield).length;
+      for (var a1 = 0; a1 < nA; a1++) drawFromDeck(who);
+      if (nA > 0) logCombat('🔮 Abastecimiento: +' + nA + ' carta(s)');
+      break;
+    }
+    case 'Cobertura':
+      side.resonanceCobertura = (side.resonanceCobertura || 0) + 2;
+      logCombat('🔮 Cobertura: siguiente cambio → +2 escudo al nuevo activo');
+      break;
+    case 'Reconstitución':
+      side.characters.forEach(function(c){ if (hasShield(c)) healChar(c, 1); });
+      break;
+    case 'Contraataque':
+      // ✅ Aplicado por el handler antes de infligir daño (applyPreDamageResonanceBonus)
+      break;
+    case 'Camuflaje':
+      side.characters.forEach(function(c){
+        if (hasShield(c)) side.dice.push({ type: c.character.element, id: uid(), justAdded: true });
+      });
+      logCombat('🔮 Camuflaje: +dados por aliados con escudo');
+      break;
+
+    /* ── COMPRENSIÓN ── */
+    case 'Revelación':
+      side.characters.forEach(function(c){ if (!c.dead && c.energy === 0) c.energy = Math.min(c.maxEnergy, c.energy + 1); });
+      break;
+    case 'Invención': {
+      var nI = (active && !active.dead) ? active.energy : 0;
+      for (var i1 = 0; i1 < nI; i1++) drawFromDeck(who);
+      if (nI > 0) logCombat('🔮 Invención: +' + nI + ' carta(s) (energía del activo)');
+      break;
+    }
+    case 'Planificación':
+      side.resonancePlanificacion = (side.resonancePlanificacion || 0) + 1;
+      logCombat('🔮 Planificación: siguiente cambio → +1 energía al nuevo activo');
+      break;
+    case 'Claridad':
+      side.characters.forEach(function(c){ if (!c.dead && c.energy > 0) healChar(c, 1); });
+      break;
+    case 'Lección':
+      // ✅ Aplicado por el handler antes de infligir daño
+      break;
+    case 'Descifrado': {
+      var nD = (active && !active.dead) ? active.energy : 0;
+      if (nD > 0) {
+        for (var i2 = 0; i2 < nD; i2++) side.dice.push({ type: active.character.element, id: uid(), justAdded: true });
+        logCombat('🔮 Descifrado: +' + nD + ' dado(s) ' + ELEMENT_EMOJI[active.character.element]);
+      }
+      break;
+    }
+
+    /* ── EXPRESIÓN ── */
+    case 'Obra Maestra':
+      for (var d = 0; d < 2; d++) drawFromDeck(who);
+      break;
+    case 'Improvisación':
+      side.resonanceImprovisacion = (side.resonanceImprovisacion || 0) + 1;
+      logCombat('🔮 Improvisación: siguiente cambio → +1 carta');
+      break;
+    case 'Catarsis':
+      side.resonanceCatarsis = true;
+      logCombat('🔮 Catarsis: la siguiente curación dará +1 carta');
+      break;
+    case 'Sublimación':
+      // ✅ Aplicado por el handler tras infligir daño (applySublimacionDraw)
+      break;
+    case 'Prestidigitación':
+      side.resonancePrestidigitacion = true;
+      logCombat('🔮 Prestidigitación: el siguiente descarte convertirá 3 dados');
+      break;
+
+    /* ── TRANSFORMACIÓN ── */
+    case 'Impulso':
+      side.resonanceQuickChange = true;
+      logCombat('🔮 Impulso: el siguiente cambio será acción rápida');
+      break;
+    case 'Adaptación':
+      side.resonanceAdaptacion = (side.resonanceAdaptacion || 0) + 1;
+      logCombat('🔮 Adaptación: siguiente cambio → +1 HP al nuevo activo');
+      break;
+    case 'Embestida':
+      side.resonanceEmbestida = (side.resonanceEmbestida || 0) + 2;
+      logCombat('🔮 Embestida: siguiente cambio → primer ataque +2');
+      break;
+    case 'Reposicionamiento':
+      side.resonanceReposicionamiento = (side.resonanceReposicionamiento || 0) + 2;
+      logCombat('🔮 Reposicionamiento: siguiente cambio → +2 dados del nuevo activo');
+      break;
+
+    /* ── ACEPTACIÓN ── */
+    case 'Serenidad': {
+      var alive = side.characters.filter(function(c){ return !c.dead; });
+      if (alive.length) { alive.sort(function(a,b){ return a.hp - b.hp; }); alive[0].hp = Math.min(alive[0].maxHp, alive[0].hp + 2); }
+      break;
+    }
+    case 'Absolución':
+      // ✅ Aplicado por el handler tras infligir daño (applyPostDamageResonanceEffects)
+      break;
+    case 'Esperanza':
+      side.resonanceEsperanza = true;
+      logCombat('🔮 Esperanza: la siguiente curación dará dados del activo');
+      break;
+
+    /* ── REDENCIÓN ── */
+    case 'Expiación':
+      if (active && !active.dead) active.cardNextAttackBonus = (active.cardNextAttackBonus || 0) + 1;
+      break;
+    case 'Desesperación':
+      if (active && !active.dead && active._tookSelfDamage) {
+        for (var de = 0; de < 2; de++) side.dice.push({ type: active.character.element, id: uid(), justAdded: true });
+        logCombat('🔮 Desesperación: +2 dados ' + ELEMENT_EMOJI[active.character.element] + ' (autodaño previo)');
+      } else logCombat('🔮 Desesperación: sin autodaño previo → sin efecto');
+      break;
+
+    /* ── ILUSIÓN ── */
+    case 'Paradoja':
+      if (who === 'bot' && !combatState.pvp) {
+        // Bot: relanza todos automáticamente (no se le puede preguntar)
+        side.dice = side.dice.map(function(d){ return { type: Math.random() < 0.125 ? 'omni' : CONSONANCE_ORDER[Math.floor(Math.random()*7)], id: d.id, justAdded: true }; });
+        logCombat('🎭 Paradoja: el rival relanza todos los dados');
+      } else {
+        // Jugador (o PvP): se mostrará el diálogo interactivo
+        side.pendingParadoja = true;
+        logCombat('🎭 Paradoja: puedes relanzar dados (elige cuáles)');
+      }
+      break;
+
     default: logCombat('🔮 Resonancia aplicada: ' + found.name); break;
   }
-  // ✅ OPAL: resonancias curan al activo si "Por un mundo lleno de color" está activo
+
+  // OPAL: resonancias curan al activo
   if (combatState && typeof who === 'string' && combatState[who]) {
     var casterSide = combatState[who];
     if (casterSide.resonanciasCuran && casterSide.resonanciasCuran.roundsLeft > 0) {
       var ca = casterSide.characters[casterSide.activeIndex];
       if (ca && !ca.dead) { healChar(ca, casterSide.resonanciasCuran.amount); }
     }
+  }
+}
+
+/* ═══ Resonancias "next change" — se consumen al cambiar de personaje ═══ */
+function applyChangeResonanceEffects(who, newActive, oldActive) {
+  if (!combatState || !newActive || newActive.dead) return;
+  var side = combatState[who];
+
+  if (side.resonanceCobertura > 0) {
+    addOrRefreshShield(newActive, 'resonancia', side.resonanceCobertura);
+    logCombat('🔮 Cobertura: ' + newActive.character.name + ' +' + side.resonanceCobertura + ' escudo');
+    side.resonanceCobertura = 0;
+  }
+  if (side.resonancePlanificacion > 0) {
+    newActive.energy = Math.min(newActive.maxEnergy, newActive.energy + side.resonancePlanificacion);
+    logCombat('🔮 Planificación: ' + newActive.character.name + ' +' + side.resonancePlanificacion + ' energía');
+    side.resonancePlanificacion = 0;
+  }
+  if (side.resonanceImprovisacion > 0) {
+    for (var ii = 0; ii < side.resonanceImprovisacion; ii++) drawFromDeck(who);
+    logCombat('🔮 Improvisación: +' + side.resonanceImprovisacion + ' carta(s)');
+    side.resonanceImprovisacion = 0;
+  }
+  if (side.resonanceAdaptacion > 0) {
+    healChar(newActive, side.resonanceAdaptacion);
+    logCombat('🔮 Adaptación: ' + newActive.character.name + ' +' + side.resonanceAdaptacion + ' HP');
+    side.resonanceAdaptacion = 0;
+  }
+  if (side.resonanceEmbestida > 0) {
+    newActive.cardNextAttackBonus = (newActive.cardNextAttackBonus || 0) + side.resonanceEmbestida;
+    logCombat('🔮 Embestida: próximo ataque de ' + newActive.character.name + ' +' + side.resonanceEmbestida);
+    side.resonanceEmbestida = 0;
+  }
+  if (side.resonanceReposicionamiento > 0) {
+    for (var ir = 0; ir < side.resonanceReposicionamiento; ir++) {
+      side.dice.push({ type: newActive.character.element, id: uid(), justAdded: true });
+    }
+    logCombat('🔮 Reposicionamiento: +' + side.resonanceReposicionamiento + ' dados ' + ELEMENT_EMOJI[newActive.character.element]);
+    side.resonanceReposicionamiento = 0;
   }
 }
 
@@ -324,7 +570,10 @@ function dealDamageToChar(targetCs, rawDamage, opts) {
       csSetState(opts.attackerCs, 'amenaza', true);
       // ✅ Q5: si el atacante YA era Amenaza y golpea a un Vulnerable → se marca con Protección.
       if (wasAlreadyAmenaza) {
-        triggerMarkOrResonance(opts.attackerCs, 'proteccion', undefined, undefined, undefined);
+        var _atkSideForRes = sideOfChar(opts.attackerCs);
+        if (_atkSideForRes) {
+          triggerMarkOrResonance(opts.attackerCs, 'proteccion', _atkSideForRes.key, _atkSideForRes.key, _atkSideForRes.side.characters.indexOf(opts.attackerCs));
+        }
         logCombat('⚠️ Amenaza → atacó a Vulnerable: ' + opts.attackerCs.character.name + ' marcado con Protección');
       }
     }
@@ -497,6 +746,10 @@ function dealDamageToChar(targetCs, rawDamage, opts) {
   if (typeof trackDamage === 'function' && res.overflow > 0) {
     trackDamage(targetCs, res.overflow, opts.attackerCs);
   }
+  // ✅ Resonancias "next damage" (Absolución + Sublimación)
+  if (res.overflow > 0 && opts.attackerCs && !opts.attackerCs.dead) {
+    var atkS = sideOfChar(opts.attackerCs);
+  }
   return res.overflow;
 }
 
@@ -530,11 +783,10 @@ function healChar(cs, amount, opts) {
 
   if (cs.id === 'alaya' && csHasState(cs, 'castigada')) {
     logCombat('🩸 Alaya castigada: curación → daño verdadero');
+    cs._tookSelfDamage = true;
     var sideKey = (combatState.player.characters.indexOf(cs) >= 0) ? 'player' : 'bot';
     var side = combatState[sideKey];
     var idx = side.characters.indexOf(cs);
-    // ✅ El daño va sin attackerCs (no proviene de un enemigo)
-    // → la lógica en dealDamageToChar le otorgará condena automáticamente.
     dealDamageToChar(cs, amount, { piercing:true, targetSide:side, targetSideKey:sideKey, targetIdx:idx });
     return -amount;
   }
@@ -578,6 +830,26 @@ function healChar(cs, amount, opts) {
   // ✅ Felicia: recalcular Drogada tras cambiar HP
   if (cs.id === 'felicia' && !cs.dead && typeof updateFeliciaDrogada === 'function') {
     updateFeliciaDrogada(cs);
+  }
+  // ✅ Resonancias "next heal"
+  if (eff > 0 && combatState) {
+    var sideForRes = (combatState.player.characters.indexOf(cs) >= 0) ? combatState.player : combatState.bot;
+    var sideKeyForRes = (sideForRes === combatState.player) ? 'player' : 'bot';
+    if (sideForRes.resonanceCatarsis) {
+      sideForRes.resonanceCatarsis = false;
+      drawFromDeck(sideKeyForRes);
+      logCombat('🔮 Catarsis: la curación genera +1 carta');
+    }
+    if (sideForRes.resonanceEsperanza) {
+      sideForRes.resonanceEsperanza = false;
+      var activeForRes = sideForRes.characters[sideForRes.activeIndex];
+      if (activeForRes && !activeForRes.dead) {
+        for (var ie = 0; ie < eff; ie++) {
+          sideForRes.dice.push({ type: activeForRes.character.element, id: uid(), justAdded: true });
+        }
+        logCombat('🔮 Esperanza: +' + eff + ' dados ' + ELEMENT_EMOJI[activeForRes.character.element]);
+      }
+    }
   }
   return eff;
 }
