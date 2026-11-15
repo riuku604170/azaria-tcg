@@ -136,7 +136,7 @@ function showStatusTooltip(anchor, key, data) {
     if (key === 'obraMaestra') extra = '<div class="ht-sub">Rondas restantes: <b>' + data.value + '</b></div>';
     if (key === 'rencor') extra = '<div class="ht-sub">Acumulaciones: <b>' + data.value + '</b></div>';
   }
-  hoverTooltip.innerHTML = '<div class="ht-header">' + d.name + '</div>' + extra + '<div class="ht-effect">' + d.text + '</div>';
+  hoverTooltip.innerHTML = '<div class="ht-header">' + d.name + '</div>' + extra + '<div class="ht-effect">' + colorizeElementNames(d.text) + '</div>';
   hoverTooltip.classList.add('show'); positionTooltip(hoverTooltip, anchor.getBoundingClientRect(), 'above');
 }
 function getFullAbilityText(charId, type){ var char = CHARACTERS[charId]; if (!char) return null; for (var i = 0; i < char.abilities.length; i++) if (char.abilities[i].type === type) return char.abilities[i]; return null; }
