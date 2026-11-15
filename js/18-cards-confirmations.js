@@ -99,7 +99,16 @@ function applyCardEffect(card) {
     case 'drawTeamDice': var dr = 0; side.characters.forEach(function(c){ if (!c.dead && dr < 3) { side.dice.push({ type:c.character.element, id:uid(), justAdded:true }); dr++; } }); break;
     case 'rerollDice': { var te = computeTeamElements(side); var tE = active.character.element; var s = side.dice.slice().sort(function(a, b){ return getDiePriority(b, te, tE) - getDiePriority(a, te, tE); }); s.slice(0, Math.min(card.value, s.length)).forEach(function(d){ if (Math.random() < 0.125) d.type = 'omni'; else d.type = CONSONANCE_ORDER[Math.floor(Math.random() * 7)]; }); break; }
     case 'convertDice': { var te2 = computeTeamElements(side); var tE2 = active.character.element; var s2 = side.dice.slice().sort(function(a, b){ return getDiePriority(b, te2, tE2) - getDiePriority(a, te2, tE2); }); s2.slice(0, Math.min(card.value, s2.length)).forEach(function(d){ if (d.type !== tE2) d.type = tE2; }); break; }
-    case 'sacrificeDie': { if (side.dice.length > 0) { var te3 = computeTeamElements(side); var tE3 = active.character.element; var w = side.dice.slice().sort(function(a, b){ return getDiePriority(b, te3, tE3) - getDiePriority(a, te3, tE3); })[0]; side.dice = side.dice.filter(function(d){ return d.id !== w.id; }); for (var k = 0; k < 2; k++) side.dice.push({ type:tE3, id:uid(), justAdded:true }); } break; }
+    case 'sacrificeDie': {
+      if (side.dice.length > 0) {
+        var te3 = computeTeamElements(side);
+        var tE3 = active.character.element;
+        var w = side.dice.slice().sort(function(a, b){ return getDiePriority(b, te3, tE3) - getDiePriority(a, te3, tE3); })[0];
+        side.dice = side.dice.filter(function(d){ return d.id !== w.id; });
+        for (var k = 0; k < 2; k++) side.dice.push({ type:tE3, id:uid(), justAdded:true });
+      }
+      break;
+    }
     case 'quickChange': {
       var ni = getNextAliveIndex(side, side.activeIndex);
       if (ni >= 0) {
@@ -388,21 +397,8 @@ function showEquipmentTargetDialog(cardId, onConfirm, onCancel) {
   var discardBtn = document.getElementById('equipDiscardBtn');
   if (discardBtn) discardBtn.addEventListener('click', function(){
     if (!player || !player.dice || player.dice.length === 0) { playSound('error'); return; }
-    showDiscardDieSelection(cardId, function(dieId) {
-      var hi = player.hand.indexOf(cardId);
-      if (hi >= 0) player.hand.splice(hi, 1);
-      if (!PAINT_CARDS[cardId]) { if (!player.discardPile) player.discardPile = []; player.discardPile.push(cardId); }
-      var die = player.dice.find(function(d){ return d.id === dieId; });
-      if (die) {
-        var act = player.characters[player.activeIndex];
-        if (act && !act.dead) {
-          die.type = act.character.element;
-          die.justAdded = true;
-          logCombat('🗑️ Descartas ' + card.name + ' → dado convertido a ' + ELEMENT_EMOJI[act.character.element]);
-        }
-      }
-      playSound('card');
-      renderCombat();
+    showDiscardDieSelection(cardId, function(dieIds) {
+      _applyDiscardConversion(player, cardId, card, dieIds);
     });
   });
 
@@ -462,66 +458,91 @@ function showSupportReplaceDialog(cardId, onConfirm, onCancel) {
   ov.classList.add('show');
 }
 
+/* ═══ Aplica la conversión de dados al descartar una carta ═══ */
+function _applyDiscardConversion(side, cardId, card, dieIds) {
+  var hi = side.hand.indexOf(cardId);
+  if (hi >= 0) side.hand.splice(hi, 1);
+  if (!PAINT_CARDS[cardId]) { if (!side.discardPile) side.discardPile = []; side.discardPile.push(cardId); }
+  var act = side.characters[side.activeIndex];
+  if (!act || act.dead) { playSound('card'); renderCombat(); return; }
+  var count = 0;
+  dieIds.forEach(function(dieId) {
+    var die = side.dice.find(function(d){ return d.id === dieId; });
+    if (die && die.type !== act.character.element && die.type !== 'omni') {
+      die.type = act.character.element;
+      die.justAdded = true;
+      count++;
+    }
+  });
+  if (side.resonancePrestidigitacion) {
+    side.resonancePrestidigitacion = false;
+    logCombat('🔮 Prestidigitación consumida');
+  }
+  logCombat('🗑️ Descartas ' + (card.name || cardId) + ' → ' + count + ' dado(s) convertido(s) a ' + ELEMENT_EMOJI[act.character.element]);
+  playSound('card');
+  renderCombat();
+}
+
 function showDiscardDieSelection(cardId, onConfirmDiscard) {
   var ov = document.getElementById('confirmOverlay'), content = document.getElementById('confirmContent'); if (!ov || !content) return;
   var card = CARD_DB[cardId] || PAINT_CARDS[cardId] || (typeof PLUSH_CARDS !== 'undefined' && PLUSH_CARDS[cardId]); if (!card) return;
   var side = getActiveSide(); if (!side) return;
   var active = side.characters[side.activeIndex]; if (!active || active.dead) return;
   var targetElement = active.character.element;
-  var selectedDieId = null;
-  // ✅ Usar la prioridad real de "qué dado es más prescindible":
-  //   1 = tipo que no tienes en el equipo (mejor candidato a convertir)
-  //   2 = tipo de aliado muerto
-  //   3 = tipo de aliado vivo (no activo)
-  //   4 = tipo del activo (no se puede convertir, ya es del tipo correcto)
-  //   5 = omni (nunca se convierte)
-  // Elegimos el dado con MENOR prioridad (más prescindible) que no sea
-  // del tipo del activo ni omni.
-  var teamEls = computeTeamElements(side);
-  var bestPriority = 999;
-  for (var i = 0; i < side.dice.length; i++) {
-    var d = side.dice[i];
-    if (d.type === targetElement) continue; // ya es del tipo del activo
-    if (d.type === 'omni') continue;         // nunca convertir un omni
-    var prio = getDiePriority(d, teamEls, targetElement);
-    if (prio < bestPriority) {
-      bestPriority = prio;
-      selectedDieId = d.id;
-    }
-  }
+  var isPrestidigitacion = !!side.resonancePrestidigitacion;
+  var maxDice = isPrestidigitacion ? 3 : 1;
+  var selectedDieIds = [];
+
+  // Preselección por defecto: los dados más prescindibles
+  (function preselect() {
+    var teamEls = computeTeamElements(side);
+    var candidates = side.dice
+      .filter(function(d){ return d.type !== targetElement && d.type !== 'omni'; })
+      .map(function(d){ return { die: d, priority: getDiePriority(d, teamEls, targetElement) }; })
+      .sort(function(a, b){ return a.priority - b.priority; });
+    candidates.slice(0, maxDice).forEach(function(c){ selectedDieIds.push(c.die.id); });
+  })();
+
   function build() {
+    var selCount = selectedDieIds.length;
+    var canConfirm = selCount >= 1 && selCount <= maxDice;
     var html = '<div class="confirm-title">🗑️ Descartar Carta</div>';
     html += '<div class="confirm-subtitle">' + card.emoji + ' ' + card.name + '</div>';
-    html += '<div class="confirm-body"><div style="margin-bottom: 0.5rem;">Descarta esta carta para cambiar <strong>1 dado</strong> al tipo del activo (<strong style="color: rgb(' + ELEMENT_COLORS[targetElement] + ');">' + ELEMENT_EMOJI[targetElement] + ' ' + ELEMENT_NAMES[targetElement] + '</strong>).</div><div style="font-size: 0.75rem; color: var(--muted); font-style: italic;">Acción rápida: no pasa el turno.</div></div>';
-    html += '<div class="confirm-dice-picker"><div class="confirm-dice-label"><span>Selecciona 1 dado</span><span class="confirm-dice-count' + (selectedDieId ? ' is-complete' : '') + '">' + (selectedDieId ? '1 / 1' : '0 / 1') + '</span></div><div class="confirm-dice-pool">';
+    html += '<div class="confirm-body"><div style="margin-bottom: 0.5rem;">Descarta esta carta para cambiar <strong>' + maxDice + ' dado' + (maxDice > 1 ? 's' : '') + '</strong> al tipo del activo (<strong style="color: rgb(' + ELEMENT_COLORS[targetElement] + ');">' + ELEMENT_EMOJI[targetElement] + ' ' + ELEMENT_NAMES[targetElement] + '</strong>).</div>';
+    if (isPrestidigitacion) {
+      html += '<div style="margin-bottom: 0.3rem; color: var(--accent); font-weight: 800;">🔮 Prestidigitación: hasta 3 dados</div>';
+    }
+    html += '<div style="font-size: 0.75rem; color: var(--muted); font-style: italic;">Acción rápida: no pasa el turno.</div></div>';
+    html += '<div class="confirm-dice-picker"><div class="confirm-dice-label"><span>Selecciona hasta ' + maxDice + ' dado' + (maxDice > 1 ? 's' : '') + '</span><span class="confirm-dice-count' + (canConfirm ? ' is-complete' : '') + '">' + selCount + ' / ' + maxDice + '</span></div><div class="confirm-dice-pool">';
     sortDiceForDisplay(side.dice, side).forEach(function(d){
       var alreadyTarget = d.type === targetElement;
       var isOmni = d.type === 'omni';
-      // ✅ Omnidado: bloqueado (no se puede seleccionar para convertir)
-      // ✅ Dado ya del tipo del activo: bloqueado (no tiene sentido convertirlo)
       var col = isOmni ? '240, 200, 96' : ELEMENT_COLORS[d.type];
       var em = isOmni ? '✨' : ELEMENT_EMOJI[d.type];
-      var isSel = selectedDieId === d.id;
-      var isLocked = alreadyTarget || isOmni || (!isSel && selectedDieId !== null);
+      var isSel = selectedDieIds.indexOf(d.id) >= 0;
+      var isLocked = alreadyTarget || isOmni || (!isSel && selCount >= maxDice);
       var cls = 'confirm-die';
       if (isSel) cls += ' selected';
       if (isLocked) cls += ' locked';
       html += '<div class="' + cls + '" data-die-id="' + d.id + '" style="--dc: ' + col + ';">' + em + '</div>';
     });
     html += '</div></div>';
-    html += '<div class="confirm-buttons"><button class="confirm-btn confirm-cancel" id="discardCancelBtn">Cancelar</button><button class="confirm-btn confirm-accept" id="discardAcceptBtn"' + (!selectedDieId ? ' disabled' : '') + '>Convertir dado</button></div>';
+    html += '<div class="confirm-buttons"><button class="confirm-btn confirm-cancel" id="discardCancelBtn">Cancelar</button><button class="confirm-btn confirm-accept" id="discardAcceptBtn"' + (!canConfirm ? ' disabled' : '') + '>Convertir ' + selCount + ' dado' + (selCount !== 1 ? 's' : '') + '</button></div>';
     content.innerHTML = html;
+
     var picker = content.querySelector('.confirm-dice-pool');
     if (picker) picker.addEventListener('click', function(e){
       var de = e.target.closest('.confirm-die');
       if (!de || de.classList.contains('locked')) return;
       var id = de.dataset.dieId;
-      if (selectedDieId === id) { selectedDieId = null; playSound('deselect'); } else { selectedDieId = id; playSound('select'); }
+      var idx = selectedDieIds.indexOf(id);
+      if (idx >= 0) { selectedDieIds.splice(idx, 1); playSound('deselect'); }
+      else if (selectedDieIds.length < maxDice) { selectedDieIds.push(id); playSound('select'); }
       build();
     });
     document.getElementById('discardCancelBtn').addEventListener('click', function(){ hideConfirmation(); playSound('deselect'); });
     var ab = document.getElementById('discardAcceptBtn');
-    if (ab && !ab.disabled) ab.addEventListener('click', function(){ hideConfirmation(); playSound('confirm'); onConfirmDiscard(selectedDieId); });
+    if (ab && !ab.disabled) ab.addEventListener('click', function(){ hideConfirmation(); playSound('confirm'); onConfirmDiscard(selectedDieIds); });
   }
   build(); ov.classList.add('show');
 }
@@ -571,16 +592,8 @@ function showCardConfirmation(cardId, adjustedCost, onConfirm, artemisBlock) {
     var discardBtn = document.getElementById('confirmDiscardBtn');
     if (discardBtn) discardBtn.addEventListener('click', function(){
       if (!side || side.dice.length === 0) { playSound('error'); return; }
-      showDiscardDieSelection(cardId, function(dieId) {
-        var hi = side.hand.indexOf(cardId);
-        if (hi >= 0) side.hand.splice(hi, 1);
-        if (!PAINT_CARDS[cardId]) { if (!side.discardPile) side.discardPile = []; side.discardPile.push(cardId); }
-        var die = side.dice.find(function(d){ return d.id === dieId; });
-        if (die) {
-          var act = side.characters[side.activeIndex];
-          if (act && !act.dead) { die.type = act.character.element; die.justAdded = true; logCombat('🗑️ Descartas ' + card.name + ' → dado convertido a ' + ELEMENT_EMOJI[act.character.element]); }
-        }
-        playSound('card'); renderCombat();
+      showDiscardDieSelection(cardId, function(dieIds) {
+        _applyDiscardConversion(side, cardId, card, dieIds);
       });
     });
     var ab = document.getElementById('confirmAcceptBtn');
