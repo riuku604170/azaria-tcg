@@ -1,3 +1,33 @@
+/* ═══ Colorear nombres de Respuestas (Ilusión, Redención, …) en texto plano ═══ */
+var _elNameRegexCache = null;
+var _elNameToKeyCache = null;
+
+function _initElNameCache() {
+  if (_elNameRegexCache) return;
+  var names = [];
+  _elNameToKeyCache = {};
+  CONSONANCE_ORDER.forEach(function(k){
+    var n = ELEMENT_NAMES[k];
+    names.push('\\b' + n + '\\b');
+    _elNameToKeyCache[n] = k;
+  });
+  _elNameRegexCache = new RegExp('(' + names.join('|') + ')', 'g');
+}
+
+function colorizeElementNames(html) {
+  if (!html) return '';
+  _initElNameCache();
+  // Alterna entre etiquetas <...> y texto plano. Solo se procesa el texto.
+  return String(html).replace(/(<[^>]+>)|([^<]+)/g, function(match, tag, text) {
+    if (tag) return tag;
+    return text.replace(_elNameRegexCache, function(name) {
+      var key = _elNameToKeyCache[name];
+      if (!key) return name;
+      return '<span class="el-name" style="color: rgb(' + ELEMENT_COLORS[key] + ');">' + name + '</span>';
+    });
+  });
+}
+
 function renderPhilosophies() {
   var grid = document.getElementById('philosophyGrid'); if (!grid) return;
   grid.innerHTML = CONSONANCE_ORDER.map(function(key){ var p = PHILOSOPHIES[key]; return '<div class="philosophy-card reveal" style="--el: ' + ELEMENT_COLORS[key] + ';"><span class="philosophy-emoji">' + p.emoji + '</span><div class="philosophy-name">' + p.name + '</div><div class="philosophy-tagline">' + p.tagline + '</div><p class="philosophy-desc">' + p.desc + '</p><p class="philosophy-quote">"' + p.quote + '"</p></div>'; }).join('');
@@ -379,7 +409,7 @@ function normalizeAbility(ab) {
 /* ═══ Render de descripción con términos clicables ═══ */
 function renderAbilityDescription(desc, terms) {
   if (!desc) return '';
-  return desc.replace(/\*\*(.+?)\*\*/g, function(m, rawName) {
+  var html = desc.replace(/\*\*(.+?)\*\*/g, function(m, rawName) {
     var name = rawName.trim();
     var term = null;
     if (terms && terms.length) {
@@ -390,6 +420,7 @@ function renderAbilityDescription(desc, terms) {
     if (!term) return '<strong>' + name + '</strong>';
     return '<span class="clickable-term" data-term-key="' + term.key + '"><strong>' + name + '</strong></span>';
   });
+  return colorizeElementNames(html);   // ✅ NUEVO
 }
 
 /* ═══ Popup compartido ═══ */
@@ -408,7 +439,8 @@ function hideStatPopup() {
 /* ═══ Popup de término: renderiza **negrita** como <strong> ═══ */
 function renderTermDefinitionHTML(text) {
   if (!text) return '';
-  return String(text).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  var html = String(text).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  return colorizeElementNames(html);   // ✅ NUEVO
 }
 
 function showTermPopup(anchorEl, term) {
