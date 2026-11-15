@@ -786,6 +786,9 @@ function _startThemeCanvas(cvs, isCombat, setRaf) {
     var tintKey = '';
     if (isCombat && typeof combatEnvColor !== 'undefined' && combatEnvColor) {
       tintKey = combatEnvColor.r + ',' + combatEnvColor.g + ',' + combatEnvColor.b;
+    } else if (!isCombat) {
+      var menuEnv = getMenuEnvColor();
+      if (menuEnv) tintKey = menuEnv.r + ',' + menuEnv.g + ',' + menuEnv.b;
     }
     if (cvs.dataset.currentTint !== tintKey) {
       cvs.dataset.currentTint = tintKey;
@@ -841,6 +844,25 @@ function renderSettingsApariencia() {
     html += '</div>';
   });
   html += '</div></div>';
+
+  // ✅ NUEVA SECCIÓN: Entorno del menú
+  var envEnabled = getMenuEnvEnabled();
+  var envEl = getMenuEnvElement();
+  html += '<div class="settings-section"><div class="settings-section-title">🌍 Entorno del menú</div>';
+  html += '<p class="settings-section-hint">Tiñe el fondo del menú (fuera de combate) con el color de una Respuesta. Funciona igual que un entorno de combate: el tinte se aplica suavemente sobre el tema activo.</p>';
+  html += '<div class="settings-env-controls">';
+  html += '<button class="settings-env-toggle' + (envEnabled ? ' active' : '') + '" id="menuEnvToggleBtn" aria-pressed="' + (envEnabled ? 'true' : 'false') + '">' + (envEnabled ? '✅ Activado' : '⭕ Desactivado') + '</button>';
+  html += '<select class="settings-env-select" id="menuEnvSelect"' + (!envEnabled ? ' disabled' : '') + '>';
+  html += '<option value="">— Ninguno —</option>';
+  CONSONANCE_ORDER.forEach(function(el){
+    var name = (typeof ELEMENT_NAMES !== 'undefined') ? ELEMENT_NAMES[el] : el;
+    var emoji = (typeof ELEMENT_EMOJI !== 'undefined') ? ELEMENT_EMOJI[el] : '';
+    var sel = (el === envEl) ? ' selected' : '';
+    html += '<option value="' + el + '"' + sel + '>' + emoji + ' ' + name + '</option>';
+  });
+  html += '</select>';
+  html += '</div></div>';
+
   panel.innerHTML = html;
 
   panel.querySelectorAll('.settings-theme-card').forEach(function(card) {
@@ -855,6 +877,20 @@ function renderSettingsApariencia() {
       renderSettingsApariencia();
       if (typeof playSound === 'function') playSound('confirm');
     });
+  });
+
+  // ✅ Listeners del entorno del menú
+  var envToggle = document.getElementById('menuEnvToggleBtn');
+  if (envToggle) envToggle.addEventListener('click', function() {
+    setMenuEnvEnabled(!getMenuEnvEnabled());
+    renderSettingsApariencia();
+    if (typeof playSound === 'function') playSound('select');
+  });
+
+  var envSelect = document.getElementById('menuEnvSelect');
+  if (envSelect) envSelect.addEventListener('change', function() {
+    setMenuEnvElement(envSelect.value || null);
+    if (typeof playSound === 'function') playSound('select');
   });
 }
 
@@ -922,6 +958,40 @@ function initThemes() {
 
   // Aplicar tema guardado
   applyTheme(getCurrentThemeId());
+}
+
+/* ═══ Entorno del menú (tinte de fondo fuera de combate) ═══ */
+function getMenuEnvEnabled() {
+  try { return localStorage.getItem('azaria_menu_env_enabled') === '1'; } catch(e) { return false; }
+}
+function setMenuEnvEnabled(v) {
+  try { localStorage.setItem('azaria_menu_env_enabled', v ? '1' : '0'); } catch(e) {}
+}
+function getMenuEnvElement() {
+  try {
+    var v = localStorage.getItem('azaria_menu_env_element');
+    if (v && typeof ELEMENT_COLORS !== 'undefined' && ELEMENT_COLORS[v]) return v;
+  } catch(e) {}
+  return null;
+}
+function setMenuEnvElement(el) {
+  try {
+    if (el && typeof ELEMENT_COLORS !== 'undefined' && ELEMENT_COLORS[el]) {
+      localStorage.setItem('azaria_menu_env_element', el);
+    } else {
+      localStorage.removeItem('azaria_menu_env_element');
+    }
+  } catch(e) {}
+}
+function getMenuEnvColor() {
+  if (!getMenuEnvEnabled()) return null;
+  var el = getMenuEnvElement();
+  if (!el) return null;
+  var rgb = ELEMENT_COLORS[el];
+  if (!rgb) return null;
+  var parts = rgb.split(',').map(function(x){ return parseInt(x.trim(), 10); });
+  if (parts.length !== 3 || parts.some(isNaN)) return null;
+  return { r: parts[0], g: parts[1], b: parts[2] };
 }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initThemes);
