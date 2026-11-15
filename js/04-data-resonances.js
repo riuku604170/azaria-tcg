@@ -18,6 +18,6 @@ var RESONANCES = [
   { a:'transformacion', b:'redencion', name:'Embestida', lore:'La velocidad se convierte en agresividad.', effect:'Al cambiar de personaje, el primer ataque del nuevo personaje activo inflige 2 puntos de daño adicionales.' },
   { a:'transformacion', b:'ilusion', name:'Reposicionamiento', lore:'Cambiar de lugar altera el desarrollo del combate.', effect:'Al cambiar de personaje, obtén 2 dados del tipo del nuevo personaje activo.' },
   { a:'aceptacion', b:'redencion', name:'Absolución', lore:'Perdonarse permite convertir el dolor en fuerza.', effect:'Cura 1 punto de vida por cada 3 puntos de daño infligido (máx. 3).' },
-  { a:'aceptacion', b:'ilusion', name:'Esperanza', lore:'Creer que es posible sanar también abre nuevas oportunidades.', effect:'La siguiente curación genera tantos dados del tipo del personaje activo como puntos de vida haya recuperado.' },
-  { a:'redencion', b:'ilusion', name:'Desesperación', lore:'Cuando ya no queda nada que perder, cualquier oportunidad sirve.', effect:'Si el personaje que desencadena la Resonancia se ha autoinfligido daño, genera 2 dados de su tipo.' },
+  { a:'aceptacion', b:'ilusion', name:'Esperanza', lore:'Creer que es posible sanar también abre nuevas oportunidades.', effect:'La siguiente curación genera dados del tipo del personaje activo iguales a los puntos de vida recuperados, hasta un máximo de 3 dados.' },
+  { a:'redencion', b:'ilusion', name:'Desesperación', lore:'Cuando ya no queda nada que perder, cualquier oportunidad sirve.', effect:'El golpe que desencadena la Resonancia devuelve 1 dado del tipo del personaje activo por cada 2 puntos de daño verdadero infligido, hasta un máximo equivalente a los dados invertidos en el ataque.' }
 ];
