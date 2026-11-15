@@ -103,7 +103,7 @@ var GUIDE_SECTIONS = [
     title: '4. Resonancias (marcas)',
     html: `
       <p>Las **marcas** son estados elementales que los personajes aplican a otros. Cuando un personaje recibe una segunda marca, se desencadena una **Resonancia**: ambas marcas desaparecen y se aplica un efecto inmediato según la combinación.</p>
-      <p>Hay 28 resonancias (7 elementos × 4 combinaciones posibles). Cada combinación produce un efecto distinto: daño bonus, curación, robo de cartas, energía, escudos, etc.</p>
+      <p>Hay 21 resonancias (cada par de elementos distintos produce un efecto único). Las resonancias premian la <strong>diversidad</strong>: no existen efectos al combinar dos marcas del mismo tipo (un personaje ya marcado con 🛡️ que reciba otra 🛡️ simplemente mantiene su marca).</p>
       <p>Puedes consultar todas las resonancias en el menú principal.</p>
     `
   },
@@ -286,7 +286,7 @@ var GUIDE_SECTIONS = [
 /* ═══ Renderiza texto de la guía con términos clicables ═══ */
 function renderGuideText(html) {
   if (!html) return '';
-  return html.replace(/\*\*(.+?)\*\*/g, function(m, rawName) {
+  var processed = html.replace(/\*\*(.+?)\*\*/g, function(m, rawName) {
     var name = rawName.trim();
     var termKey = null;
     for (var key in GUIDE_GLOSSARY) {
@@ -295,6 +295,7 @@ function renderGuideText(html) {
     if (!termKey) return '<strong>' + name + '</strong>';
     return '<span class="clickable-term" data-guide-term="' + termKey + '"><strong>' + name + '</strong></span>';
   });
+  return colorizeElementNames(processed);   // ✅ NUEVO
 }
 
 /* ═══ AYUDA: render de la guía ═══ */
