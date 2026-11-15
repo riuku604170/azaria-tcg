@@ -199,6 +199,24 @@ function applyPreDamageResonanceBonus(attackerCs, targetCs, newEl, currentDmg) {
 function applyPostDamageResonanceEffects(who, attackerCs, damageDealt, resonanceName) {
   if (!combatState || !damageDealt || damageDealt <= 0) return;
 
+  if (resonanceName === 'Desesperación') {
+    if (!attackerCs || attackerCs.dead) return;
+    var diceSpent = combatState._currentDiceSpent || 0;
+    var diceToReturn = Math.min(diceSpent, Math.floor(damageDealt / 2));
+    if (diceToReturn > 0) {
+      var atkSide = sideOfChar(attackerCs);
+      if (atkSide) {
+        for (var di = 0; di < diceToReturn; di++) {
+          atkSide.side.dice.push({ type: attackerCs.character.element, id: uid(), justAdded: true });
+        }
+        logCombat('🔮 Desesperación: +' + diceToReturn + ' dados ' + ELEMENT_EMOJI[attackerCs.character.element] + ' (' + damageDealt + ' daño, ' + diceSpent + ' dados gastados)');
+      }
+    } else {
+      logCombat('🔮 Desesperación: ' + damageDealt + ' daño con ' + diceSpent + ' dados gastados → sin dados devueltos');
+    }
+    return;
+  }
+
   if (resonanceName === 'Sublimación') {
     var cardsToDraw = Math.min(3, Math.floor(damageDealt / 2));
     if (cardsToDraw > 0) {
@@ -341,10 +359,7 @@ function applyResonanceEffect(elA, elB, who, targetSideKey) {
       if (active && !active.dead) active.cardNextAttackBonus = (active.cardNextAttackBonus || 0) + 1;
       break;
     case 'Desesperación':
-      if (active && !active.dead && active._tookSelfDamage) {
-        for (var de = 0; de < 2; de++) side.dice.push({ type: active.character.element, id: uid(), justAdded: true });
-        logCombat('🔮 Desesperación: +2 dados ' + ELEMENT_EMOJI[active.character.element] + ' (autodaño previo)');
-      } else logCombat('🔮 Desesperación: sin autodaño previo → sin efecto');
+      // ✅ Aplicado por el handler tras infligir daño (applyPostDamageResonanceEffects)
       break;
 
     /* ── ILUSIÓN ── */
@@ -844,10 +859,11 @@ function healChar(cs, amount, opts) {
       sideForRes.resonanceEsperanza = false;
       var activeForRes = sideForRes.characters[sideForRes.activeIndex];
       if (activeForRes && !activeForRes.dead) {
-        for (var ie = 0; ie < eff; ie++) {
+        var diceToGive = Math.min(3, eff);
+        for (var ie = 0; ie < diceToGive; ie++) {
           sideForRes.dice.push({ type: activeForRes.character.element, id: uid(), justAdded: true });
         }
-        logCombat('🔮 Esperanza: +' + eff + ' dados ' + ELEMENT_EMOJI[activeForRes.character.element]);
+        logCombat('🔮 Esperanza: +' + diceToGive + ' dados ' + ELEMENT_EMOJI[activeForRes.character.element] + (eff > 3 ? ' (máx 3)' : ''));
       }
     }
   }
