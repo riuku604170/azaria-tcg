@@ -150,10 +150,10 @@ var ANNOUNCEMENTS = [
   title: 'Futuros personajes 👤',
   body: [
     'Siguientes usuarios: Vicky y Amsa.',
-    'Primeros personajes de Azaria: Kage, Naoko, Hoshi y Yoru.'
+    'Primeros personajes de Azaria: Kage, Naoko, Hoshi y Yoru.',
     'Primeros personajes de Lusior: Caos y Vera.'
   ]
-}
+},
 {
   id: 'ann_2026_11_09_1',
   date: '2026-11-09',
