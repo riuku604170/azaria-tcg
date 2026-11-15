@@ -36,7 +36,8 @@ function canHumanControlCurrentTurn() {
   if (combatState.roundStarting) return false;
   if (combatState.roundEnding) return false;
   if (combatState._resolvingAbility) return false;
-  if (combatState._pendingTurnAdvance) return false;   // ✅ Bloquea durante la transición a nextTurn
+  if (combatState._pendingTurnAdvance) return false;
+  if (combatState._paradojaDialogOpen) return false;   // ✅ NUEVO
   if (isTurnDone()) return false;
   if (combatState.pvp) return true;
   return combatState.turn === 'player';
