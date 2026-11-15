@@ -1174,6 +1174,18 @@ function executeAction(who, actionType, preSpentDice) {
       if (side.characters.every(function(c){ return c.dead; })) { setTimeout(function(){ endCombat(who === 'player' ? 'bot' : 'player'); }, 400); return; }
 
       if (ctx.shouldEndTurn === false) {
+        var _pSide = null;
+        if (combatState.player && combatState.player.pendingParadoja) _pSide = 'player';
+        else if (combatState.bot && combatState.bot.pendingParadoja && combatState.pvp) _pSide = 'bot';
+        if (_pSide) {
+          combatState[_pSide].pendingParadoja = false;
+          showParadojaRerollDialog(_pSide, function() {
+            if (!combatState.pvp && combatState.turn === 'bot' && !combatState.botDone && combatState.phase === 'playing') {
+              setTimeout(botTurn, 500);
+            }
+          });
+          return;
+        }
         if (!combatState.pvp && combatState.turn === 'bot' && !combatState.botDone && combatState.phase === 'playing') {
           setTimeout(botTurn, 500);
         }
@@ -1214,6 +1226,8 @@ function getChangeRules(who) {
     if (cons.level === 2) { rules.diceCost = 0; rules.discounted = true; rules.fromConsonance = true; }
     else if (cons.level === 3) { rules.diceCost = 0; rules.quick = true; rules.discounted = true; rules.fromConsonance = true; }
   }
+  // ✅ Impulso: siguiente cambio = acción rápida
+  if (side.resonanceQuickChange) rules.quick = true;
   return rules;
 }
 function getChangeRulesForTarget(who, targetIndex) {
@@ -1234,7 +1248,7 @@ function transferActiveBuffs(oldCs, newCs) {
   if (!oldCs || !newCs || oldCs === newCs) return;
   var _numKeys = ['cardNextAttackBonus', 'cardNextAbilityDiscount', 'cardMarkBonus', 'nextCardDiscount'];
   _numKeys.forEach(function(k) { if (oldCs[k] > 0) { newCs[k] = (newCs[k] || 0) + oldCs[k]; oldCs[k] = 0; } });
-  var _boolKeys = ['cardNextAttackPiercing', 'cardNextAttackDouble', 'cardNextAbilityFree'];
+  var _boolKeys = ['cardNextAttackPiercing', 'cardNextAttackDouble', 'cardNextAbilityFree', 'cardLifestealNext'];
   _boolKeys.forEach(function(k) { if (oldCs[k]) { newCs[k] = true; oldCs[k] = false; } });
 }
 function tryChangeCharacter(who, targetIndex) {
@@ -1245,6 +1259,7 @@ function tryChangeCharacter(who, targetIndex) {
   var rules = getChangeRulesForTarget(who, targetIndex);
   if (rules.diceCost > 0) { var r = trySpendDice(side.dice, { any:rules.diceCost }); if (!r.ok) return false; side.dice = r.remaining; }
   if (rules.fromConsonance) side.firstChangeUsed = true;
+  if (side.resonanceQuickChange) side.resonanceQuickChange = false;   // ✅ consumir Impulso
   var oldN = side.characters[side.activeIndex].character.name, newN = side.characters[targetIndex].character.name;
   var oldChar = side.characters[side.activeIndex];
   if (oldChar.id === 'jose') csSetState(oldChar, 'acelerado', false);
@@ -1253,6 +1268,7 @@ function tryChangeCharacter(who, targetIndex) {
   if (side.characters[targetIndex].id === 'jose') csSetState(side.characters[targetIndex], 'acelerado', true);
   applyGoogleExOnChange(oldChar, side, targetIndex, who);
   transferActiveBuffs(oldChar, side.characters[targetIndex]);
+  applyChangeResonanceEffects(who, side.characters[targetIndex], oldChar);   // ✅ resonancias on-change
   var _newCs = side.characters[targetIndex];
   var _oldIdx = side.characters.indexOf(oldChar);
   if (oldChar && oldChar.id === 'sage' && _newCs.id !== 'sage' && oldChar.exActive && !oldChar.dead) {
@@ -2124,9 +2140,136 @@ function _botExecuteMainAction() {
   }
 }
 
+/* ═══ Paradoja: diálogo interactivo de relanzamiento de dados ═══ */
+function showParadojaRerollDialog(who, onClose) {
+  if (!combatState) { if (onClose) onClose(); return; }
+  var side = combatState[who];
+  if (!side || !side.dice || side.dice.length === 0) {
+    logCombat('🎭 Paradoja: sin dados que relanzar');
+    if (onClose) onClose();
+    return;
+  }
+
+  combatState._paradojaDialogOpen = true;
+
+  var ov = document.getElementById('paradojaOverlay');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'paradojaOverlay';
+    ov.className = 'paradoja-overlay';
+    var cc = document.getElementById('combatContent') || document.body;
+    cc.appendChild(ov);
+  }
+
+  var selected = {};
+  var rerolled = false;
+  var paradojaRolling = {};   // ✅ animación activa: { dieId: true }
+  var label = combatState.pvp ? (who === 'player' ? 'Jugador 1' : 'Jugador 2') : 'Tú';
+
+  function render() {
+    var selCount = Object.keys(selected).length;
+    var hasRolling = Object.keys(paradojaRolling).length > 0;
+    var canReroll = selCount > 0 && !rerolled && !hasRolling;
+
+    var diceHtml = sortDiceForDisplay(side.dice, side).map(function(d){
+      var isRolling = !!paradojaRolling[d.id];
+      var isOmni = d.type === 'omni';
+      var isSel = !!selected[d.id];
+      // ✅ Mismo criterio visual que el overlay normal
+      var col = isRolling ? ROLLING_COLOR : (isOmni ? '240,200,96' : ELEMENT_COLORS[d.type]);
+      var em = isRolling ? '🎲' : (isOmni ? '✨' : ELEMENT_EMOJI[d.type]);
+      var cls = 'paradoja-die';
+      if (isRolling) cls += ' rolling';
+      else if (isOmni) cls += ' omni';
+      if (isSel && !isRolling && !isOmni) cls += ' selected';
+      return '<div class="' + cls + '" data-id="' + d.id + '" style="--dc: ' + col + ';">' + em + '</div>';
+    }).join('');
+
+    ov.innerHTML =
+      '<div class="paradoja-content">' +
+        '<div class="paradoja-title">🎭 Paradoja</div>' +
+        '<p class="paradoja-sub">' + label + ' — Ilusión + Ilusión · relanza una vez</p>' +
+        '<div class="paradoja-dice">' + diceHtml + '</div>' +
+        '<div class="paradoja-buttons">' +
+          '<button class="paradoja-btn skip" id="paradojaSkipBtn">' + (rerolled ? '✓ Continuar' : 'Omitir') + '</button>' +
+          '<button class="paradoja-btn reroll" id="paradojaRerollBtn"' + (!canReroll ? ' disabled' : '') + '>🎲 Relanzar' + (selCount > 0 && !hasRolling ? ' (' + selCount + ')' : '') + '</button>' +
+        '</div>' +
+      '</div>';
+    ov.classList.add('show');
+
+    ov.querySelectorAll('.paradoja-die').forEach(function(el){
+      el.addEventListener('click', function(){
+        if (rerolled || hasRolling) return;
+        var id = el.dataset.id;
+        var die = side.dice.find(function(d){ return d.id === id; });
+        if (!die || die.type === 'omni') { playSound('error'); return; }
+        if (selected[id]) { delete selected[id]; playSound('deselect'); }
+        else { selected[id] = true; playSound('select'); }
+        render();
+      });
+    });
+
+    document.getElementById('paradojaSkipBtn').addEventListener('click', close);
+    var rb = document.getElementById('paradojaRerollBtn');
+    if (rb && !rb.disabled) rb.addEventListener('click', function(){
+      playSound('roll');
+      // ✅ Activar animación de "rodando" en los dados seleccionados
+      var ids = Object.keys(selected);
+      paradojaRolling = {};
+      ids.forEach(function(id){ paradojaRolling[id] = true; });
+      render();
+
+      // ✅ Tras 900ms (como el overlay normal), aplicar el resultado
+      setTimeout(function(){
+        if (!combatState || !document.getElementById('paradojaOverlay')) return;
+        var count = 0;
+        side.dice = side.dice.map(function(d){
+          if (paradojaRolling[d.id]) {
+            count++;
+            if (Math.random() < 0.125) return { type: 'omni', id: d.id, justAdded: true };
+            return { type: CONSONANCE_ORDER[Math.floor(Math.random()*7)], id: d.id, justAdded: true };
+          }
+          return d;
+        });
+        paradojaRolling = {};
+        rerolled = true;
+        selected = {};
+        logCombat('🎭 Paradoja: relanzas ' + count + ' dado(s)');
+        playSound('diceReveal');
+        renderCombat();
+        render();
+      }, 900);
+    });
+  }
+
+  function close() {
+    ov.classList.remove('show');
+    combatState._paradojaDialogOpen = false;
+    renderCombat();
+    if (onClose) onClose();
+  }
+
+  render();
+}
+
 /* ═══ Scheduler de nextTurn que bloquea input durante la transición ═══ */
 function scheduleNextTurn(delay) {
   if (!combatState) return;
+  // ✅ Paradoja pendiente → mostrar diálogo y diferir el avance de turno
+  var pendingSide = null;
+  if (combatState.player && combatState.player.pendingParadoja) pendingSide = 'player';
+  else if (combatState.bot && combatState.bot.pendingParadoja && combatState.pvp) pendingSide = 'bot';
+  if (pendingSide) {
+    combatState[pendingSide].pendingParadoja = false;
+    showParadojaRerollDialog(pendingSide, function() {
+      combatState._pendingTurnAdvance = true;
+      setTimeout(function(){
+        if (combatState) combatState._pendingTurnAdvance = false;
+        nextTurn();
+      }, delay || 400);
+    });
+    return;
+  }
   combatState._pendingTurnAdvance = true;
   setTimeout(function(){
     if (combatState) combatState._pendingTurnAdvance = false;
@@ -2190,6 +2333,16 @@ function nextTurn() {
     renderCombat();
     if (combatState.mode === 'auto' && !combatState.playerDone) setTimeout(autoPlayerTurn, 900);
   }
+  console.log('[nextTurn]', {
+    turn: combatState.turn,
+    playerDone: combatState.playerDone,
+    botDone: combatState.botDone,
+    _pendingTurnAdvance: combatState._pendingTurnAdvance,
+    _resolvingAbility: combatState._resolvingAbility,
+    roundStarting: combatState.roundStarting,
+    roundEnding: combatState.roundEnding,
+    phase: combatState.phase
+  });
 }
 function declareEnd(who) {
   if (!combatState || combatState.phase === 'ended' || combatState[who + 'Done']) return;
@@ -2539,6 +2692,7 @@ function endRound() {
 
   ['player','bot'].forEach(function(wk){ combatState[wk].characters.forEach(function(c){
     c.pendingBuff = 0; c.cardMarkBonus = 0;
+    if (c._tookSelfDamage) c._tookSelfDamage = false;   // ✅ Desesperación: reset al final de la ronda
     if (c.states) {
       c.states.acelerado = false;
       c.states.furia = false; c.states.furiaPending = false; c.states.furiaTarget = null;
@@ -2577,6 +2731,8 @@ function endRound() {
       }
     }
   }); });
+  combatState.player.pendingParadoja = false;
+  combatState.bot.pendingParadoja = false;
   combatState.player.neonUltChangeDamage = false;
   combatState.bot.neonUltChangeDamage = false;
   combatState.player.rerolled = false; combatState.player.selected = {}; combatState.player.rollingIds = {};
@@ -3482,6 +3638,7 @@ function playerChangeCharacterRequest(targetIndex) {
   showChangeConfirmation(targetIndex, function(selectedDice){
     if (rules.diceCost > 0) { var spentIds = {}; selectedDice.forEach(function(d){ spentIds[d.id] = true; }); side.dice = side.dice.filter(function(d){ return !spentIds[d.id]; }); }
     if (rules.discounted) side.firstChangeUsed = true;
+    if (side.resonanceQuickChange) side.resonanceQuickChange = false;
     var oldN = side.characters[side.activeIndex].character.name;
     var newN = side.characters[targetIndex].character.name;
     var oldChar = side.characters[side.activeIndex];
@@ -3491,6 +3648,7 @@ function playerChangeCharacterRequest(targetIndex) {
     if (side.characters[targetIndex].id === 'jose') csSetState(side.characters[targetIndex], 'acelerado', true);
     applyGoogleExOnChange(oldChar, side, targetIndex, turnKey);
     transferActiveBuffs(oldChar, side.characters[targetIndex]);
+    applyChangeResonanceEffects(turnKey, side.characters[targetIndex], oldChar);
     var _newCs = side.characters[targetIndex];
     var _oldIdx = side.characters.indexOf(oldChar);
     if (oldChar && oldChar.id === 'sage' && _newCs.id !== 'sage' && oldChar.exActive && !oldChar.dead) {
