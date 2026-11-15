@@ -9,8 +9,9 @@ var PATCHES = [
   title: 'Arreglos de personajes, personalización del menú y resonancias',
   changes: [
     'Ajustes en resonancias y ahora todas habilitadas.',
-    'Algunos arregls en personajes.',
-    'Entornos en el menú (Temas).'
+    'Algunos arreglos en personajes.',
+    'Entornos en el menú (Temas) y previsualización en tienda.',
+    'Mejorada información de Sistema de Juego.'
   ]  
 },
 {
