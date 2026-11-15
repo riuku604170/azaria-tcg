@@ -1124,6 +1124,7 @@ function executeAction(who, actionType, preSpentDice) {
 
       combatState._currentActionType = actionType;
       combatState._currentAbilityKind = ability.kind;
+      combatState._currentDiceSpent = diceSpentThisAction.length;
       try {
         var handler = ACTION_HANDLERS[ability.kind];
         if (handler) handler(ctx);
@@ -1131,6 +1132,7 @@ function executeAction(who, actionType, preSpentDice) {
       } finally {
         combatState._currentActionType = null;
         combatState._currentAbilityKind = null;
+        combatState._currentDiceSpent = 0;
       }
 
       // ✅ Meta Quest
