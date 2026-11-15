@@ -108,8 +108,8 @@ var ACTION_HANDLERS = {
   autolesion: function(ctx) {
     var a = ctx.active, side = ctx.side, who = ctx.who, ab = ctx.ability;
     var selfDmg = ab.selfDamage || 1;
+    a._tookSelfDamage = true;   // ✅ Desesperación
     logCombat('🩸 ' + a.character.name + ' se autolesiona ' + selfDmg);
-    // ✅ Sin attackerCs → cuenta como fuente no-enemiga (activa Mártir Afligida de Alaya)
     dealDamageToChar(a, selfDmg, { targetSide: side, targetSideKey: who, targetIdx: side.activeIndex });
     playSound('impact');
   },
@@ -176,20 +176,23 @@ var ACTION_HANDLERS = {
     if (a.pendingBuff) ctx.pendingBuffConsumed = true;
     if (at === 'normal') { var ob = getOptimizationBonus(side); if (ob > 0) { baseDmg += ob; logCombat('🏛️ Optimización: +' + ob); } }
     var eb = applyErikPassive(a); if (eb > 0) { baseDmg += eb; logCombat('🩸 Inspiración: +' + eb); }
-    applyDamageWithMods(ea, baseDmg, predictPiercing(a, ab), ek, es.activeIndex, a);
+    var shouldMark = !paint || a.exActive;
+    var resPre = shouldMark ? applyPreDamageResonanceBonus(a, ea, 'ilusion', baseDmg) : { dmg: baseDmg, resonance: null };
+    baseDmg = resPre.dmg;
+    var dealt = applyDamageWithMods(ea, baseDmg, predictPiercing(a, ab), ek, es.activeIndex, a);
     if (paint === 'azul') { addOrRefreshShield(a, 'erik_paint_azul', 1); logCombat('🎨 Pintura Azul: +1 escudo'); }
     if (paint === 'verde') { healChar(a, 2); logCombat('🎨 Pintura Verde: cura 2'); }
-    // ✅ EX Erik (Paleta Inagotable): marca con Ilusión siempre (aunque haya pintura)
-    var shouldMark = !paint || a.exActive;
     if (shouldMark && !ea.dead) {
       triggerMarkOrResonance(ea, 'ilusion', who, ek, es.activeIndex);
       if (a.exActive && paint) logCombat('🌟 EX Erik: marca con Ilusión (aun con pintura)');
     }
+    applyPostDamageResonanceEffects(who, a, dealt, resPre.resonance);
     if (paint) { a.paintEquipped = null; logCombat('🎨 La pintura se ha consumido'); }
   },
 
   interpretacion: function(ctx) {
     var a = ctx.active, side = ctx.side, who = ctx.who;
+    a._tookSelfDamage = true;   // ✅ Desesperación
     a.hp = Math.max(0, a.hp - 1); logCombat('🩸 ' + a.character.name + ' pierde 1 HP');
     if (a.hp <= 0) handleDeath(who, side.activeIndex);
     ['paint_roja', 'paint_azul', 'paint_verde'].forEach(function(pid){ if (!side.hand) side.hand = []; side.hand.push(pid); logCombat('🎨 Generada: ' + PAINT_CARDS[pid].name); });
@@ -430,6 +433,7 @@ var ACTION_HANDLERS = {
   degradacion: function(ctx) {
     var a = ctx.active, ea = ctx.enemyActive, es = ctx.enemySide, ek = ctx.enemyKey, side = ctx.side, who = ctx.who, at = ctx.actionType, ab = ctx.ability;
     ctx.hadStacks = (a.manuelStacks || 0) > 0;
+    a._tookSelfDamage = true;
     var self = 2 + (a.manuelStacks || 0);
     a.hp = Math.max(0, a.hp - self);
     logCombat('🩸 Autolesión ' + self);
@@ -438,8 +442,11 @@ var ACTION_HANDLERS = {
     if (at === 'elemental' && side.alterUltBuff && side.alterUltBuff.amount > 0 && side.alterUltBuff.roundsLeft > 0 && a.id !== 'alter') {
       d += side.alterUltBuff.amount; logCombat('💥 Omnes Deam Salutate: +' + side.alterUltBuff.amount + ' daño');
     }
+    var resPre = applyPreDamageResonanceBonus(a, ea, 'redencion', d);
+    d = resPre.dmg;
     var dealt = applyDamageWithMods(ea, d, predictPiercing(a, ab), ek, es.activeIndex, a);
     if (!ea.dead) triggerMarkOrResonance(ea, 'redencion', who, ek, es.activeIndex);
+    applyPostDamageResonanceEffects(who, a, dealt, resPre.resonance);
     a.manuelStacks = 0;
     es.characters.forEach(function(c){ csRemoveMark(c, 'redencion'); });
     if (ea.dead && a.id === 'manuel' && dealt > 0 && !a.dead) {
@@ -461,8 +468,11 @@ var ACTION_HANDLERS = {
     d = applyGenericDamageMods(a, d);
     if (a.pendingBuff) ctx.pendingBuffConsumed = true;
     if (at === 'normal') { var ob = getOptimizationBonus(side); if (ob > 0) { d += ob; logCombat('🏛️ Optimización: +' + ob); } }
-    applyDamageWithMods(ea, d, predictPiercing(a, ab), ek, es.activeIndex, a);
+    var resPre = isAcel ? applyPreDamageResonanceBonus(a, ea, 'transformacion', d) : { dmg: d, resonance: null };
+    d = resPre.dmg;
+    var dealt = applyDamageWithMods(ea, d, predictPiercing(a, ab), ek, es.activeIndex, a);
     if (isAcel && !ea.dead) triggerMarkOrResonance(ea, 'transformacion', who, ek, es.activeIndex);
+    applyPostDamageResonanceEffects(who, a, dealt, resPre.resonance);
   },
 
   impulso: function(ctx) {
@@ -470,7 +480,14 @@ var ACTION_HANDLERS = {
     a.pendingBuff = (a.pendingBuff || 0) + 2;
     logCombat('💪 Impulso: +2 al siguiente ataque normal (persiste hasta consumirse)');
     var jr = getNextAliveIndex(side, side.activeIndex);
-    if (jr >= 0) { logCombat('🦋 Jose a reserva'); side.activeIndex = jr; triggerKillerTunesDamage(who); }
+    if (jr >= 0 && jr !== side.activeIndex) {
+      var newName = side.characters[jr] && side.characters[jr].character ? side.characters[jr].character.name : '?';
+      logCombat('🦋 Jose a reserva · nuevo activo: ' + newName);
+      side.activeIndex = jr;
+      triggerKillerTunesDamage(who);
+    } else {
+      logCombat('🦋 Impulso: sin otros aliados vivos, Jose permanece activo');
+    }
   },
 
   instinto: function(ctx) {
@@ -479,13 +496,15 @@ var ACTION_HANDLERS = {
     var d = 3 + (isAc ? 2 : 0);
     d = applyGenericDamageMods(a, d);
     if (a.pendingBuff) ctx.pendingBuffConsumed = true;
-    // ✅ Instinto se considera ataque normal: recibe buff de Portátil, NO de Obra Maestra
     if (side.structures && side.structures.some(function(st){ return st.kind === 'optimizacion'; })) {
       var obI = getOptimizationBonus(side);
       if (obI > 0) { d += obI; logCombat('🏛️ Portátil: +' + obI); }
     }
-    applyDamageWithMods(ea, d, predictPiercing(a, ab), ek, es.activeIndex, a);
+    var resPre = isAc ? applyPreDamageResonanceBonus(a, ea, 'transformacion', d) : { dmg: d, resonance: null };
+    d = resPre.dmg;
+    var dealt = applyDamageWithMods(ea, d, predictPiercing(a, ab), ek, es.activeIndex, a);
     if (isAc && !ea.dead) triggerMarkOrResonance(ea, 'transformacion', who, ek, es.activeIndex);
+    applyPostDamageResonanceEffects(who, a, dealt, resPre.resonance);
   },
 
   reescritura: function(ctx) {
@@ -850,11 +869,15 @@ var ACTION_HANDLERS = {
     var dmg = ab.damage || 1;
     dmg = applyGenericDamageMods(a, dmg);
     if (a.pendingBuff) ctx.pendingBuffConsumed = true;
-    applyDamageWithMods(ea, dmg, predictPiercing(a, ab), ek, es.activeIndex, a);
-    if (csHasState(a, 'podrida')) {
+    var willMarkPodrida = csHasState(a, 'podrida');
+    var resPre = willMarkPodrida ? applyPreDamageResonanceBonus(a, ea, 'proteccion', dmg) : { dmg: dmg, resonance: null };
+    dmg = resPre.dmg;
+    var dealt = applyDamageWithMods(ea, dmg, predictPiercing(a, ab), ek, es.activeIndex, a);
+    if (willMarkPodrida) {
       csSetState(a, 'podrida', false);
       if (!ea.dead) triggerMarkOrResonance(ea, 'proteccion', who, ek, es.activeIndex);
       logCombat('🎯 Lectura: Podrida consumida · enemigo marcado con Protección');
+      applyPostDamageResonanceEffects(who, a, dealt, resPre.resonance);
     }
   },
 
@@ -879,15 +902,15 @@ var ACTION_HANDLERS = {
     var a = ctx.active, ea = ctx.enemyActive, es = ctx.enemySide, ek = ctx.enemyKey, side = ctx.side, who = ctx.who;
     side.podridaHitsAll = true;
     logCombat('🎯 Sobre-exageración: Podrida afectará a todos los enemigos esta ronda');
-
-    // ✅ Obra Maestra dobla el daño base (1 → 2)
     var baseDmg = applyObraMaestraToBase(a, ctx.ability, ctx.actionType, 1);
-
     if (csHasState(a, 'podrida')) {
       es.characters.forEach(function(c, i){
         if (c.dead) return;
-        applyDamageWithMods(c, baseDmg, true, ek, i, a);
+        var resPre = applyPreDamageResonanceBonus(a, c, 'proteccion', baseDmg);
+        var d = resPre.dmg;
+        var dealt = applyDamageWithMods(c, d, true, ek, i, a);
         if (!c.dead) triggerMarkOrResonance(c, 'proteccion', who, ek, i);
+        applyPostDamageResonanceEffects(who, a, dealt, resPre.resonance);
       });
       logCombat('🎯 Sobre-exageración: ' + baseDmg + ' daño penetrante a todos los enemigos');
       var dSide = sideOfChar(a);
@@ -1036,11 +1059,14 @@ var ACTION_HANDLERS = {
       logCombat('🌿 Aceptación: enemigo marcado → Vittoria +' + healed + ' HP');
     } else {
       // Enemigo sin marcar → 1 daño penetrante + marca
-      applyDamageWithMods(ea, 1, true, ek, es.activeIndex, a);
-      logCombat('🌿 Aceptación: 1 daño penetrante a ' + ea.character.name);
+      var resPreV = applyPreDamageResonanceBonus(a, ea, 'aceptacion', 1);
+      var vDmg = resPreV.dmg;
+      var vDealt = applyDamageWithMods(ea, vDmg, true, ek, es.activeIndex, a);
+      logCombat('🌿 Aceptación: ' + vDmg + ' daño penetrante a ' + ea.character.name);
       if (!ea.dead) {
         triggerMarkOrResonance(ea, 'aceptacion', who, ek, es.activeIndex);
       }
+      applyPostDamageResonanceEffects(who, a, vDealt, resPreV.resonance);
     }
   },
 
@@ -1106,11 +1132,15 @@ var ACTION_HANDLERS = {
     dmg = applyGenericDamageMods(a, dmg);
     if (a.pendingBuff) ctx.pendingBuffConsumed = true;
     if (at === 'normal') { var ob = getOptimizationBonus(side); if (ob > 0) { dmg += ob; logCombat('🏛️ Optimización: +' + ob); } }
-    applyDamageWithMods(ea, dmg, predictPiercing(a, ab), ek, es.activeIndex, a);
-    if (a.forma === 'idol' && !ea.dead) {
+    var willMark = (a.forma === 'idol') && !ea.dead;
+    var resPre = willMark ? applyPreDamageResonanceBonus(a, ea, 'expresion', dmg) : { dmg: dmg, resonance: null };
+    dmg = resPre.dmg;
+    var dealt = applyDamageWithMods(ea, dmg, predictPiercing(a, ab), ek, es.activeIndex, a);
+    if (willMark && !ea.dead) {
       triggerMarkOrResonance(ea, 'expresion', ctx.who, ek, es.activeIndex);
       logCombat('📺 Forma Idol: marca con Expresión');
     }
+    applyPostDamageResonanceEffects(who, a, dealt, resPre.resonance);
   },
 
   hotToGo: function(ctx) {
@@ -1371,8 +1401,11 @@ var ACTION_HANDLERS = {
     }
     if (eq.length === 0) {
       var d0 = applyGenericDamageMods(a, 1);
-      applyDamageWithMods(ea, d0, false, ek, es.activeIndex, a);
+      var resPre0 = applyPreDamageResonanceBonus(a, ea, 'expresion', d0);
+      d0 = resPre0.dmg;
+      var dealt0 = applyDamageWithMods(ea, d0, false, ek, es.activeIndex, a);
       if (!ea.dead) triggerMarkOrResonance(ea, 'expresion', who, ek, es.activeIndex);
+      if (resPre0.resonance === 'Sublimación' && dealt0 > 0) applySublimacionDraw(who, dealt0);
       return;
     }
     var armas = 0, armaduras = 0, accesorios = 0;
