@@ -3,6 +3,17 @@
 // ═══════════ NOVEDADES (parches) ═══════════
 var PATCHES = [
 {
+  version: 'BETA 1.9',
+  date: '2026-11-15',
+  type: 'minor',
+  title: 'Arreglos de personajes, personalización del menú y resonancias',
+  changes: [
+    'Ajustes en resonancias y ahora todas habilitadas.',
+    'Algunos arregls en personajes.',
+    'Entornos en el menú (Temas).'
+  ]  
+},
+{
   version: 'BETA 1.8',
   date: '2026-11-13',
   type: 'minor',
@@ -132,6 +143,17 @@ var PATCHES = [
 // Cada anuncio necesita un `id` único. El más reciente debe ir PRIMERO.
 // Al añadir uno nuevo arriba, el badge ! aparecerá automáticamente.
 var ANNOUNCEMENTS = [
+{
+  id: 'ann_2026_11_15_1',
+  date: '2026-11-15',
+  icon: '',
+  title: 'Futuros personajes 👤',
+  body: [
+    'Siguientes usuarios: Vicky y Amsa.',
+    'Primeros personajes de Azaria: Kage, Naoko, Hoshi y Yoru.'
+    'Primeros personajes de Lusior: Caos y Vera.'
+  ]
+}
 {
   id: 'ann_2026_11_09_1',
   date: '2026-11-09',
