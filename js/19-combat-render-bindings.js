@@ -48,6 +48,15 @@ function renderTeamCards(who) {
   var containerId = who === 'player' ? 'playerTeam' : 'botTeam';
   var c = document.getElementById(containerId); if (!c) return;
   var side = combatState[actualWho];
+  side.characters.forEach(function(cs){
+    if (!cs.character) {
+      console.warn('[renderTeamCards] cs.character undefined para', cs.id, '— aplicando fallback');
+      cs.character = COMBAT_CHARS[cs.id] || {
+        name: cs.id || '?', element: 'proteccion', emoji: '❓',
+        hp: cs.maxHp || 1, abilities: {}
+      };
+    }
+  });
   var isPlayerSide = who === 'player';
   // ✅ BORRAR la segunda línea duplicada:
   // var isHumanSide = combatState.pvp ? true : (actualWho === 'player');
@@ -222,6 +231,17 @@ function updateCombatActions() {
   var side = getActiveSide();
   if (!side) return;
   var active = side.characters[side.activeIndex]; if (!active) return;
+  if (!active.character) {
+    console.warn('[updateCombatActions] active.character undefined para', active.id);
+    active.character = COMBAT_CHARS[active.id] || {
+      name: active.id || '?', element: 'proteccion', emoji: '❓',
+      hp: active.maxHp || 1, abilities: {}
+    };
+  }
+  if (!active.character.abilities) {
+    console.warn('[updateCombatActions] active.character.abilities undefined para', active.id);
+    return;
+  }
   var char = active.character;
   var nB = document.getElementById('normalBtn'), eB = document.getElementById('elementalBtn'), uB = document.getElementById('ultimateBtn'), enB = document.getElementById('endRoundBtn');
   var nOk = active.cardNextAbilityFree || !char.abilities.normal.energyCost || active.energy >= char.abilities.normal.energyCost;
@@ -270,16 +290,24 @@ function updateCombatActions() {
 function renderCombatLog(){ var el = document.getElementById('combatLog'); if (!el) return; el.innerHTML = combatState.log.map(function(l){ return '<div class="log-line">' + l + '</div>'; }).join(''); el.scrollTop = el.scrollHeight; }
 function renderCombat() {
   if (!combatState) return;
-  try {
-    var r = document.getElementById('combatRound'); if (r) r.textContent = combatState.round;
-    updateTurnIndicator(); renderConsonanceCombat();
-    renderTeamCards('player'); renderTeamCards('bot');
-    renderSupports('player'); renderSupports('bot');
-    renderDice(); renderHand(); updateCombatActions(); renderCombatLog();
-  } catch (err) {
-    console.error('[renderCombat] ERROR:', err);
+  function safeRender(name, fn) {
+    try { fn(); }
+    catch (err) { console.error('[renderCombat:' + name + '] ERROR:', err); }
   }
-  if (typeof updateEnvironmentVisuals === 'function') updateEnvironmentVisuals();
+  safeRender('round', function(){ var r = document.getElementById('combatRound'); if (r) r.textContent = combatState.round; });
+  safeRender('turnIndicator', updateTurnIndicator);
+  safeRender('consonanceCombat', renderConsonanceCombat);
+  safeRender('teamCardsPlayer', function(){ renderTeamCards('player'); });
+  safeRender('teamCardsBot',    function(){ renderTeamCards('bot'); });
+  safeRender('supportsPlayer',  function(){ renderSupports('player'); });
+  safeRender('supportsBot',     function(){ renderSupports('bot'); });
+  safeRender('dice',  renderDice);
+  safeRender('hand',  renderHand);
+  safeRender('actions', updateCombatActions);
+  safeRender('log',   renderCombatLog);
+  if (typeof updateEnvironmentVisuals === 'function') {
+    safeRender('environment', updateEnvironmentVisuals);
+  }
 }
 
 [{ btnId:'normalBtn', type:'normal' }, { btnId:'elementalBtn', type:'elemental' }, { btnId:'ultimateBtn', type:'ultimate' }].forEach(function(item){
@@ -334,9 +362,17 @@ var elementalBtn = document.getElementById('elementalBtn'); if (elementalBtn) el
 var ultimateBtn = document.getElementById('ultimateBtn'); if (ultimateBtn) ultimateBtn.addEventListener('click', function(){ playerActionRequest('ultimate'); });
 // (Botón EX del sidebar eliminado: la EX se elige en combatStartConfirm)
 var endRoundBtn = document.getElementById('endRoundBtn'); if (endRoundBtn) endRoundBtn.addEventListener('click', function(){
-  // ✅ Solo se puede declarar fin de ronda en tu turno
   if (!canHumanControlCurrentTurn()) { playSound('error'); return; }
-  declareEnd(getTurnKey());
+  var tk = getTurnKey();
+  var sd = combatState[tk];
+  if (sd && sd.pendingParadoja) {
+    sd.pendingParadoja = false;
+    showParadojaRerollDialog(tk, function(){
+      if (canHumanControlCurrentTurn()) declareEnd(getTurnKey());
+    });
+    return;
+  }
+  declareEnd(tk);
 });
 var rollRerollBtn = document.getElementById('rollRerollBtn'); if (rollRerollBtn) rollRerollBtn.addEventListener('click', rerollSelected);
 var rollStartBtn = document.getElementById('rollStartBtn'); if (rollStartBtn) rollStartBtn.addEventListener('click', startCombatPhase);
