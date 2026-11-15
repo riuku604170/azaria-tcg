@@ -841,6 +841,7 @@ function renderSettingsApariencia() {
     if (isActive) html += '<div class="theme-card-action theme-card-action-active">✓ En uso</div>';
     else if (unlocked) html += '<div class="theme-card-action">Activar</div>';
     else html += '<div class="theme-card-action theme-card-action-locked">🔒 💎 ' + t.price + '</div>';
+    html += '<button class="theme-card-preview-btn" data-preview-theme="' + id + '" title="Vista previa" aria-label="Vista previa">👁️</button>';
     html += '</div>';
   });
   html += '</div></div>';
@@ -848,12 +849,13 @@ function renderSettingsApariencia() {
   // ✅ NUEVA SECCIÓN: Entorno del menú
   var envEnabled = getMenuEnvEnabled();
   var envEl = getMenuEnvElement();
+  // ✅ Si toggle activo y no hay elemento, mostrar el primero (coherente con getMenuEnvColor)
+  if (envEnabled && !envEl && CONSONANCE_ORDER.length) envEl = CONSONANCE_ORDER[0];
   html += '<div class="settings-section"><div class="settings-section-title">🌍 Entorno del menú</div>';
   html += '<p class="settings-section-hint">Tiñe el fondo del menú (fuera de combate) con el color de una Respuesta. Funciona igual que un entorno de combate: el tinte se aplica suavemente sobre el tema activo.</p>';
   html += '<div class="settings-env-controls">';
   html += '<button class="settings-env-toggle' + (envEnabled ? ' active' : '') + '" id="menuEnvToggleBtn" aria-pressed="' + (envEnabled ? 'true' : 'false') + '">' + (envEnabled ? '✅ Activado' : '⭕ Desactivado') + '</button>';
   html += '<select class="settings-env-select" id="menuEnvSelect"' + (!envEnabled ? ' disabled' : '') + '>';
-  html += '<option value="">— Ninguno —</option>';
   CONSONANCE_ORDER.forEach(function(el){
     var name = (typeof ELEMENT_NAMES !== 'undefined') ? ELEMENT_NAMES[el] : el;
     var emoji = (typeof ELEMENT_EMOJI !== 'undefined') ? ELEMENT_EMOJI[el] : '';
@@ -879,10 +881,22 @@ function renderSettingsApariencia() {
     });
   });
 
+  panel.querySelectorAll('[data-preview-theme]').forEach(function(btn){
+    btn.addEventListener('click', function(e){
+      e.stopPropagation();
+      openThemePreview(btn.dataset.previewTheme);
+    });
+  });
+
   // ✅ Listeners del entorno del menú
   var envToggle = document.getElementById('menuEnvToggleBtn');
   if (envToggle) envToggle.addEventListener('click', function() {
-    setMenuEnvEnabled(!getMenuEnvEnabled());
+    var willEnable = !getMenuEnvEnabled();
+    setMenuEnvEnabled(willEnable);
+    // ✅ Al activar sin elemento previo, persistir el primero para que el cambio sea inmediato
+    if (willEnable && !getMenuEnvElement() && CONSONANCE_ORDER.length) {
+      setMenuEnvElement(CONSONANCE_ORDER[0]);
+    }
     renderSettingsApariencia();
     if (typeof playSound === 'function') playSound('select');
   });
@@ -892,41 +906,208 @@ function renderSettingsApariencia() {
     setMenuEnvElement(envSelect.value || null);
     if (typeof playSound === 'function') playSound('select');
   });
+
 }
 
 /* ═══ Modal de detalle de tema (Tienda) ═══ */
-function showThemeDetail(id) {
-  var t = THEMES[id];
-  if (!t) return;
-  var ov = document.getElementById('cardInfoDialog');
+/* ═══ Preview modal de temas (tienda + ajustes) ═══ */
+var _themePreview = {
+  raf: null,
+  canvas: null,
+  ctx: null,
+  theme: null,
+  state: null,
+  envElement: null,
+  mode: 'menu',
+  currentTint: ''
+};
+
+function _themePreviewResize() {
+  if (!_themePreview.canvas) return;
+  var stage = _themePreview.canvas.parentNode;
+  if (!stage) return;
+  _themePreview.canvas.width = stage.clientWidth;
+  _themePreview.canvas.height = stage.clientHeight;
+  if (_themePreview.theme) {
+    _themePreview.state = _themePreview.theme.init(_themePreview.canvas.width, _themePreview.canvas.height);
+  }
+}
+
+function closeThemePreview(silent) {
+  if (_themePreview.raf) {
+    cancelAnimationFrame(_themePreview.raf);
+    _themePreview.raf = null;
+  }
+  window.removeEventListener('resize', _themePreviewResize);
+  var ov = document.getElementById('themePreviewDialog');
+  if (ov && !silent) ov.classList.remove('show');
+  _themePreview.canvas = null;
+  _themePreview.ctx = null;
+  _themePreview.theme = null;
+  _themePreview.state = null;
+  _themePreview.envElement = null;
+  _themePreview.mode = 'menu';
+  _themePreview.currentTint = '';
+}
+
+function openThemePreview(themeId) {
+  var theme = THEMES[themeId];
+  if (!theme) return;
+
+  closeThemePreview(true);
+
+  var ov = document.getElementById('themePreviewDialog');
   if (!ov) {
     ov = document.createElement('div');
-    ov.id = 'cardInfoDialog';
-    ov.className = 'card-info-dialog';
+    ov.id = 'themePreviewDialog';
+    ov.className = 'theme-preview-dialog';
     document.body.appendChild(ov);
   }
-  var unlocked = isThemeUnlocked(id);
-  var html = '<div class="card-info-content" style="--dc: 240,200,96;">' +
-    '<button class="card-info-close" id="cardInfoClose" aria-label="Cerrar">✕</button>' +
-    '<div class="card-info-emoji">' + t.emoji + '</div>' +
-    '<div class="card-info-name">' + t.name + '</div>' +
-    '<div class="card-info-cat" style="--cat: 240,200,96;">🎨 Tema de fondo</div>' +
-    '<div class="card-info-effect">' + t.description + '</div>';
-  if (!unlocked) {
-    html += '<div class="shop-buy-bar" style="margin-top:0.8rem;padding:0.6rem 0;background:none;border-top:1px solid rgba(240,200,96,0.2);">' +
-      '<div class="shop-buy-price">💎 ' + t.price + '</div>' +
-      '<button class="shop-buy-btn" id="themeBuyBtn">Comprar</button></div>';
-  } else {
-    html += '<div class="shop-buy-bar" style="margin-top:0.8rem;padding:0.6rem 0;background:none;border-top:1px solid rgba(240,200,96,0.2);"><div class="shop-buy-owned">✓ Ya lo tienes</div></div>';
-  }
-  html += '</div>';
-  ov.innerHTML = html;
-  ov.classList.add('show');
-  document.getElementById('cardInfoClose').addEventListener('click', function() { ov.classList.remove('show'); });
-  var bb = document.getElementById('themeBuyBtn');
-  if (bb) bb.addEventListener('click', function() {
-    if (typeof buyShopItem === 'function') buyShopItem(id, 'themes');
+
+  var unlocked = isThemeUnlocked(themeId);
+  var isActive = (getCurrentThemeId() === themeId);
+
+  var envOptions = '<option value="">— Ninguno —</option>';
+  CONSONANCE_ORDER.forEach(function(el){
+    envOptions += '<option value="' + el + '">' + ELEMENT_EMOJI[el] + ' ' + ELEMENT_NAMES[el] + '</option>';
   });
+
+  var footerHtml = '';
+  if (unlocked) {
+    footerHtml = isActive
+      ? '<div class="theme-preview-active">✓ En uso</div>'
+      : '<button class="theme-preview-activate" id="themePreviewActivateBtn">Activar este tema</button>';
+  } else {
+    footerHtml = '<div class="theme-preview-price">💎 ' + theme.price + '</div>' +
+                 '<button class="theme-preview-buy" id="themePreviewBuyBtn">Comprar</button>';
+  }
+
+  ov.innerHTML =
+    '<div class="theme-preview-backdrop" id="themePreviewBackdrop"></div>' +
+    '<div class="theme-preview-content">' +
+      '<div class="theme-preview-header">' +
+        '<div class="theme-preview-title">' + theme.emoji + ' ' + theme.name + '</div>' +
+        '<button class="theme-preview-close" id="themePreviewCloseBtn" aria-label="Cerrar">✕</button>' +
+      '</div>' +
+      '<p class="theme-preview-desc">' + theme.description + '</p>' +
+      '<div class="theme-preview-tabs">' +
+        '<button class="theme-preview-tab active" data-mode="menu">🖥️ Vista Menú</button>' +
+        '<button class="theme-preview-tab" data-mode="combat">⚔️ Vista Combate</button>' +
+      '</div>' +
+      '<div class="theme-preview-stage">' +
+        '<canvas class="theme-preview-canvas" id="themePreviewCanvas"></canvas>' +
+        '<div class="theme-preview-mockup menu-mockup">' +
+          '<div class="menu-mockup-nav"><span class="menu-mockup-logo">AZARIA</span><span class="menu-mockup-links">Colección · Mazo · Respuestas · Sistema · Jugar</span></div>' +
+          '<div class="menu-mockup-hero">' +
+            '<div class="menu-mockup-title">Siete Respuestas,<br>Un Solo Destino</div>' +
+            '<div class="menu-mockup-btns"><span>⚔️ Combate</span><span>👥 PvP</span></div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="theme-preview-mockup combat-mockup">' +
+          '<div class="combat-mockup-board">' +
+            '<div class="combat-mockup-team"><div class="combat-mockup-card"></div><div class="combat-mockup-card"></div><div class="combat-mockup-card"></div></div>' +
+            '<div class="combat-mockup-vs">VS</div>' +
+            '<div class="combat-mockup-team"><div class="combat-mockup-card"></div><div class="combat-mockup-card"></div><div class="combat-mockup-card"></div></div>' +
+          '</div>' +
+          '<div class="combat-mockup-sidebar">' +
+            '<div class="combat-mockup-dice"><span></span><span></span><span></span><span></span><span></span><span></span></div>' +
+            '<div class="combat-mockup-actions"><div></div><div></div><div></div></div>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="theme-preview-env-row">' +
+        '<label for="themePreviewEnv">🌍 Entorno:</label>' +
+        '<select id="themePreviewEnv" class="theme-preview-env-select">' + envOptions + '</select>' +
+      '</div>' +
+      '<div class="theme-preview-footer">' + footerHtml + '</div>' +
+    '</div>';
+
+  ov.classList.add('show');
+
+  var cvs = document.getElementById('themePreviewCanvas');
+  var stage = cvs ? cvs.parentNode : null;
+  if (!cvs || !stage) return;
+  cvs.width = stage.clientWidth;
+  cvs.height = stage.clientHeight;
+  _themePreview.canvas = cvs;
+  _themePreview.ctx = cvs.getContext('2d');
+  _themePreview.theme = theme;
+  _themePreview.state = theme.init(cvs.width, cvs.height);
+  _themePreview.mode = 'menu';
+  _themePreview.envElement = null;
+  _themePreview.currentTint = '';
+  cvs.style.transition = 'background-color 0.8s ease';
+
+  document.getElementById('themePreviewCloseBtn').addEventListener('click', function(){ closeThemePreview(); });
+  document.getElementById('themePreviewBackdrop').addEventListener('click', function(){ closeThemePreview(); });
+
+  ov.querySelectorAll('.theme-preview-tab').forEach(function(tab){
+    tab.addEventListener('click', function(){
+      ov.querySelectorAll('.theme-preview-tab').forEach(function(t){ t.classList.remove('active'); });
+      tab.classList.add('active');
+      _themePreview.mode = tab.dataset.mode;
+      ov.querySelectorAll('.theme-preview-mockup').forEach(function(m){
+        m.style.opacity = '0';
+        m.style.pointerEvents = 'none';
+      });
+      var target = ov.querySelector('.' + _themePreview.mode + '-mockup');
+      if (target) { target.style.opacity = '1'; target.style.pointerEvents = 'auto'; }
+    });
+  });
+
+  ov.querySelectorAll('.theme-preview-mockup').forEach(function(m){
+    m.style.opacity = '0';
+    m.style.pointerEvents = 'none';
+  });
+  var menuMock = ov.querySelector('.menu-mockup');
+  if (menuMock) { menuMock.style.opacity = '1'; menuMock.style.pointerEvents = 'auto'; }
+
+  document.getElementById('themePreviewEnv').addEventListener('change', function(e){
+    _themePreview.envElement = e.target.value || null;
+  });
+
+  var actBtn = document.getElementById('themePreviewActivateBtn');
+  if (actBtn) actBtn.addEventListener('click', function(){
+    if (setCurrentTheme(themeId)) {
+      if (typeof playSound === 'function') playSound('confirm');
+      if (typeof showTeamMissingToast === 'function') showTeamMissingToast('✅ Tema activado');
+      closeThemePreview();
+      if (typeof renderShop === 'function') renderShop();
+      var sm = document.getElementById('settingsModal');
+      if (sm && sm.classList.contains('open') && typeof renderSettingsApariencia === 'function') renderSettingsApariencia();
+    }
+  });
+
+  var buyBtn = document.getElementById('themePreviewBuyBtn');
+  if (buyBtn) buyBtn.addEventListener('click', function(){
+    if (typeof buyShopItem === 'function') {
+      var ok = buyShopItem(themeId, 'themes');
+      if (ok) openThemePreview(themeId);
+    }
+  });
+
+  window.addEventListener('resize', _themePreviewResize);
+
+  function loop() {
+    if (!_themePreview.canvas || !_themePreview.ctx || !_themePreview.theme) return;
+    var W = _themePreview.canvas.width;
+    var H = _themePreview.canvas.height;
+    var tintKey = '';
+    if (_themePreview.envElement && ELEMENT_COLORS[_themePreview.envElement]) {
+      tintKey = ELEMENT_COLORS[_themePreview.envElement];
+    }
+    if (_themePreview.currentTint !== tintKey) {
+      _themePreview.currentTint = tintKey;
+      _themePreview.canvas.style.backgroundColor = tintKey ? ('rgba(' + tintKey + ', 0.12)') : 'transparent';
+    }
+    _themePreview.theme.draw(_themePreview.ctx, W, H, _themePreview.state, { isCombat: _themePreview.mode === 'combat' });
+    _themePreview.raf = requestAnimationFrame(loop);
+  }
+  loop();
+}
+
+function showThemeDetail(id) {
+  openThemePreview(id);
 }
 
 /* ═══ Init ═══ */
@@ -986,6 +1167,10 @@ function setMenuEnvElement(el) {
 function getMenuEnvColor() {
   if (!getMenuEnvEnabled()) return null;
   var el = getMenuEnvElement();
+  // ✅ Sin elemento seleccionado pero toggle activo: usar el primero por defecto
+  if (!el && typeof CONSONANCE_ORDER !== 'undefined' && CONSONANCE_ORDER.length) {
+    el = CONSONANCE_ORDER[0];
+  }
   if (!el) return null;
   var rgb = ELEMENT_COLORS[el];
   if (!rgb) return null;
