@@ -2742,3 +2742,113 @@
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+/* ═══ Paradoja: hereda el estilo de los dados normales + selección morada ═══ */
+.paradoja-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 155;
+  background: rgba(5, 3, 12, 0.97);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+.paradoja-overlay.show { display: flex; animation: fadeIn 0.35s ease; }
+
+.paradoja-content { width: 100%; max-width: 1000px; text-align: center; }
+
+.paradoja-title {
+  font-size: clamp(1.4rem, 4vw, 2rem);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  margin-bottom: 0.3rem;
+  text-transform: uppercase;
+}
+.paradoja-sub {
+  color: var(--muted);
+  font-size: 0.85rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  font-weight: 700;
+  margin-bottom: 1.2rem;
+}
+
+.paradoja-dice {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.8rem;
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto 1.5rem;
+}
+
+.paradoja-die {
+  --dc: 140, 180, 230;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 18px;
+  background: linear-gradient(160deg, rgba(var(--dc), 0.45), rgba(var(--dc), 0.15));
+  border: 2px solid rgba(var(--dc), 0.75);
+  display: grid;
+  place-items: center;
+  font-size: clamp(2rem, 5vw, 3rem);
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 8px 24px rgba(var(--dc), 0.4);
+  user-select: none;
+}
+.paradoja-die:hover:not(.rolling) { transform: translateY(-4px) scale(1.05); }
+.paradoja-die.rolling { animation: dieRoll 0.35s ease-in-out infinite; cursor: default; }
+.paradoja-die.omni {
+  --dc: 240, 200, 96;
+  background: linear-gradient(160deg, rgba(240, 200, 96, 0.55), rgba(165, 131, 255, 0.3));
+  border-color: var(--accent);
+}
+.paradoja-die.omni:not(.rolling):not(.selected) { animation: omniGlow 2s ease infinite; }
+.paradoja-die.selected {
+  border-color: #b896ff;
+  box-shadow: 0 0 25px rgba(184, 150, 255, 0.85), 0 0 40px rgba(184, 150, 255, 0.45);
+  transform: translateY(-4px) scale(1.08);
+}
+
+.paradoja-buttons {
+  display: flex; gap: 0.8rem; justify-content: center; flex-wrap: wrap;
+}
+.paradoja-btn {
+  border-radius: 50px;
+  font-family: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s;
+  border: 1px solid;
+  background: transparent;
+}
+.paradoja-btn.skip {
+  padding: 0.7rem 1.6rem;
+  font-size: 0.9rem;
+  background: rgba(240, 200, 96, 0.1);
+  border-color: rgba(240, 200, 96, 0.45);
+  color: var(--accent);
+}
+.paradoja-btn.skip:hover { background: rgba(240, 200, 96, 0.25); transform: translateY(-2px); }
+.paradoja-btn.reroll {
+  padding: 0.8rem 2.2rem;
+  font-size: 1rem;
+  font-weight: 900;
+  background: linear-gradient(135deg, var(--accent), #f5dc8a);
+  border: none;
+  color: #1a0f2e;
+  box-shadow: 0 10px 30px rgba(240, 200, 96, 0.4);
+}
+.paradoja-btn.reroll:hover:not(:disabled) {
+  transform: translateY(-3px);
+  box-shadow: 0 15px 40px rgba(240, 200, 96, 0.6);
+}
+.paradoja-btn.reroll:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
