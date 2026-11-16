@@ -118,6 +118,7 @@ function renderTeamCards(who) {
       if (cs.states.prisionActiva) badges.push('<span class="ccc-badge" data-status="prisionEterea" style="--bc: 140,100,230;">🔮 Prisión</span>');
       if (cs.states.capaReal) badges.push('<span class="ccc-badge" data-status="capaReal" style="--bc: 255,215,100;">🤝 Capa real</span>');
       if (cs.states.cameraUsos > 0 && cs.equipment && cs.equipment.indexOf('erikxd_camara_confiable') >= 0) badges.push('<span class="ccc-badge" style="--bc: 200,45,60;">📷 ' + cs.states.cameraUsos + ' usos</span>');
+      if (cs.states.vickyCharged > 0) badges.push('<span class="ccc-badge" data-status="vickyCharged" data-value="' + cs.states.vickyCharged + '" style="--bc: 255,130,190;">🎬 Cargado ×' + cs.states.vickyCharged + '</span>');
     }
     if (cs.manuelStacks > 0) badges.push('<span class="ccc-badge" data-status="manuelStacks" data-value="' + cs.manuelStacks + '" style="--bc: 200,150,60;">📈 +' + cs.manuelStacks + '</span>');
     // ✅ YouTube
@@ -189,15 +190,26 @@ function renderSupports(uiWho) {
     var st = structs[si];
     if (st) {
       // ✅ Sin duración si es 999 (estructuras permanentes tipo Cruz de Madera/Sangre)
-      var durHtml = (st.duration && st.duration < 999) ? '<span class="side-slot-duration">' + st.duration + '</span>' : '';
-      // ✅ Emoji según tipo de estructura
       var stEmoji = st.kind === 'cruzMadera' ? '✝️'
             : st.kind === 'cruzSangre' ? '🩸'
             : st.kind === 'mesaDJ' ? '🎧'
             : st.kind === 'android' ? '🤖'
             : st.kind === 'metaQuest' ? '📘'
             : st.kind === 'monetizacion' ? '💸'
+            : st.kind === 'fuenteAlimentacion' ? '🔋'
+            : st.kind === 'camaraProfesional' ? '📸'
             : '🧠';
+      var durHtml = '';
+      if (st.kind === 'fuenteAlimentacion') {
+        if (st.gears && st.gears > 0) {
+          durHtml = '<span class="side-slot-duration" title="' + st.gears + ' engranaje(s)">' + st.gears + '</span>';
+        } else if (st.duration && st.duration < 999) {
+          durHtml = '<span class="side-slot-duration">' + st.duration + '</span>';
+        }
+      } else {
+        if (st.duration && st.duration < 999) durHtml = '<span class="side-slot-duration">' + st.duration + '</span>';
+        else if (st.usos) durHtml = '<span class="side-slot-duration">' + st.usos + '</span>';
+      }
       sHtml += '<div class="side-slot-filled" data-struct-slot="' + si + '" style="--dc: 130,220,140;">' + stEmoji + durHtml + '</div>';
     } else sHtml += '<div class="side-slot-empty">+</div>';
   }
@@ -259,6 +271,17 @@ function updateCombatActions() {
   if (char.abilities.ultimate.kind === 'sageUltimate') {
     if (!active.states || (active.states.decidida || 0) < 3) uOk = false;
   }
+  // ✅ Vicky: Sobrecarga requiere equipamiento equipado
+  if (char.abilities.elemental.kind === 'vickySobrecarga') {
+    if (!active.equipment || active.equipment.length === 0) eOk = false;
+  }
+  // ✅ Vicky: Liquidación requiere equipamiento en mano
+  if (char.abilities.ultimate.kind === 'vickyLiquidacion') {
+    var vEquipInHandUI = (side.hand || []).filter(function(cid){
+      var c = CARD_DB[cid]; return c && c.category === 'equipo';
+    });
+    if (!vEquipInHandUI.length) uOk = false;
+  }
   var eN = getEffectiveCostFull(active, char.abilities.normal), eE = getEffectiveCostFull(active, char.abilities.elemental), eU = getEffectiveCostFull(active, char.abilities.ultimate);
   var nD = sumCost(eN) === 0 || trySpendDice(side.dice, eN).ok;
   var eD = sumCost(eE) === 0 || trySpendDice(side.dice, eE).ok;
@@ -267,7 +290,14 @@ function updateCombatActions() {
   if (eB) { eB.disabled = !isTurn || !eOk; eB.classList.toggle('ca-can-pay', isTurn && eOk && eD); }
   if (uB) { uB.disabled = !isTurn || !uOk; uB.classList.toggle('ca-can-pay', isTurn && uOk && uD); }
   if (enB) enB.disabled = !isTurn;
-  var nn = document.getElementById('normalName'); if (nn) nn.textContent = '⚔️ ' + char.abilities.normal.name;
+  var nn = document.getElementById('normalName');
+  if (nn) {
+    var normalLabel = '⚔️ ' + char.abilities.normal.name;
+    if (char.id === 'vicky' && active.states && active.states.vickyCharged > 0) {
+      normalLabel += ' (Cargado ×' + active.states.vickyCharged + ')';
+    }
+    nn.textContent = normalLabel;
+  }
   var nc = document.getElementById('normalCost'); if (nc) nc.textContent = formatCost(eN, active.cardNextAbilityFree ? 0 : char.abilities.normal.energyCost);
   var en = document.getElementById('elementalName'); if (en) en.textContent = '🔮 ' + char.abilities.elemental.name;
   var ec = document.getElementById('elementalCost'); if (ec) ec.textContent = formatCost(eE);
