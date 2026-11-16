@@ -388,7 +388,10 @@ function botSmartMulligan() {
 
 function getMaxEquipment(cs) {
   if (!cs) return 2;
-  return (cs.id === 'opal') ? 3 : 2;
+  if (cs.id === 'opal') return 3;
+  // ✅ Vicky EX: +1 slot extra
+  if (cs.id === 'vicky' && cs.exActive) return 3;
+  return 2;
 }
 function getMaxSupports(sideKey) {
   if (!combatState) return 4;
