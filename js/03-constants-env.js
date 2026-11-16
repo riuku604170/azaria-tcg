@@ -42,6 +42,7 @@ var STATUS_DESCRIPTIONS = {
   prisionEterea: { name:'🔮 Prisión etérea', text:'Estructura de Eve. Al final de la ronda reparte 2 HP entre los aliados vivos (si solo hay 1, recibe 2). Si Eve es atacada por una habilidad rival, el atacante es marcado con Comprensión. Mientras esté activa, la definitiva de Eve cambia a "Cadáveres como hojas de otoño".' },
   capaReal: { name:'🤝 Capa real', text:'Escudo de David de 2 HP. Si es atacado, David pasa a activo y contraataca con su normal como acción rápida, sin gastar dados ni energía. Se consume al usarse.' },
   nostalgiaBait: { name:'📸 Nostalgia-Bait', text:'Mientras esté activo (esta ronda), el daño pasivo de las Cámaras de ErikXD afecta a todos los enemigos con +1 de daño, pero el daño también lo recibe ErikXD.' },
+  vickyCharged: { name:'🎬 Cargado', text:'Vicky acumula cargas al consumir equipamiento con **Sobrecarga**. Cada equipación consumida otorga 1 carga. El siguiente ataque normal consume todas las cargas como daño adicional y marca al enemigo con **Expresión**. Las cargas persisten entre turnos y cambios de personaje hasta que se consuman.' },
 };
 
 var PHILOSOPHIES = {
