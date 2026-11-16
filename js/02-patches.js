@@ -3,6 +3,16 @@
 // ═══════════ NOVEDADES (parches) ═══════════
 var PATCHES = [
 {
+  version: 'BETA 1.10',
+  date: '2026-11-16',
+  type: 'minor',
+  title: 'Arreglos y nuevos personajes',
+  changes: [
+    'Arreglados bugs de algunos personajes.',
+    'Añadidos Amsa y Vicky (Usuarios) [BETA].',
+  ]  
+},
+{
   version: 'BETA 1.9',
   date: '2026-11-15',
   type: 'minor',
