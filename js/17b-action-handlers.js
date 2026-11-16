@@ -1277,14 +1277,15 @@ var ACTION_HANDLERS = {
     var a = ctx.active, ea = ctx.enemyActive, es = ctx.enemySide, ek = ctx.enemyKey, side = ctx.side, at = ctx.actionType, ab = ctx.ability;
     var dmg = 1;
     if (csHasState(a, 'drogada')) { dmg += 2; logCombat('🩸 Drogada: +2 daño'); }
-    var isDouble = csHasState(a, 'doubleDown');
+    var isDouble = !!(a.states && a.states.doubleDown === true);
     if (isDouble) { dmg *= 2; logCombat('🎲 Double Down: daño ×2'); }
     dmg = applyGenericDamageMods(a, dmg);
     if (a.pendingBuff) ctx.pendingBuffConsumed = true;
     if (at === 'normal') { var ob = getOptimizationBonus(side); if (ob > 0) { dmg += ob; logCombat('🏛️ Optimización: +' + ob); } }
     applyDamageWithMods(ea, dmg, predictPiercing(a, ab), ek, es.activeIndex, a);
     if (isDouble) {
-      csSetState(a, 'doubleDown', false);
+      if (!a.states) a.states = {};
+      a.states.doubleDown = false;
       logCombat('🎲 Double Down consumido');
     }
   },
@@ -1292,7 +1293,7 @@ var ACTION_HANDLERS = {
   feliciaElemental: function(ctx) {
     var a = ctx.active, side = ctx.side, who = ctx.who, ea = ctx.enemyActive, es = ctx.enemySide, ek = ctx.enemyKey;
     var hadDrogada = csHasState(a, 'drogada');
-    var isDouble = csHasState(a, 'doubleDown');
+    var isDouble = !!(a.states && a.states.doubleDown === true);
     var targetHp = isDouble ? 8 : 4;
     var beforeHp = a.hp;
     var diff = targetHp - a.hp;
@@ -1306,7 +1307,11 @@ var ACTION_HANDLERS = {
     } else {
       logCombat('🎲 Hit: ya estaba a ' + targetHp + ' HP');
     }
-    if (isDouble) { csSetState(a, 'doubleDown', false); logCombat('🎲 Double Down consumido'); }
+    if (isDouble) {
+      if (!a.states) a.states = {};
+      a.states.doubleDown = false;
+      logCombat('🎲 Double Down consumido');
+    }
     if (typeof updateFeliciaDrogada === 'function') updateFeliciaDrogada(a);
     if (hadDrogada) {
       var draws = isDouble ? 4 : 2;
@@ -1319,7 +1324,10 @@ var ACTION_HANDLERS = {
 
   feliciaUltimate: function(ctx) {
     var a = ctx.active;
-    csSetState(a, 'doubleDown', true);
+    if (!a.states) a.states = {};
+    // ✅ Defensivo: forzar boolean limpio, limpiando cualquier estado corrupto heredado
+    a.states.doubleDown = true;
+    console.log('[Felicia DD] Estado tras activar:', a.states.doubleDown, '| HP:', a.hp, '| Drogada:', a.states.drogada);
     logCombat('🎲 Double Down: activo · normal +1 exp, elemental +1 exp · próxima habilidad dobla efectos');
   },
 
@@ -1553,6 +1561,142 @@ var ACTION_HANDLERS = {
     });
     logCombat('📸 Nostalgia-Bait: +3 escudo a aliados');
     side.nostalgiaBaitActive = true;
+  },
+
+  /* ═══ AMSA ═══ */
+  energizacion: function(ctx) {
+    var side = ctx.side, who = ctx.who;
+    if (!side.structures) side.structures = [];
+    var fuente = side.structures.find(function(st){ return st.kind === 'fuenteAlimentacion'; });
+
+    if (fuente) {
+      fuente.gears = (fuente.gears || 0) + 1;
+      logCombat('🔋 Amsa otorga 1 engranaje a la Fuente (total: ' + fuente.gears + ')');
+      ctx.shouldEndTurn = false;
+      logCombat('🧩 Energización con Fuente activa: acción rápida, no otorga energía');
+      return;
+    }
+
+    var maxStr = (typeof getMaxStructures === 'function') ? getMaxStructures(who) : 4;
+    if (side.structures.length >= maxStr) {
+      logCombat('❌ Amsa: no hay espacio para colocar la Fuente de Alimentación');
+      ctx.shouldEndTurn = false;
+      return;
+    }
+    side.structures.push({ kind:'fuenteAlimentacion', ownerId:'amsa', duration:1, gears:0 });
+    logCombat('🔋 Amsa coloca la Fuente de Alimentación (1 ronda)');
+  },
+
+  desmantelamiento: function(ctx) {
+    var side = ctx.side;
+    var fuente = side.structures && side.structures.find(function(st){ return st.kind === 'fuenteAlimentacion'; });
+    if (!fuente) {
+      logCombat('❌ Desmantelamiento: requiere Fuente de Alimentación activa');
+      ctx.shouldEndTurn = false;
+      return;
+    }
+    var gearsGained = 0;
+    var destroyed = 0;
+    for (var i = side.structures.length - 1; i >= 0; i--) {
+      var st = side.structures[i];
+      if (st === fuente) continue;
+      var toGain = 0;
+      if (typeof st.usos === 'number') toGain = Math.max(0, st.usos);
+      else if (typeof st.duration === 'number' && st.duration < 999) toGain = Math.max(0, st.duration);
+      gearsGained += toGain;
+      destroyed++;
+      side.structures.splice(i, 1);
+    }
+    fuente.gears = (fuente.gears || 0) + gearsGained;
+    logCombat('💥 Desmantelamiento: ' + destroyed + ' estructura(s) destruida(s), +' + gearsGained + ' engranaje(s) → total: ' + fuente.gears);
+  },
+
+  /* ═══ VICKY ═══ */
+  vickyNormal: function(ctx) {
+    var a = ctx.active, ea = ctx.enemyActive, es = ctx.enemySide, ek = ctx.enemyKey, side = ctx.side, who = ctx.who, at = ctx.actionType, ab = ctx.ability;
+    var charges = (a.states && a.states.vickyCharged) || 0;
+    var isCargado = charges > 0;
+    var dmg = ab.damage || 2;
+
+    if (isCargado) {
+      dmg += charges;
+      if (!a.states) a.states = {};
+      a.states.vickyCharged = 0;
+      logCombat('🎬 Desgaste cargado: +' + charges + ' daño por cargas acumuladas');
+    }
+
+    dmg = applyGenericDamageMods(a, dmg);
+    if (a.pendingBuff) ctx.pendingBuffConsumed = true;
+    if (at === 'normal') { var ob = getOptimizationBonus(side); if (ob > 0) { dmg += ob; logCombat('🏛️ Optimización: +' + ob); } }
+
+    var willMark = isCargado && !ea.dead;
+    var resPre = willMark ? applyPreDamageResonanceBonus(a, ea, 'expresion', dmg) : { dmg: dmg, resonance: null };
+    dmg = resPre.dmg;
+
+    var dealt = applyDamageWithMods(ea, dmg, predictPiercing(a, ab), ek, es.activeIndex, a);
+
+    if (willMark && !ea.dead) {
+      triggerMarkOrResonance(ea, 'expresion', who, ek, es.activeIndex);
+      logCombat('🎬 Desgaste cargado: marca Expresión');
+    }
+    applyPostDamageResonanceEffects(who, a, dealt, resPre.resonance);
+  },
+
+  vickySobrecarga: function(ctx) {
+    var a = ctx.active, side = ctx.side;
+    var eq = a.equipment || [];
+    if (!eq.length) {
+      logCombat('🎬 Sobrecarga: sin equipamiento que consumir');
+      return;
+    }
+    var count = eq.length;
+    if (!side.discardPile) side.discardPile = [];
+    eq.forEach(function(eqId){
+      side.discardPile.push(eqId);
+      var eqCard = CARD_DB[eqId];
+      logCombat('💥 Sobrecarga: consume ' + (eqCard ? eqCard.name : eqId));
+    });
+    a.equipment = [];
+    if (!a.states) a.states = {};
+    a.states.vickyCharged = (a.states.vickyCharged || 0) + count;
+    logCombat('🎬 Sobrecarga: +' + count + ' carga(s) acumulada(s) (total: ' + a.states.vickyCharged + ')');
+  },
+
+  vickyLiquidacion: function(ctx) {
+    var a = ctx.active, ea = ctx.enemyActive, es = ctx.enemySide, ek = ctx.enemyKey, side = ctx.side, who = ctx.who;
+    var equipInHand = (side.hand || []).filter(function(cid){
+      var c = CARD_DB[cid]; return c && c.category === 'equipo';
+    });
+    if (!equipInHand.length) {
+      logCombat('❌ Liquidación: sin equipamiento en mano');
+      ctx.shouldEndTurn = false;
+      return;
+    }
+    var count = equipInHand.length;
+    if (!side.discardPile) side.discardPile = [];
+    equipInHand.forEach(function(cid){
+      var hi = side.hand.indexOf(cid);
+      if (hi >= 0) side.hand.splice(hi, 1);
+      side.discardPile.push(cid);
+      var c = CARD_DB[cid];
+      logCombat('🗑️ Liquidación: descarta ' + (c ? c.name : cid));
+    });
+    logCombat('💥 Liquidación: ' + count + ' equipación(es) descartada(s)');
+
+    var baseDmg = applyObraMaestraToBase(a, ctx.ability, ctx.actionType, count);
+    var dmg = applyGenericDamageMods(a, baseDmg);
+    if (a.pendingBuff) ctx.pendingBuffConsumed = true;
+
+    var willMark = !ea.dead;
+    var resPre = willMark ? applyPreDamageResonanceBonus(a, ea, 'expresion', dmg) : { dmg: dmg, resonance: null };
+    dmg = resPre.dmg;
+
+    var dealt = applyDamageWithMods(ea, dmg, false, ek, es.activeIndex, a);
+    if (willMark && !ea.dead) {
+      triggerMarkOrResonance(ea, 'expresion', who, ek, es.activeIndex);
+      logCombat('🎬 Liquidación: marca Expresión');
+    }
+    applyPostDamageResonanceEffects(who, a, dealt, resPre.resonance);
   },
 
 };
