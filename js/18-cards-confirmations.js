@@ -17,7 +17,16 @@ function adjustCardCostForPassives(card, side, targetCs) {
       }
     }
   }
-  if (card.category === 'equipo') { var oa = side.characters.some(function(c){ return c.id === 'oliver' && !c.dead; }); if (oa) { if (adjusted.any && adjusted.any > 0) adjusted.any = Math.max(0, adjusted.any - 1); else if (adjusted.same && adjusted.same > 0) adjusted.same = Math.max(0, adjusted.same - 1); } }
+  if (card.category === 'equipo') {
+    // ✅ Oliver y Vicky comparten efecto NO ACUMULABLE: -1 dado a equipaciones (una sola vez)
+    var hasEquipDiscount = side.characters.some(function(c){
+      return (c.id === 'oliver' || c.id === 'vicky') && !c.dead;
+    });
+    if (hasEquipDiscount) {
+      if (adjusted.any && adjusted.any > 0) adjusted.any = Math.max(0, adjusted.any - 1);
+      else if (adjusted.same && adjusted.same > 0) adjusted.same = Math.max(0, adjusted.same - 1);
+    }
+  }
   if (card.tag === 'Curación') { var na = side.characters.some(function(c){ return c.id === 'noah' && !c.dead; }); if (na) { if (adjusted.any && adjusted.any > 0) adjusted.any = Math.max(0, adjusted.any - 1); else if (adjusted.same && adjusted.same > 0) adjusted.same = Math.max(0, adjusted.same - 1); } }
   // ✅ Facebook: siguiente carta -1 dado (se consume al jugarla)
   var act = side.characters[side.activeIndex];
