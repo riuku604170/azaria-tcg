@@ -436,16 +436,90 @@ function applyStructureEndOfRoundEffects(who) {
   var enemySide = combatState[who === 'player' ? 'bot' : 'player'];
   var enemyKey  = who === 'player' ? 'bot' : 'player';
 
-  function _flashStruct(idx, txt, col) {
+  var fuente = side.structures.find(function(st){ return st.kind === 'fuenteAlimentacion'; });
+  var amsaEx = !!(fuente && side.characters.some(function(c){ return c.id === 'amsa' && c.exActive && !c.dead; }));
+
+  function _flashStruct(st, txt, col) {
+    var realIdx = side.structures.indexOf(st);
+    if (realIdx < 0) return;
     flashCombatElement(
-      '#' + (who === 'player' ? 'player' : 'bot') + 'StructuresGrid .side-slot-filled[data-struct-slot="' + idx + '"]',
+      '#' + (who === 'player' ? 'player' : 'bot') + 'StructuresGrid .side-slot-filled[data-struct-slot="' + realIdx + '"]',
       txt, col
     );
   }
 
-  for (var i = side.structures.length - 1; i >= 0; i--) {
-    var st = side.structures[i];
-    if (!st) continue;
+  /* ── Fuente de Alimentación (Amsa) ── */
+  function processFuente() {
+    var f = side.structures.find(function(st){ return st.kind === 'fuenteAlimentacion'; });
+    if (!f) return;
+    var gears = f.gears || 0;
+    var others = side.structures.filter(function(st){ return st !== f; });
+    var N = others.length;
+
+    // ── Caso 1: sin engranajes → pierde 1 ronda y desaparece si llega a 0
+    if (gears === 0) {
+      f.duration = (f.duration || 1) - 1;
+      if (f.duration <= 0) {
+        logCombat('🔋 Fuente de Alimentación sin engranajes al final de la ronda → desaparece');
+        var fIdx = side.structures.indexOf(f);
+        if (fIdx >= 0) side.structures.splice(fIdx, 1);
+      }
+      return;
+    }
+
+    // ── Caso 2: sin estructuras a las que alimentar (N === 0)
+    //    Gasta 1 engranaje en 1 daño al enemigo activo, SIN marcar.
+    //    (Si en el futuro se define un "máximo de usos/duración" por estructura,
+    //     filtrar aquí las que ya estén al máximo y recalcular N.)
+    if (N === 0) {
+      var attackerCsN = side.characters[side.activeIndex];
+      var eaN = enemySide.characters[enemySide.activeIndex];
+      if (eaN && !eaN.dead && attackerCsN && !attackerCsN.dead) {
+        applyDamageWithMods(eaN, 1, false, enemyKey, enemySide.activeIndex, attackerCsN);
+        f.gears = gears - 1;
+        logCombat('🔋 Fuente: sin estructuras a las que alimentar → 1 engranaje gastado, 1 daño a ' + eaN.character.name + ' (sin marca)');
+        if (f.gears === 0) f.duration = 1;
+      } else {
+        logCombat('🔋 Fuente: sin enemigo válido ni estructuras que alimentar (' + gears + ' engranaje(s) sin usar)');
+      }
+      return;
+    }
+
+    // ── Caso 3: sobrealimentación (N > 0 pero gears < N)
+    //    Gasta TODOS los engranajes en un golpe que SÍ marca con Comprensión.
+    if (gears < N) {
+      var attackerCs = side.characters[side.activeIndex];
+      var ea = enemySide.characters[enemySide.activeIndex];
+      if (ea && !ea.dead && attackerCs && !attackerCs.dead) {
+        var pre = (typeof applyPreDamageResonanceBonus === 'function')
+          ? applyPreDamageResonanceBonus(attackerCs, ea, 'comprension', gears)
+          : { dmg: gears, resonance: null };
+        var dealt = applyDamageWithMods(ea, pre.dmg, false, enemyKey, enemySide.activeIndex, attackerCs);
+        if (!ea.dead) triggerMarkOrResonance(ea, 'comprension', who, enemyKey, enemySide.activeIndex);
+        if (typeof applyPostDamageResonanceEffects === 'function') applyPostDamageResonanceEffects(who, attackerCs, dealt, pre.resonance);
+        logCombat('🔋 Sobrealimentación: ' + gears + ' engranaje(s) gastados → ' + pre.dmg + ' daño a ' + ea.character.name);
+      } else {
+        logCombat('🔋 Fuente: sin enemigo válido para sobrealimentación');
+      }
+      f.gears = 0;
+      f.duration = 1;
+      return;
+    }
+
+    // ── Caso 4: alimentación normal (gears >= N, N > 0)
+    others.forEach(function(st){
+      if (typeof st.usos === 'number') { st.usos += 1; }
+      else if (typeof st.duration === 'number' && st.duration < 999) { st.duration += 1; }
+    });
+    f.gears -= N;
+    logCombat('🔋 Fuente alimenta a ' + N + ' estructura(s) (+1 duración/usos). Quedan ' + f.gears + ' engranaje(s)');
+    if (f.gears === 0) f.duration = 1;
+  }
+
+  /* ── Procesamiento de una estructura normal ── */
+  function processStructure(st) {
+    if (!st || side.structures.indexOf(st) < 0) return;
+    if (st.kind === 'fuenteAlimentacion') return;
 
     if (st.kind === 'optimizacion') {
       var ea = enemySide.characters[enemySide.activeIndex];
@@ -453,13 +527,13 @@ function applyStructureEndOfRoundEffects(who) {
         dealDamageToChar(ea, 1, { targetSide: enemySide, targetSideKey: enemyKey, targetIdx: enemySide.activeIndex });
         if (!ea.dead) triggerMarkOrResonance(ea, 'comprension', who, enemyKey, enemySide.activeIndex);
         logCombat('🏛️ Optimización: 1 daño y marca comprensión');
-        _flashStruct(i, '−1 HP', '#ff8a98');
+        _flashStruct(st, '−1 HP', '#ff8a98');
       }
       st.roundsActive = (typeof st.roundsActive === 'number' ? st.roundsActive : Math.max(0, 2 - st.duration)) + 1;
       st.duration--;
       if (st.duration <= 0) {
         logCombat('🏛️ Optimización se desvanece');
-        side.structures.splice(i, 1);
+        var i1 = side.structures.indexOf(st); if (i1 >= 0) side.structures.splice(i1, 1);
       }
     }
 
@@ -468,18 +542,18 @@ function applyStructureEndOfRoundEffects(who) {
       if (eaA && !eaA.dead) {
         dealDamageToChar(eaA, 1, { targetSide: enemySide, targetSideKey: enemyKey, targetIdx: enemySide.activeIndex });
         logCombat('🤖 Android: 1 daño a ' + eaA.character.name);
-        _flashStruct(i, '−1 HP', '#ff8a98');
+        _flashStruct(st, '−1 HP', '#ff8a98');
       }
       st.duration--;
-      if (st.duration <= 0) { logCombat('🤖 Android se desvanece'); side.structures.splice(i, 1); }
+      if (st.duration <= 0) { logCombat('🤖 Android se desvanece'); var i2 = side.structures.indexOf(st); if (i2 >= 0) side.structures.splice(i2, 1); }
     }
 
-    if (st.kind === 'cruzSangre') continue;
+    if (st.kind === 'cruzSangre') return;
 
     if (st.kind === 'metaQuest') {
       st.duration--;
-      if (st.duration <= 0) { logCombat('📘 Meta Quest se desvanece'); side.structures.splice(i, 1); }
-      else { _flashStruct(i, '📘', '#7ac8ff'); }
+      if (st.duration <= 0) { logCombat('📘 Meta Quest se desvanece'); var i3 = side.structures.indexOf(st); if (i3 >= 0) side.structures.splice(i3, 1); }
+      else { _flashStruct(st, '📘', '#7ac8ff'); }
     }
 
     if (st.kind === 'mesaDJ') {
@@ -492,8 +566,8 @@ function applyStructureEndOfRoundEffects(who) {
           if (typeof renderCombat === 'function') renderCombat();
         }
         st.duration--;
-        if (st.duration <= 0) { logCombat('🎧 Mesa de DJ se desvanece'); side.structures.splice(i, 1); }
-        else { _flashStruct(i, '🎧', '#a583ff'); }
+        if (st.duration <= 0) { logCombat('🎧 Mesa de DJ se desvanece'); var i4 = side.structures.indexOf(st); if (i4 >= 0) side.structures.splice(i4, 1); }
+        else { _flashStruct(st, '🎧', '#a583ff'); }
       } catch (err) { console.error('[Mesa de DJ] Error:', err); }
     }
 
@@ -516,10 +590,9 @@ function applyStructureEndOfRoundEffects(who) {
         }
       }
       st.duration--;
-      if (st.duration <= 0) { side.structures.splice(i, 1); }
+      if (st.duration <= 0) { var i5 = side.structures.indexOf(st); if (i5 >= 0) side.structures.splice(i5, 1); }
     }
 
-    // ✅ ERIKXD: Cámara profesional
     if (st.kind === 'camaraProfesional') {
       var erikxdCs = side.characters.find(function(c){ return c.id === 'erikxd' && !c.dead; });
       if (side.nostalgiaBaitActive) {
@@ -534,9 +607,31 @@ function applyStructureEndOfRoundEffects(who) {
       }
       if (erikxdCs) erikxdCs.energy = Math.min(erikxdCs.maxEnergy, erikxdCs.energy + 1);
       st.duration--;
-      if (st.duration <= 0) { logCombat('📸 Cámara profesional desaparece'); side.structures.splice(i, 1); }
-      else { _flashStruct(i, '📸', '#7ac8ff'); }
+      if (st.duration <= 0) { logCombat('📸 Cámara profesional desaparece'); var i6 = side.structures.indexOf(st); if (i6 >= 0) side.structures.splice(i6, 1); }
+      else { _flashStruct(st, '📸', '#7ac8ff'); }
     }
+
+    if (st.kind === 'monetizacion') {
+      // Monetización decrementa usos al jugar cartas rivales, no aquí
+      _flashStruct(st, '💸', '#f0c860');
+    }
+  }
+
+  // Snapshot de estructuras no-Fuente
+  var others = side.structures.filter(function(st){ return st.kind !== 'fuenteAlimentacion'; });
+
+  if (amsaEx) {
+    // ✅ EX Amsa: primero Fuente, luego el resto
+    processFuente();
+    for (var oi = others.length - 1; oi >= 0; oi--) {
+      processStructure(others[oi]);
+    }
+  } else {
+    // Orden normal: primero el resto, luego Fuente
+    for (var oj = others.length - 1; oj >= 0; oj--) {
+      processStructure(others[oj]);
+    }
+    processFuente();
   }
 }
 function beginRoundPlay() {
@@ -745,6 +840,19 @@ function computeBaseDamageForAbility(attackerCs, ability, actionType) {
       return fDmg;
     }
     case 'davidNormal': return 1 + (combatState._currentIsCounterAttack ? 1 : 0);
+    case 'vickyNormal': {
+      var vickyBase = ability.damage || 2;
+      if (attackerCs.states && attackerCs.states.vickyCharged > 0) {
+        vickyBase += attackerCs.states.vickyCharged;
+      }
+      return vickyBase;
+    }
+    case 'vickyLiquidacion': {
+      var vickyLiquidSide = (combatState.player.characters.indexOf(attackerCs) >= 0) ? combatState.player : combatState.bot;
+      return (vickyLiquidSide.hand || []).filter(function(cid){
+        var c = CARD_DB[cid]; return c && c.category === 'equipo';
+      }).length;
+    }
     default: return 0;
   }
 }
@@ -816,13 +924,16 @@ function getEffectiveCostFull(active, ability) {
     base = applyVittoriaCostModifier(active, base, ability);
   }
   if (active.id === 'felicia') {
-    // ✅ Drogada: +2 Expresión al normal, +1 Expresión a la elemental
+    if (window.DEBUG_COSTS) console.log('[Felicia Cost]', ability.kind, '| DD:', active.states && active.states.doubleDown, '| Drogada:', active.states && active.states.drogada, '| base:', JSON.stringify(base));
     if (csHasState(active, 'drogada')) {
       if (ability.kind === 'feliciaNormal') base.expresion = (base.expresion || 0) + 2;
       else if (ability.kind === 'feliciaElemental') base.expresion = (base.expresion || 0) + 1;
     }
     // ✅ Double Down: +1 Expresión al normal, +1 Expresión a la elemental
-    if (csHasState(active, 'doubleDown')) {
+    // ✅ Chequeo ESTRICTO === true: si por algún save viejo o race condition
+    // `doubleDown` quedó como número u otro valor truthy, lo tratamos como inactivo
+    // (el handler lo volverá a poner a `true` limpio la próxima vez que se use la ulti).
+    if (active.states && active.states.doubleDown === true) {
       if (ability.kind === 'feliciaNormal') base.expresion = (base.expresion || 0) + 1;
       else if (ability.kind === 'feliciaElemental') base.expresion = (base.expresion || 0) + 1;
     }
@@ -898,12 +1009,27 @@ function getEffectiveCostFull(active, ability) {
     return irrCost;
   }
   if (active.id === 'sage' && ability.kind === 'sageNormal') {
-    var sageDec = (active.states && active.states.decidida) || 0;
+    var sageDec = (active.states && active.states.decidada) || 0;
     if (sageDec > 0) {
       var sageCost = {};
       Object.keys(base).forEach(function(k){ sageCost[k] = base[k]; });
       sageCost.any = (sageCost.any || 0) + sageDec;
       return sageCost;
+    }
+  }
+  // ✅ Vicky: Desgaste cargado ya no cuesta +2 Expresión (el coste se paga en Sobrecarga + equipamiento)
+  // ✅ Amsa: pasiva (-3) si Fuente activa; EX (-1) adicional
+  // ✅ Amsa: pasiva (-3) si Fuente activa; EX (-1) adicional
+  if (active.id === 'amsa' && ability.kind === 'energizacion') {
+    var sideAmsa = (combatState.player.characters.indexOf(active) >= 0) ? combatState.player : combatState.bot;
+    var hasFuenteA = sideAmsa.structures && sideAmsa.structures.some(function(st){ return st.kind === 'fuenteAlimentacion'; });
+    if (hasFuenteA) {
+      base.comprension = Math.max(0, (base.comprension || 0) - 3);
+      if (base.comprension === 0) delete base.comprension;
+    }
+    if (active.exActive) {
+      if (base.comprension && base.comprension > 0) { base.comprension -= 1; if (base.comprension === 0) delete base.comprension; }
+      else if (base.any && base.any > 0) { base.any -= 1; if (base.any === 0) delete base.any; }
     }
   }
   return base;
@@ -1148,6 +1274,11 @@ function executeAction(who, actionType, preSpentDice) {
       if (ability.energy && ability.energy > 0 && !active.dead) {
         var energyGain = ability.energy;
         if (active.id === 'erikxd') { energyGain = 0; logCombat('📸 ErikXD no gana energía de habilidades'); }
+        if (active.id === 'amsa' && ability.kind === 'energizacion') {
+          var sideAmsaEn = (combatState.player.characters.indexOf(active) >= 0) ? combatState.player : combatState.bot;
+          var fuenteActivaEn = sideAmsaEn.structures && sideAmsaEn.structures.some(function(st){ return st.kind === 'fuenteAlimentacion'; });
+          if (fuenteActivaEn) { energyGain = 0; logCombat('🧩 Amsa: Energización no otorga energía con Fuente activa'); }
+        }
         if (active.id === 'manuel' && ability.kind === 'degradacion') {
           if (active.exActive) { energyGain = 2; logCombat('🌟 EX Manuel: Degradación otorga 2 energía'); }
           else if (ctx.hadStacks) { energyGain = 0; logCombat('📈 Manuel: Degradación resuelve acumulación → 0 energía'); }
@@ -1464,6 +1595,34 @@ function botScoreStateValue(ability, active, enemyActive) {
       v = hasMark ? 0 : 6;
       break;
     }
+    case 'energizacion': {
+      var hasFuenteV = combatState.bot.structures && combatState.bot.structures.some(function(st){ return st.kind === 'fuenteAlimentacion'; });
+      if (hasFuenteV) {
+        var nOtrosV = combatState.bot.structures.filter(function(st){ return st.kind !== 'fuenteAlimentacion'; }).length;
+        v = nOtrosV > 0 ? 4 + nOtrosV * 2 : 2;
+      } else {
+        var nOtrosV2 = combatState.bot.structures ? combatState.bot.structures.length : 0;
+        v = 3 + nOtrosV2 * 2;
+      }
+      break;
+    }
+    case 'desmantelamiento': {
+      var fuenteVB = combatState.bot.structures && combatState.bot.structures.find(function(st){ return st.kind === 'fuenteAlimentacion'; });
+      if (!fuenteVB) { v = 0; break; }
+      var othersVB = combatState.bot.structures.filter(function(st){ return st !== fuenteVB; });
+      v = othersVB.reduce(function(acc, st){
+        var gain = (typeof st.usos === 'number' ? st.usos : (st.duration || 0));
+        return acc + gain * 0.6;
+      }, 0);
+      break;
+    }
+    case 'vickySobrecarga': {
+      // ✅ Ahora es acumulativa: se puede spamear mientras haya equipo que consumir
+      var vEq = (active.equipment || []).length;
+      if (vEq === 0) { v = 0; break; }
+      v = 4 + vEq * 2;
+      break;
+    }
     default: v = 0;
   }
   return v;
@@ -1600,6 +1759,8 @@ function botChooseEquipmentTarget(card, bot) {
       card.effect.healBonus || card.effect.healPerRound ||
       card.effect.teamShieldBonus || card.effect.teamShieldInstant
     )) return;
+    // ✅ Artemis no puede recibir equipamientos que den energía
+    if (cs.id === 'artemis' && card.effect && (card.effect.energyBonus || card.effect.energyPerRound)) return;
 
     var maxEq = (typeof getMaxEquipment === 'function') ? getMaxEquipment(cs) : 2;
     var slotsFree = maxEq - (cs.equipment ? cs.equipment.length : 0);
@@ -1798,6 +1959,24 @@ function botScoreCard(cardId, card, active) {
 
 function botCanUseAbility(botSide, active, ability, actionType) {
   if (ability.energyCost && active.energy < ability.energyCost) return false;
+  if (ability.kind === 'energizacion') {
+    var hasFuenteB = botSide.structures && botSide.structures.some(function(st){ return st.kind === 'fuenteAlimentacion'; });
+    if (!hasFuenteB) {
+      var maxStrB = (typeof getMaxStructures === 'function') ? getMaxStructures('bot') : 4;
+      if (botSide.structures && botSide.structures.length >= maxStrB) return false;
+    }
+  }
+  // ✅ Vicky: Sobrecarga requiere equipamiento equipado
+  if (ability.kind === 'vickySobrecarga') {
+    if (!active.equipment || active.equipment.length === 0) return false;
+  }
+  // ✅ Vicky: Liquidación requiere al menos 1 equipamiento en mano
+  if (ability.kind === 'vickyLiquidacion') {
+    var vBotEquip = (botSide.hand || []).filter(function(cid){
+      var c = CARD_DB[cid]; return c && c.category === 'equipo';
+    });
+    if (!vBotEquip.length) return false;
+  }
   if (ability.kind === 'obraMaestra') {
     var hasOptim = botSide.structures && botSide.structures.some(function(st){ return st.kind === 'optimizacion'; });
     if (!hasOptim) return false;
@@ -1934,7 +2113,12 @@ function botPlayCard(cardId, card, onComplete) {
       // ✅ Elegir target (activo o reserva) con scoring
       var _targetIdx = botChooseEquipmentTarget(card, b);
       if (_targetIdx < 0) {
-        // No debería llegar aquí (botScoreCard ya lo comprueba), pero por seguridad:
+        // ✅ Devolver los dados gastados: no se puede equipar
+        (spendResult.spent || []).forEach(function(d){ b.dice.push(d); });
+        // Devolver la carta a la mano
+        if (!b.hand) b.hand = [];
+        b.hand.push(cardId);
+        logCombat('🤖 El rival no encuentra un objetivo válido para ' + card.name + ' — dados devueltos');
         if (onComplete) onComplete(false);
         return;
       }
@@ -2030,6 +2214,14 @@ function botMaybeReroll() {
 
 function botTurn(skipThink) {
   if (!canBotAct()) { _botBailSafety(); return; }
+  // ✅ Límite de acciones por turno (evita bucles infinitos con acciones rápidas)
+  if (!combatState._botActionCount) combatState._botActionCount = 0;
+  combatState._botActionCount++;
+  if (combatState._botActionCount > 10) {
+    logCombat('🤖 Límite de acciones por turno alcanzado');
+    declareEnd('bot');
+    return;
+  }
   var bot = combatState.bot;
   var active = bot.characters[bot.activeIndex];
   if (!active || active.dead) { declareEnd('bot'); return; }
@@ -2314,6 +2506,7 @@ function nextTurn() {
     var _newActForFlag = _newSideForFlag.characters[_newSideForFlag.activeIndex];
     _newSideForFlag._turnStartedWithErikxdActive = !!( _newActForFlag && _newActForFlag.id === 'erikxd');
   }
+  combatState._botActionCount = 0;   // ✅ reset al cambiar de turno
   var prevTurnSide = (next === 'player') ? 'bot' : 'player';
   if (combatState[prevTurnSide]) {
     combatState[prevTurnSide].characters.forEach(function(c){
@@ -2985,7 +3178,8 @@ function previewPlayerAction(actionType) {
 
   var applyGeneric = [
     'damage','trazoVivo','intervencion','aceleron','instinto','deudaSangre','graciaPicara','cosecha','rocePosible','pilarFundamental',
-    'zasca','allEyesOnMe','littleBooBoo','sueloALaCara','vittoriaNormal','hotToGo','theWorldIsMine','sublevacion','petiteEtoile','feliciaNormal','davidNormal'
+    'zasca','allEyesOnMe','littleBooBoo','sueloALaCara','vittoriaNormal','hotToGo','theWorldIsMine','sublevacion','petiteEtoile','feliciaNormal','davidNormal',
+    'vickyNormal','vickyLiquidacion'
   ].indexOf(ability.kind) !== -1;
   if (ability.target === 'enemy' && preview.baseDmg > 0 && target) {
     if (applyGeneric) {
@@ -2993,6 +3187,7 @@ function previewPlayerAction(actionType) {
       preview.buffDmg = gb.pendingBuff;
       preview.cardBonus = gb.cardBonus;
       preview.equipDmg = gb.equipBonus;
+      // (Sin override: el equipamiento actual sí aporta sus bonus al ataque normal)
       preview.supportDmg = getSupportAttackBonus(side);
       if (actionType === 'normal') preview.optimizationDmg = getOptimizationBonus(side);
       if (active.id === 'erik') preview.erikBonus = applyErikPassive(active);
@@ -3294,6 +3489,29 @@ function previewPlayerAction(actionType) {
     preview.notes.push('📘 Meta Quest: +1 HP al activo tras el ataque normal');
   }
 
+  if (ability.kind === 'vickyNormal') {
+    var vCharges = (active.states && active.states.vickyCharged) || 0;
+    if (vCharges > 0) {
+      preview.notes.push('🎬 Cargado: +' + vCharges + ' daño por cargas acumuladas');
+      preview.notes.push('🎬 Marca Expresión');
+    }
+  }
+  if (ability.kind === 'vickySobrecarga') {
+    var vEqConsume = (active.equipment || []).length;
+    var vCurrentCh = (active.states && active.states.vickyCharged) || 0;
+    if (vEqConsume > 0) {
+      preview.notes.push('🎬 Consumirá ' + vEqConsume + ' equipación(es) → +' + vEqConsume + ' carga(s)');
+      preview.notes.push('🎬 Cargas tras usar: ' + (vCurrentCh + vEqConsume));
+    } else {
+      preview.notes.push('🎬 Sin equipamiento que consumir');
+    }
+  }
+  if (ability.kind === 'vickyLiquidacion') {
+    var vLiqHand = (side.hand || []).filter(function(cid){ 
+      var c = CARD_DB[cid]; return c && c.category === 'equipo'; 
+    }).length;
+    preview.notes.push('🗑️ Descartará ' + vLiqHand + ' carta(s) de equipamiento');
+  }
   if (ability.kind === 'cosecha') {
     var cosechaCounterP = (active.states && active.states.cosechaCounter) || 0;
     if (cosechaCounterP === 0) preview.notes.push('🌻 Primera Cosecha de la ronda: solo 1 daño');
@@ -3564,6 +3782,43 @@ function playerActionRequest(actionType) {
     if (active.hp <= 1) blockedEx = true;
     if (!side.characters.some(function(c){ return c.dead; })) blockedEx = true;
     if (blockedEx) { playSound('error'); var bU2 = document.getElementById('ultimateBtn'); if (bU2) { bU2.classList.add('shake'); setTimeout(function(){ bU2.classList.remove('shake'); }, 400); } return; }
+  }
+  // ✅ Amsa: Energización sin Fuente requiere espacio libre
+  if (ability.kind === 'energizacion') {
+    var hasFuenteP = side.structures && side.structures.some(function(st){ return st.kind === 'fuenteAlimentacion'; });
+    if (!hasFuenteP) {
+      var maxStrP = (typeof getMaxStructures === 'function') ? getMaxStructures(turnKey) : 4;
+      if (side.structures && side.structures.length >= maxStrP) {
+        playSound('error');
+        if (typeof showTeamMissingToast === 'function') showTeamMissingToast('❌ No hay espacio para colocar la Fuente de Alimentación. Destruye o espera a que desaparezca otra estructura.');
+        var bEP = document.getElementById('elementalBtn');
+        if (bEP) { bEP.classList.add('shake'); setTimeout(function(){ bEP.classList.remove('shake'); }, 400); }
+        return;
+      }
+    }
+  }
+  // ✅ Vicky: Sobrecarga requiere equipamiento equipado para consumir
+  if (ability.kind === 'vickySobrecarga') {
+    if (!active.equipment || active.equipment.length === 0) {
+      playSound('error');
+      if (typeof showTeamMissingToast === 'function') showTeamMissingToast('❌ Sobrecarga requiere equipamiento equipado para consumir.');
+      var bES = document.getElementById('elementalBtn');
+      if (bES) { bES.classList.add('shake'); setTimeout(function(){ bES.classList.remove('shake'); }, 400); }
+      return;
+    }
+  }
+  // ✅ Vicky: Liquidación requiere al menos 1 carta de equipamiento en mano
+  if (ability.kind === 'vickyLiquidacion') {
+    var vEquipInHandReq = (side.hand || []).filter(function(cid){
+      var c = CARD_DB[cid]; return c && c.category === 'equipo';
+    });
+    if (!vEquipInHandReq.length) {
+      playSound('error');
+      if (typeof showTeamMissingToast === 'function') showTeamMissingToast('❌ Liquidación requiere al menos 1 carta de equipamiento en la mano.');
+      var bUL = document.getElementById('ultimateBtn');
+      if (bUL) { bUL.classList.add('shake'); setTimeout(function(){ bUL.classList.remove('shake'); }, 400); }
+      return;
+    }
   }
   if (ability.energyCost && active.energy < ability.energyCost && !active.cardNextAbilityFree) { playSound('error'); return; }
   var effCost = getEffectiveCostFull(active, ability);
