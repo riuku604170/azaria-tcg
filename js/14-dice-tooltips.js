@@ -135,6 +135,7 @@ function showStatusTooltip(anchor, key, data) {
     if (key === 'manuelStacks') extra = '<div class="ht-sub">Stacks actuales: <b>' + data.value + '</b></div>';
     if (key === 'obraMaestra') extra = '<div class="ht-sub">Rondas restantes: <b>' + data.value + '</b></div>';
     if (key === 'rencor') extra = '<div class="ht-sub">Acumulaciones: <b>' + data.value + '</b></div>';
+    if (key === 'vickyCharged') extra = '<div class="ht-sub">Cargas acumuladas: <b>' + data.value + '</b></div>';
   }
   hoverTooltip.innerHTML = '<div class="ht-header">' + d.name + '</div>' + extra + '<div class="ht-effect">' + colorizeElementNames(d.text) + '</div>';
   hoverTooltip.classList.add('show'); positionTooltip(hoverTooltip, anchor.getBoundingClientRect(), 'above');
@@ -224,6 +225,12 @@ function showStructureTooltip(anchor, st) {
   html += '<div class="ht-name">📘 Meta Quest</div><div class="ht-sub">' + st.duration + ' ronda(s) · Estructura de Facebook</div><div class="ht-effect">Cura 1 punto de vida al aliado activo cada vez que dicho aliado use su ataque normal.</div>';
   } else if (st.kind === 'monetizacion') {
     html += '<div class="ht-name">💸 Monetización</div><div class="ht-sub">' + (st.usos || 0) + ' uso(s) restantes</div><div class="ht-effect">Las cartas del rival cuestan 1 dado genérico extra. Pierde 1 uso cada vez que el rival juega una carta.</div>';
+  } else if (st.kind === 'fuenteAlimentacion') {
+    var gearsT = st.gears || 0;
+    var durT = st.duration || 1;
+    html += '<div class="ht-name">🔋 Fuente de Alimentación</div>';
+    html += '<div class="ht-sub">' + (gearsT > 0 ? gearsT + ' engranaje(s)' : durT + ' ronda restante (sin engranajes)') + '</div>';
+    html += '<div class="ht-effect">Al final de la ronda consume 1 engranaje por estructura aliada (sin contarse a sí misma) y les suma +1 duración/usos.<br><br>Si hay estructuras pero no hay engranajes suficientes: Sobrealimentación → gasta todos los engranajes en un golpe (1 daño por engranaje) que marca con Comprensión.<br><br>Si no hay estructuras a las que alimentar: gasta 1 engranaje en 1 daño al enemigo activo <strong>sin marcarlo</strong>.<br><br>Sin engranajes al final de la ronda, desaparece.</div>';
   }
   hoverTooltip.innerHTML = html;
   hoverTooltip.classList.add('show');
