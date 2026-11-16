@@ -280,10 +280,77 @@ var CHARACTERS = {
         attributes: null }
     ]},
 
-  amsa:    { name:'Amsa',   element:'comprension',  set:'Erik', category:'Usuarios', hp:11, emoji:'🧩', img:'img/amsa.png',    comingSoon:true, abilities:[] },
+  amsa: { name:'Amsa', element:'comprension', category:'Usuarios', hp:10, emoji:'🧩', img:'img/amsa.png',
+    concept: 'Un cerebro que convierte el orden en energía. Cada pieza encaja, cada ciclo se optimiza; el desorden es solo energía mal canalizada.',
+    terms: [
+      { key:'fuenteAlimentacion', name:'Fuente de Alimentación', definition:'Estructura de Amsa. Acumula engranajes para alimentar a las demás estructuras aliadas, aumentando su duración o usos al final de la ronda. Sin engranajes, dura solo 1 ronda y desaparece al final de esa ronda si no consigue al menos uno.' },
+      { key:'engranaje', name:'Engranaje', definition:'Recurso de la **Fuente de Alimentación**. Cada engranaje equivale a 1 uso. Al final de la ronda, la Fuente consume 1 engranaje por cada estructura aliada (sin contarse a sí misma) y les suma +1 de duración/uso. Si no hay engranajes suficientes, se produce una **Sobrealimentación**. Si no hay estructuras a las que alimentar, consume 1 engranaje para infligir 1 punto de daño al enemigo activo **sin marcarlo**.' },
+      { key:'sobrealimentacion', name:'Sobrealimentación', definition:'Estado del fallo de alimentación de la Fuente: si hay estructuras aliadas a las que alimentar pero no hay engranajes suficientes para todas, no alimenta a ninguna y gasta todos los engranajes disponibles en un golpe al enemigo activo (1 daño por engranaje) que lo marca con **Comprensión**.' },
+    ],
+    abilities: [
+      { type:'normal', icon:'⚔️', name:'Calibración',
+        description:'Inflige daño leve al enemigo activo.',
+        attributes: ['Coste: 1 dado de Comprensión + 1 dados cualesquiera','Daño base: 1'] },
+      { type:'elemental', icon:'🔮', name:'Energización',
+        description:'Si la estructura **Fuente de Alimentación** no está en el campo, la coloca (1 ronda, sin engranajes). Si ya está en el campo, le otorga **1 engranaje**. Mientras la **Fuente de Alimentación** está activa, esta habilidad **no otorga energía** y se considera **acción rápida**. Al final de la ronda, la Fuente consume 1 engranaje por cada estructura aliada (sin contarse a sí misma) y les suma +1 duración o usos. Si no tiene engranajes suficientes para alimentar a todas, se produce una **Sobrealimentación**. Si no hay estructuras a las que alimentar, consume engranajes para infligir daño al enemigo activo **sin marcarlo**.',
+        attributes: [
+          'Coste: 5 dados de Comprensión',
+          'Duración inicial de la Fuente: 1 ronda',
+          'Engranajes necesarios por estructura aliada: 1',
+          'Aumento de duración/usos por engranaje: +1',
+          'Engranajes otorgados con Fuente activa: 1',
+          'Daño base: 1',
+          'Engranajes consumidos por golpe: 1'
+        ] },
+      { type:'ultimate', icon:'💥', name:'Desmantelamiento',
+        description:'Requiere que la estructura **Fuente de Alimentación** esté activa. Destruye todas las demás estructuras aliadas y transforma todos sus usos o rondas restantes en engranajes para la Fuente.',
+        attributes: ['Coste: 2 dados de Comprensión + 2 puntos de energía','Engranajes obtenidos por uso/ronda restante: 1'] },
+      { type:'passive', icon:'🛡️', name:'Circuito Optimizado',
+        description:'Si la estructura **Fuente de Alimentación** está activa, reduce en 3 el coste en dados de su habilidad elemental. Además, usar **Energización** con la Fuente activa no otorga energía y se considera **acción rápida**.',
+        attributes: null },
+      { type:'ex', icon:'🌟', name:'EX · Eficiencia Energética',
+        description:'Reduce en 1 el coste en dados de su habilidad elemental. Además, al final de la ronda, la **Fuente de Alimentación** actúa **antes** que el resto de estructuras, pudiendo extender su duración y evitar que desaparezcan.',
+        attributes: null }
+    ]
+  },
   victor:  { name:'Víctor', element:'comprension',  set:'Erik', category:'Usuarios', hp:11, emoji:'📐', img:'img/victor.png',  comingSoon:true, abilities:[] },
   gabo:    { name:'Gabo',   element:'ilusion',      set:'Erik', category:'Usuarios', hp:11, emoji:'🃏', img:'img/gabo.png',    comingSoon:true, abilities:[] },
-  vicky:   { name:'Vicky',  element:'expresion',    set:'Erik', category:'Usuarios', hp:11, emoji:'🎬', img:'img/vicky.png',   comingSoon:true, abilities:[] },
+  vicky: { name:'Vicky', element:'expresion', category:'Usuarios', hp:10, emoji:'🎬', img:'img/vicky.png',
+    concept: 'Cada recurso es una bala, cada pieza una oportunidad. Vicky no cierra tratos: los vacía hasta la última grieta.',
+    terms: [
+      { key:'cargado', name:'Cargado', definition:'Vicky acumula cargas al consumir equipamiento con **Sobrecarga**. Cada equipación consumida otorga 1 carga. El siguiente ataque normal consume todas las cargas como daño adicional y marca al enemigo con **Expresión**. Las cargas persisten entre turnos y cambios de personaje hasta que se consuman. Es posible acumular más cargas equipando nuevas piezas y volviendo a usar **Sobrecarga**.' },
+      { key:'liquidacion', name:'Liquidación', definition:'La habilidad definitiva de Vicky. Descarta todas las cartas de equipamiento de la mano del jugador e inflige al enemigo activo 1 daño por carta descartada, marcándolo con **Expresión**. Solo se puede usar si hay al menos una carta de equipamiento en la mano.' }
+    ],
+    abilities: [
+      { type:'normal', icon:'⚔️', name:'Desgaste',
+        description:'Inflige daño leve al enemigo activo. Si tiene **cargas** acumuladas de **Sobrecarga**, las consume todas: cada carga añade 1 punto de daño al golpe y marca al enemigo con **Expresión**.',
+        attributes: [
+          'Coste: 1 dado de Expresión + 2 dados cualesquiera',
+          'Daño base: 2',
+          'Daño adicional por carga acumulada: 1'
+        ] },
+      { type:'elemental', icon:'🔮', name:'Sobrecarga',
+        description:'Consume todo el equipamiento de Vicky para acumular cargas (1 carga por equipación consumida). Las cargas se acumulan entre usos y se consumen con su ataque normal. Es posible equipar nuevas piezas y volver a usar **Sobrecarga** para acumular más cargas.',
+        attributes: [
+          'Coste: 3 dados de Expresión',
+          'Cargas por equipación consumida: +1',
+          'Requiere al menos 1 equipación equipada'
+        ] },
+      { type:'ultimate', icon:'💥', name:'Liquidación',
+        description:'Solo puede usarse si hay al menos una carta de equipamiento en la mano. Descarta todas las cartas de equipamiento de la mano e inflige al enemigo activo daño equivalente a la cantidad descartada, marcándolo con **Expresión**.',
+        attributes: [
+          'Coste: 4 dados de Expresión + 2 puntos de energía',
+          'Daño base por carta de equipamiento descartada: 1',
+          'Requiere al menos 1 carta de equipamiento en la mano'
+        ] },
+      { type:'passive', icon:'🛡️', name:'Aprovechamiento',
+        description:'Las cartas de equipamiento cuestan un dado de cualquier tipo menos. **No es acumulable**: si otro personaje del equipo tiene el mismo efecto, el descuento se aplica una sola vez.',
+        attributes: null },
+      { type:'ex', icon:'🌟', name:'EX · Capacidad Ampliada',
+        description:'Aumenta en 1 sus ranuras de equipamiento.',
+        attributes: null }
+    ]
+  },
 
   /* ═══════════════════════════════════════════════════════════════════
      RESTO DEL ROSTER (sin cambios en este parche, mantienen estructura antigua
@@ -429,3 +496,8 @@ var CHARACTERS = {
     ]
   },
 };
+
+/* ✅ Limpieza: el campo `set` ya no se usa en personajes (solo `category`) */
+Object.keys(CHARACTERS).forEach(function(id){
+  if (CHARACTERS[id].set) delete CHARACTERS[id].set;
+});
