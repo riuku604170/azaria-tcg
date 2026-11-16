@@ -71,6 +71,18 @@ var COMBAT_CHARS = {
     ultimate: { name:'Canon', cost:{expresion:5}, energyCost:2, target:'self', kind:'canon' },
     ex: { name:'EX · Arquitectura Creativa', kind:'ex', target:'self' }
   }},
+  amsa: { name:'Amsa', element:'comprension', emoji:'🧩', hp:10, abilities: {
+    normal: { name:'Calibración', cost:{comprension:1, any:2}, target:'enemy', kind:'damage', damage:2, energy:1 },
+    elemental: { name:'Energización', cost:{comprension:5}, target:'self', kind:'energizacion', energy:1 },
+    ultimate: { name:'Desmantelamiento', cost:{comprension:2}, energyCost:2, target:'self', kind:'desmantelamiento' },
+    ex: { name:'EX · Eficiencia Energética', kind:'ex', target:'self' }
+  }},
+  vicky: { name:'Vicky', element:'expresion', emoji:'🎬', hp:10, abilities: {
+    normal: { name:'Desgaste', cost:{expresion:1, any:2}, target:'enemy', kind:'vickyNormal', damage:2, energy:1 },
+    elemental: { name:'Sobrecarga', cost:{expresion:3}, target:'self', kind:'vickySobrecarga', energy:1 },
+    ultimate: { name:'Liquidación', cost:{expresion:4}, energyCost:2, target:'enemy', kind:'vickyLiquidacion' },
+    ex: { name:'EX · Capacidad Ampliada', kind:'ex', target:'self' }
+  }},
   artemis: { name:'Artemis', element:'aceptacion', emoji:'🦅', hp:11, abilities: {
     normal: { name:'Disparo divino', cost:{aceptacion:2, any:2}, target:'enemy', kind:'damage', damage:3, energy:1 },
     elemental: { name:'Carrerilla', cost:{aceptacion:3}, target:'self', kind:'carrerilla', energy:0 },
