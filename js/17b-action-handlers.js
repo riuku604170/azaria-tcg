@@ -1601,8 +1601,16 @@ var ACTION_HANDLERS = {
       var st = side.structures[i];
       if (st === fuente) continue;
       var toGain = 0;
-      if (typeof st.usos === 'number') toGain = Math.max(0, st.usos);
-      else if (typeof st.duration === 'number' && st.duration < 999) toGain = Math.max(0, st.duration);
+      if (typeof st.usos === 'number') {
+        toGain = Math.max(0, st.usos);
+      } else if (typeof st.duration === 'number') {
+        if (st.duration >= 999) {
+          // ✅ Estructuras permanentes (sin duración real) → 3 engranajes
+          toGain = 3;
+        } else {
+          toGain = Math.max(0, st.duration);
+        }
+      }
       gearsGained += toGain;
       destroyed++;
       side.structures.splice(i, 1);
@@ -1616,18 +1624,28 @@ var ACTION_HANDLERS = {
     var a = ctx.active, ea = ctx.enemyActive, es = ctx.enemySide, ek = ctx.enemyKey, side = ctx.side, who = ctx.who, at = ctx.actionType, ab = ctx.ability;
     var charges = (a.states && a.states.vickyCharged) || 0;
     var isCargado = charges > 0;
-    var dmg = ab.damage || 2;
+    var baseDmg = ab.damage || 2;
 
-    if (isCargado) {
-      dmg += charges;
-      if (!a.states) a.states = {};
-      a.states.vickyCharged = 0;
-      logCombat('🎬 Desgaste cargado: +' + charges + ' daño por cargas acumuladas');
-    }
-
-    dmg = applyGenericDamageMods(a, dmg);
+    // ✅ Cargas se añaden como daño final (NO afectadas por cardDouble, Obra Maestra, etc.)
+    var dmg = applyGenericDamageMods(a, baseDmg, false, isCargado ? charges : 0);
     if (a.pendingBuff) ctx.pendingBuffConsumed = true;
     if (at === 'normal') { var ob = getOptimizationBonus(side); if (ob > 0) { dmg += ob; logCombat('🏛️ Optimización: +' + ob); } }
+
+    if (isCargado) {
+      logCombat('🎬 Desgaste cargado: +' + charges + ' daño final');
+      if (!a.states) a.states = {};
+      a.states.vickyCharged = 0;
+      // ✅ Ahora sí: los items pendientes van al descarte (pueden volver a robarse)
+      if (a.pendingVickyItems && a.pendingVickyItems.length) {
+        if (!side.discardPile) side.discardPile = [];
+        a.pendingVickyItems.forEach(function(eqId){
+          side.discardPile.push(eqId);
+          var eq = CARD_DB[eqId];
+          logCombat('🗑️ Desgaste: ' + (eq ? eq.name : eqId) + ' va al descarte');
+        });
+        a.pendingVickyItems = [];
+      }
+    }
 
     var willMark = isCargado && !ea.dead;
     var resPre = willMark ? applyPreDamageResonanceBonus(a, ea, 'expresion', dmg) : { dmg: dmg, resonance: null };
@@ -1650,11 +1668,12 @@ var ACTION_HANDLERS = {
       return;
     }
     var count = eq.length;
-    if (!side.discardPile) side.discardPile = [];
+    // ✅ Los items NO van al descarte todavía: quedan pendientes hasta que Desgaste se use
+    if (!a.pendingVickyItems) a.pendingVickyItems = [];
     eq.forEach(function(eqId){
-      side.discardPile.push(eqId);
+      a.pendingVickyItems.push(eqId);
       var eqCard = CARD_DB[eqId];
-      logCombat('💥 Sobrecarga: consume ' + (eqCard ? eqCard.name : eqId));
+      logCombat('🎬 Sobrecarga: ' + (eqCard ? eqCard.name : eqId) + ' cargado (pendiente de descarte)');
     });
     a.equipment = [];
     if (!a.states) a.states = {};
@@ -1683,9 +1702,11 @@ var ACTION_HANDLERS = {
     });
     logCombat('💥 Liquidación: ' + count + ' equipación(es) descartada(s)');
 
-    var baseDmg = applyObraMaestraToBase(a, ctx.ability, ctx.actionType, count);
-    var dmg = applyGenericDamageMods(a, baseDmg);
+    // ✅ Base 0. Modificadores aplican solo a la base. Cartas se añaden al final.
+    var baseDmg = 0;
+    var dmg = applyGenericDamageMods(a, baseDmg, false, count);
     if (a.pendingBuff) ctx.pendingBuffConsumed = true;
+    logCombat('💥 Liquidación: +' + count + ' daño final por cartas descartadas');
 
     var willMark = !ea.dead;
     var resPre = willMark ? applyPreDamageResonanceBonus(a, ea, 'expresion', dmg) : { dmg: dmg, resonance: null };
