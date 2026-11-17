@@ -303,8 +303,12 @@ var CHARACTERS = {
           'Engranajes consumidos por golpe: 1'
         ] },
       { type:'ultimate', icon:'💥', name:'Desmantelamiento',
-        description:'Requiere que la estructura **Fuente de Alimentación** esté activa. Destruye todas las demás estructuras aliadas y transforma todos sus usos o rondas restantes en engranajes para la Fuente.',
-        attributes: ['Coste: 2 dados de Comprensión + 2 puntos de energía','Engranajes obtenidos por uso/ronda restante: 1'] },
+        description:'Requiere que la estructura **Fuente de Alimentación** esté activa. Destruye todas las demás estructuras aliadas y transforma todos sus usos o rondas restantes en engranajes para la Fuente. Las estructuras permanentes (sin duración real) otorgan 3 engranajes cada una.',
+        attributes: [
+          'Coste: 2 dados de Comprensión + 2 puntos de energía',
+          'Engranajes obtenidos por uso/ronda restante: 1',
+          'Engranajes por estructura permanente (sin duración): 3'
+        ] },
       { type:'passive', icon:'🛡️', name:'Circuito Optimizado',
         description:'Si la estructura **Fuente de Alimentación** está activa, reduce en 3 el coste en dados de su habilidad elemental. Además, usar **Energización** con la Fuente activa no otorga energía y se considera **acción rápida**.',
         attributes: null },
@@ -323,24 +327,25 @@ var CHARACTERS = {
     ],
     abilities: [
       { type:'normal', icon:'⚔️', name:'Desgaste',
-        description:'Inflige daño leve al enemigo activo. Si tiene **cargas** acumuladas de **Sobrecarga**, las consume todas: cada carga añade 1 punto de daño al golpe y marca al enemigo con **Expresión**.',
+        description:'Inflige daño leve al enemigo activo. Si tiene **cargas** acumuladas de **Sobrecarga**, las consume todas: cada carga potencia el daño del ataque, y marca al enemigo con **Expresión**. Al consumirlas, las equipaciones pendientes pasan al descarte.',
         attributes: [
           'Coste: 1 dado de Expresión + 2 dados cualesquiera',
           'Daño base: 2',
           'Daño adicional por carga acumulada: 1'
         ] },
       { type:'elemental', icon:'🔮', name:'Sobrecarga',
-        description:'Consume todo el equipamiento de Vicky para acumular cargas (1 carga por equipación consumida). Las cargas se acumulan entre usos y se consumen con su ataque normal. Es posible equipar nuevas piezas y volver a usar **Sobrecarga** para acumular más cargas.',
+        description:'Consume todo el equipamiento equipado de Vicky para acumular cargas. Las equipaciones quedan **pendientes** (no van al descarte) hasta que Vicky use su ataque normal. Las cargas se acumulan entre usos y se consumen con **Desgaste**. Es posible equipar nuevas piezas y volver a usar **Sobrecarga** para acumular más cargas.',
         attributes: [
           'Coste: 3 dados de Expresión',
           'Cargas por equipación consumida: +1',
-          'Requiere al menos 1 equipación equipada'
+          'Requiere al menos 1 equipación equipada',
+          'Las equipaciones consumidas pasan al descarte solo al usar Desgaste'
         ] },
       { type:'ultimate', icon:'💥', name:'Liquidación',
         description:'Solo puede usarse si hay al menos una carta de equipamiento en la mano. Descarta todas las cartas de equipamiento de la mano e inflige al enemigo activo daño equivalente a la cantidad descartada, marcándolo con **Expresión**.',
         attributes: [
           'Coste: 4 dados de Expresión + 2 puntos de energía',
-          'Daño base por carta de equipamiento descartada: 1',
+          'Daño por carta de equipamiento descartada: 1',
           'Requiere al menos 1 carta de equipamiento en la mano'
         ] },
       { type:'passive', icon:'🛡️', name:'Aprovechamiento',
