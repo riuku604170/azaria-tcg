@@ -329,14 +329,27 @@ function applyRoundStartEffects(who) {
   var msgs = [];
   if (cons.type === 'diverse') { for (var i = 0; i < 2; i++) side.dice.push({ type:'omni', id:uid(), justAdded:true }); msgs.push('🌈 Diverso: +2 omnidados'); }
   else if (cons.element === 'proteccion') { if (cons.level === 3) { side.characters.forEach(function(c){ if (!c.dead) addOrRefreshShield(c, 'consonance_proteccion', 1); }); msgs.push('🛡️ Protección: +1 escudo a todo el equipo'); } else { var a = side.characters[side.activeIndex]; if (a && !a.dead) { addOrRefreshShield(a, 'consonance_proteccion', 1); msgs.push('🛡️ Protección: +1 escudo al activo'); } } }
-  else if (cons.element === 'aceptacion') { if (cons.level === 3) { side.characters.forEach(function(c){ if (!c.dead) c.hp = Math.min(c.maxHp, c.hp + 1); }); msgs.push('🌿 Aceptación: +1 HP a todo el equipo'); } else { var a2 = side.characters[side.activeIndex]; if (a2 && !a2.dead) { a2.hp = Math.min(a2.maxHp, a2.hp + 1); msgs.push('🌿 Aceptación: +1 HP al activo'); } } }
+  else if (cons.element === 'aceptacion') { if (cons.level === 3) { side.characters.forEach(function(c){ if (!c.dead) { c.hp = Math.min(c.maxHp, c.hp + 1); if (c.id === 'felicia' && typeof updateFeliciaDrogada === 'function') updateFeliciaDrogada(c); } }); msgs.push('🌿 Aceptación: +1 HP a todo el equipo'); } else { var a2 = side.characters[side.activeIndex]; if (a2 && !a2.dead) { a2.hp = Math.min(a2.maxHp, a2.hp + 1); if (a2.id === 'felicia' && typeof updateFeliciaDrogada === 'function') updateFeliciaDrogada(a2); msgs.push('🌿 Aceptación: +1 HP al activo'); } } }
+  else if (cons.element === 'comprension' && cons.level === 3) {
+    // ✅ Nivel 3: +1 energía al activo al principio de CADA ronda
+    var aC = side.characters[side.activeIndex];
+    if (aC && !aC.dead) {
+      var pEnC = aC.energy;
+      aC.energy = Math.min(aC.maxEnergy, aC.energy + 1);
+      if (aC.energy > pEnC) msgs.push('💡 Comprensión (3): +1 energía al activo');
+    }
+  }
   return msgs;
 }
 function applyComprensionStart(who) {
   var side = combatState[who], cons = side.consonance;
   if (!cons || cons.type !== 'single' || cons.element !== 'comprension') return null;
-  if (cons.level === 3) { side.characters.forEach(function(c){ if (!c.dead) c.energy = Math.min(c.maxEnergy, c.energy + 1); }); return '💡 Comprensión: +1 energía a todo el equipo'; }
-  else { var a = side.characters[side.activeIndex]; if (a && !a.dead) { a.energy = Math.min(a.maxEnergy, a.energy + 1); return '💡 Comprensión: +1 energía al activo'; } }
+  // ✅ Nivel 2: +1 energía a TODOS los aliados al inicio de la partida (ronda 1)
+  //    Nivel 3 se gestiona en applyRoundStartEffects (cada ronda, solo activo)
+  if (cons.level === 2) {
+    side.characters.forEach(function(c){ if (!c.dead) c.energy = Math.min(c.maxEnergy, c.energy + 1); });
+    return '💡 Comprensión (2): +1 energía a todo el equipo';
+  }
   return null;
 }
 function applyEquipmentRoundStartEffects(who) {
@@ -347,7 +360,7 @@ function applyEquipmentRoundStartEffects(who) {
     cs.equipment.forEach(function(eqId){
       var eq = CARD_DB[eqId]; if (!eq || !eq.effect) return;
       var flashed = false;
-      if (eq.effect.healPerRound) { var b = cs.hp; cs.hp = Math.min(cs.maxHp, cs.hp + eq.effect.healPerRound); if (cs.hp > b) { logCombat('🎴 ' + eq.name + ': +' + (cs.hp - b) + ' HP'); if (!flashed) { flashCharCard(who, csIdx, '+' + (cs.hp - b) + ' HP', '#7aff9a'); flashed = true; } } }
+      if (eq.effect.healPerRound) { var b = cs.hp; cs.hp = Math.min(cs.maxHp, cs.hp + eq.effect.healPerRound); if (cs.hp > b) { logCombat('🎴 ' + eq.name + ': +' + (cs.hp - b) + ' HP'); if (!flashed) { flashCharCard(who, csIdx, '+' + (cs.hp - b) + ' HP', '#7aff9a'); flashed = true; } if (cs.id === 'felicia' && typeof updateFeliciaDrogada === 'function') updateFeliciaDrogada(cs); } }
       if (eq.effect.energyPerRound) { var p = cs.energy; cs.energy = Math.min(cs.maxEnergy, cs.energy + eq.effect.energyPerRound); if (cs.energy > p) { logCombat('🎴 ' + eq.name + ': +' + (cs.energy - p) + ' energía'); if (!flashed) { flashCharCard(who, csIdx, '+' + (cs.energy - p) + ' ⚡', '#f0c860'); flashed = true; } } }
       if (eq.effect.elementDicePerRound && who === 'player') { for (var i = 0; i < eq.effect.elementDicePerRound; i++) side.dice.push({ type:cs.character.element, id:uid(), justAdded:true }); flashCharCard(who, csIdx, '+' + eq.effect.elementDicePerRound + ' 🎲', '#a583ff'); }
       if (eq.effect.elementDicePerRound && who === 'bot' && combatState.pvp) { for (var i2 = 0; i2 < eq.effect.elementDicePerRound; i2++) side.dice.push({ type:cs.character.element, id:uid(), justAdded:true }); flashCharCard(who, csIdx, '+' + eq.effect.elementDicePerRound + ' 🎲', '#a583ff'); }
@@ -386,7 +399,7 @@ function applySupportEndOfRoundEffects(who) {
     var suppSel = '#' + (who === 'player' ? 'player' : 'bot') + 'SupportsGrid .side-slot-filled[data-slot="' + i + '"]';
     var flashed = false;
     var _flashSupp = function(txt, col) { if (!flashed) { flashCombatElement(suppSel, txt, col); flashed = true; } };
-    if (e.healPerRound && active && !active.dead) { var b = active.hp; active.hp = Math.min(active.maxHp, active.hp + e.healPerRound); if (active.hp > b) { logCombat('📜 ' + card.name + ': +' + (active.hp - b) + ' HP'); _flashSupp('+' + (active.hp - b) + ' HP', '#7aff9a'); } }
+    if (e.healPerRound && active && !active.dead) { var b = active.hp; active.hp = Math.min(active.maxHp, active.hp + e.healPerRound); if (active.hp > b) { logCombat('📜 ' + card.name + ': +' + (active.hp - b) + ' HP'); _flashSupp('+' + (active.hp - b) + ' HP', '#7aff9a'); if (active.id === 'felicia' && typeof updateFeliciaDrogada === 'function') updateFeliciaDrogada(active); } }
     if (e.drawPerRound && who === 'player') { for (var d = 0; d < e.drawPerRound; d++) drawFromDeck(who); _flashSupp('+1 🎴', '#a583ff'); }
     if (e.drawPerRound && who === 'bot' && combatState.pvp) { for (var d2 = 0; d2 < e.drawPerRound; d2++) drawFromDeck(who); _flashSupp('+1 🎴', '#a583ff'); }
     if (e.teamHealPerRound) { side.characters.forEach(function(cs){ if (!cs.dead) cs.hp = Math.min(cs.maxHp, cs.hp + e.teamHealPerRound); }); _flashSupp('+' + e.teamHealPerRound + ' equipo', '#7aff9a'); }
@@ -840,19 +853,8 @@ function computeBaseDamageForAbility(attackerCs, ability, actionType) {
       return fDmg;
     }
     case 'davidNormal': return 1 + (combatState._currentIsCounterAttack ? 1 : 0);
-    case 'vickyNormal': {
-      var vickyBase = ability.damage || 2;
-      if (attackerCs.states && attackerCs.states.vickyCharged > 0) {
-        vickyBase += attackerCs.states.vickyCharged;
-      }
-      return vickyBase;
-    }
-    case 'vickyLiquidacion': {
-      var vickyLiquidSide = (combatState.player.characters.indexOf(attackerCs) >= 0) ? combatState.player : combatState.bot;
-      return (vickyLiquidSide.hand || []).filter(function(cid){
-        var c = CARD_DB[cid]; return c && c.category === 'equipo';
-      }).length;
-    }
+    case 'vickyNormal': return ability.damage || 2;
+    case 'vickyLiquidacion': return 0;
     default: return 0;
   }
 }
@@ -1050,7 +1052,7 @@ function getEffectiveAbilityCost(active, cost) {
   Object.keys(cost).forEach(function(k){ if (k === 'any' || k === 'same') return; var r3 = Math.min(cost[k], rem); if (cost[k] - r3 > 0) res[k] = cost[k] - r3; rem -= r3; });
   return res;
 }
-function applyGenericDamageMods(active, dmg, isElemental) {
+function applyGenericDamageMods(active, dmg, isElemental, extraDamage) {
   var add = 0;
   if (active.pendingBuff) { add += active.pendingBuff; logCombat('💪 Impulso: +' + active.pendingBuff); }
   if (active.cardNextAttackBonus) { add += active.cardNextAttackBonus; logCombat('🎴 Carta: +' + active.cardNextAttackBonus); }
@@ -1061,7 +1063,10 @@ function applyGenericDamageMods(active, dmg, isElemental) {
   }
   var base = dmg + add;
   if (active.cardNextAttackDouble) { base *= 2; logCombat('🎴 Daño duplicado'); }
-  if (combatState && dmg > 0) {
+  // ✅ Vicky: si el ataque tiene "daño de cartas" (extraDamage > 0), el bloque de consonancia
+  // debe ejecutarse aunque dmg=0 (liquidación con base 0)
+  var hasDamage = dmg > 0 || (extraDamage && extraDamage > 0);
+  if (combatState && hasDamage) {
     var side = combatState.player.characters.indexOf(active) >= 0 ? combatState.player : combatState.bot;
     var consR = side.consonance;
     if (consR && consR.type === 'single' && consR.element === 'redencion' && !side.firstAttackUsed) {
@@ -1075,6 +1080,8 @@ function applyGenericDamageMods(active, dmg, isElemental) {
       logCombat('💥 Omnes Deam Salutate: +' + side.alterUltBuff.amount + ' daño');
     }
   }
+  // ✅ Daño de cartas (cargas de Vicky, cartas de Liquidación): se añade DESPUÉS de los modificadores
+  if (extraDamage && extraDamage > 0) base += extraDamage;
   return base;
 }
 
@@ -1504,7 +1511,17 @@ function updateBotMood() {
 /* ─── Estimaciones ─── */
 function botEstimateEffectiveDamage(active, ability, actionType) {
   var baseDmg = computeBaseDamageForAbility(active, ability, actionType);
-  if (baseDmg <= 0) return { damage: 0, trueDmg: 0, piercing: false, kill: false };
+  // ✅ Vicky: el daño de cartas (cargas / descartes) NO es base, se añade al final
+  var vickyCardsDmg = 0;
+  if (ability.kind === 'vickyNormal' && active.states && active.states.vickyCharged > 0) {
+    vickyCardsDmg = active.states.vickyCharged;
+  } else if (ability.kind === 'vickyLiquidacion') {
+    var bSideV = (combatState.player.characters.indexOf(active) >= 0) ? combatState.player : combatState.bot;
+    vickyCardsDmg = (bSideV.hand || []).filter(function(cid){
+      var c = CARD_DB[cid]; return c && c.category === 'equipo';
+    }).length;
+  }
+  if (baseDmg <= 0 && vickyCardsDmg <= 0) return { damage: 0, trueDmg: 0, piercing: false, kill: false };
   var enemyActive = combatState.player.characters[combatState.player.activeIndex];
   if (!enemyActive) {
     enemyActive = combatState.player.characters.find(function(c){ return !c.dead; });
@@ -1520,7 +1537,12 @@ function botEstimateEffectiveDamage(active, ability, actionType) {
   est += getSupportAttackBonus(combatState.bot);
   if (actionType === 'normal') est += getOptimizationBonus(combatState.bot);
   if (active.id === 'erik') est += applyErikPassive(active);
-  if (actionType === 'ultimate') est = applyObraMaestraToBase(active, ability, actionType, est);
+  // ✅ Obra Maestra NO se aplica a Liquidación (el daño de cartas no es base)
+  if (actionType === 'ultimate' && ability.kind !== 'vickyLiquidacion') {
+    est = applyObraMaestraToBase(active, ability, actionType, est);
+  }
+  // ✅ Vicky: daño de cartas se añade ANTES de reducciones (coherente con dealDamageToChar)
+  est += vickyCardsDmg;
   est = Math.max(0, est - getDamageReduction(enemyActive, combatState.player));
   if (csHasState(enemyActive, 'vulnerable') && est > 0) est -= 1;
   var shield = totalShield(enemyActive);
@@ -3176,12 +3198,22 @@ function previewPlayerAction(actionType) {
   preview.shieldSelf = predictShieldGain(ability);
   preview.reflectDmg = getReflectDamage(enemySide);
 
+  // ✅ Vicky: daño de cartas calculado aparte (no es base)
+  if (ability.kind === 'vickyNormal' && active.states && active.states.vickyCharged > 0) {
+    preview.vickyCardsDmg = active.states.vickyCharged;
+  }
+  if (ability.kind === 'vickyLiquidacion') {
+    preview.vickyCardsDmg = (side.hand || []).filter(function(cid){
+      var c = CARD_DB[cid]; return c && c.category === 'equipo';
+    }).length;
+  }
+
   var applyGeneric = [
     'damage','trazoVivo','intervencion','aceleron','instinto','deudaSangre','graciaPicara','cosecha','rocePosible','pilarFundamental',
     'zasca','allEyesOnMe','littleBooBoo','sueloALaCara','vittoriaNormal','hotToGo','theWorldIsMine','sublevacion','petiteEtoile','feliciaNormal','davidNormal',
     'vickyNormal','vickyLiquidacion'
   ].indexOf(ability.kind) !== -1;
-  if (ability.target === 'enemy' && preview.baseDmg > 0 && target) {
+  if (ability.target === 'enemy' && (preview.baseDmg > 0 || (preview.vickyCardsDmg && preview.vickyCardsDmg > 0)) && target) {
     if (applyGeneric) {
       var gb = getGenericBonuses(active);
       preview.buffDmg = gb.pendingBuff;
@@ -3216,7 +3248,7 @@ function previewPlayerAction(actionType) {
     var coreDmg = preview.baseDmg + (preview.carrerillaBonus || 0);
     if (active.cardNextAttackDouble && applyGeneric) coreDmg *= 2;
     if (preview.obraMaestraDmg > 0) coreDmg += preview.obraMaestraDmg;
-    var raw = coreDmg + preview.buffDmg + preview.cardBonus + preview.equipDmg + preview.supportDmg + preview.optimizationDmg + preview.erikBonus + preview.markBonus + preview.redencionDmg + (preview.alterBuffDmg || 0);
+    var raw = coreDmg + preview.buffDmg + preview.cardBonus + preview.equipDmg + preview.supportDmg + preview.optimizationDmg + preview.erikBonus + preview.markBonus + preview.redencionDmg + (preview.alterBuffDmg || 0) + (preview.vickyCardsDmg || 0);
     if (preview.notes.indexOf('🔥 Furia: +1') !== -1) raw += 1;
     preview.rawDmg = raw;
     preview.flatReduction = getDamageReduction(target, enemySide);
@@ -3492,8 +3524,11 @@ function previewPlayerAction(actionType) {
   if (ability.kind === 'vickyNormal') {
     var vCharges = (active.states && active.states.vickyCharged) || 0;
     if (vCharges > 0) {
-      preview.notes.push('🎬 Cargado: +' + vCharges + ' daño por cargas acumuladas');
+      preview.notes.push('🎬 Cargado: +' + vCharges + ' daño final (no afectado por modificadores de base)');
       preview.notes.push('🎬 Marca Expresión');
+      if (active.pendingVickyItems && active.pendingVickyItems.length) {
+        preview.notes.push('🗑️ ' + active.pendingVickyItems.length + ' equipación(es) pasarán al descarte');
+      }
     }
   }
   if (ability.kind === 'vickySobrecarga') {
@@ -3502,15 +3537,16 @@ function previewPlayerAction(actionType) {
     if (vEqConsume > 0) {
       preview.notes.push('🎬 Consumirá ' + vEqConsume + ' equipación(es) → +' + vEqConsume + ' carga(s)');
       preview.notes.push('🎬 Cargas tras usar: ' + (vCurrentCh + vEqConsume));
+      preview.notes.push('🗑️ Las equipaciones quedarán pendientes hasta usar Desgaste');
     } else {
       preview.notes.push('🎬 Sin equipamiento que consumir');
     }
   }
   if (ability.kind === 'vickyLiquidacion') {
-    var vLiqHand = (side.hand || []).filter(function(cid){ 
-      var c = CARD_DB[cid]; return c && c.category === 'equipo'; 
-    }).length;
-    preview.notes.push('🗑️ Descartará ' + vLiqHand + ' carta(s) de equipamiento');
+    preview.notes.push('🗑️ El daño de cartas (' + (preview.vickyCardsDmg || 0) + ') se añade al daño final (no afectado por modificadores de base)');
+  }
+  if (ability.kind === 'vickyLiquidacion') {
+    preview.notes.push('🗑️ Descartará ' + (preview.vickyCardsDmg || 0) + ' carta(s) de equipamiento');
   }
   if (ability.kind === 'cosecha') {
     var cosechaCounterP = (active.states && active.states.cosechaCounter) || 0;
