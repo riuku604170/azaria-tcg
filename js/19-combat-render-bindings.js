@@ -48,6 +48,12 @@ function renderTeamCards(who) {
   var containerId = who === 'player' ? 'playerTeam' : 'botTeam';
   var c = document.getElementById(containerId); if (!c) return;
   var side = combatState[actualWho];
+  // ✅ Safety net: sincronizar Drogada antes de pintar (cubre cualquier path de curación que no pase por healChar)
+  side.characters.forEach(function(cs){
+    if (cs.id === 'felicia' && !cs.dead && typeof updateFeliciaDrogada === 'function') {
+      updateFeliciaDrogada(cs);
+    }
+  });
   side.characters.forEach(function(cs){
     if (!cs.character) {
       console.warn('[renderTeamCards] cs.character undefined para', cs.id, '— aplicando fallback');
