@@ -3,6 +3,17 @@
 // ═══════════ NOVEDADES (parches) ═══════════
 var PATCHES = [
 {
+  version: 'BETA 1.11',
+  date: '2026-11-17',
+  type: 'minor',
+  title: 'Arreglos y rebalances',
+  changes: [
+    'Arreglados bugs de algunos personajes.',
+    'Rebalanceados Vicky y Amsa.',
+    'Cambios en algunas consoancias y resonancias.'
+  ]  
+},
+{
   version: 'BETA 1.10',
   date: '2026-11-16',
   type: 'minor',
@@ -154,6 +165,16 @@ var PATCHES = [
 // Cada anuncio necesita un `id` único. El más reciente debe ir PRIMERO.
 // Al añadir uno nuevo arriba, el badge ! aparecerá automáticamente.
 var ANNOUNCEMENTS = [
+{
+  id: 'ann_2026_11_15_1',
+  date: '2026-11-15',
+  icon: '',
+  title: 'Futuros personajes 👤',
+  body: [
+    'Siguientes usuarios: Víctor y Gabo.',
+    'Futuros personajes de la novela original: Alaya, Laila, Ryan, Cyro, Percy, Erika, Jacer y Mercy.'
+  ]
+},
 {
   id: 'ann_2026_11_15_1',
   date: '2026-11-15',
