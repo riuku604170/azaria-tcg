@@ -343,7 +343,11 @@ function applyResonanceEffect(elA, elB, who, targetSideKey) {
     /* ── ACEPTACIÓN ── */
     case 'Serenidad': {
       var alive = side.characters.filter(function(c){ return !c.dead; });
-      if (alive.length) { alive.sort(function(a,b){ return a.hp - b.hp; }); alive[0].hp = Math.min(alive[0].maxHp, alive[0].hp + 2); }
+      if (alive.length) {
+        alive.sort(function(a,b){ return a.hp - b.hp; });
+        alive[0].hp = Math.min(alive[0].maxHp, alive[0].hp + 2);
+        if (alive[0].id === 'felicia' && typeof updateFeliciaDrogada === 'function') updateFeliciaDrogada(alive[0]);
+      }
       break;
     }
     case 'Absolución':
